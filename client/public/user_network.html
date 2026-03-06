@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Network — Your Earth</title>
+<style>
+:root {
+  --bg:#050a14;--panel:rgba(6,13,26,0.94);--border:#1a2f45;
+  --dim:#3a5a7a;--mid:#6a8fa8;--text:#a0c4d8;--accent:#7ab3cc;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;overflow:hidden;width:100vw;height:100vh;}
+#canvas-3d{display:block;position:absolute;inset:0;}
+#canvas-2d{display:block;position:absolute;inset:0;cursor:grab;}
+#canvas-2d:active{cursor:grabbing;}
+.view-hidden{opacity:0;pointer-events:none;}
+#avatar-layer{position:absolute;inset:0;pointer-events:none;z-index:2;}
+
+#view-toggle{position:fixed;top:12px;left:12px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
+#view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
+#view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
+#view-toggle button:hover:not(.active){color:var(--text);}
+
+#rotate-btn{position:fixed;bottom:18px;left:22px;padding:7px 14px;border:1px solid var(--border);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.2em;color:var(--mid);background:var(--panel);cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);display:flex;align-items:center;gap:7px;z-index:10;}
+#rotate-btn:hover{border-color:var(--accent);color:var(--accent);}
+#rotate-btn.active{border-color:#4a9a7a;color:#4a9a7a;}
+#rotate-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+#map-controls{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:20;}
+#map-controls.visible{display:flex;}
+#map-controls button{padding:5px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);}
+#map-controls button:hover{border-color:var(--accent);color:var(--accent);}
+
+#hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--dim);letter-spacing:.15em;pointer-events:none;}
+#stat-bar{position:fixed;top:52px;left:22px;display:flex;gap:14px;pointer-events:none;z-index:10;}
+.stat-chip{font-size:8px;letter-spacing:.15em;color:var(--dim);border:1px solid var(--border);padding:3px 8px;background:rgba(6,13,26,.8);backdrop-filter:blur(6px);}
+.stat-chip span{color:var(--accent);}
+
+#panel{position:fixed;top:0;right:0;bottom:0;width:220px;background:var(--panel);border-left:1px solid var(--border);backdrop-filter:blur(12px);display:flex;flex-direction:column;z-index:10;}
+#panel-head{padding:18px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+#panel-head h2{font-size:9px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase;font-weight:400;}
+#toggle-all{font-size:8px;letter-spacing:.12em;color:var(--dim);background:none;border:1px solid var(--border);font-family:'Courier New',monospace;padding:3px 8px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
+#toggle-all:hover{border-color:var(--accent);color:var(--accent);}
+#panel-scroll{overflow-y:auto;flex:1;padding:4px 0 16px;}
+#panel-scroll::-webkit-scrollbar{width:3px;}
+#panel-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+.sec-wrap{border-top:1px solid var(--border);margin-top:4px;}
+.sec-wrap:first-child{border-top:none;margin-top:0;}
+.sec{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 5px;cursor:pointer;user-select:none;}
+.sec-label{font-size:8px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;}
+.sec-tog{font-size:9px;color:var(--dim);transition:color .15s;padding:0 2px;}
+.sec-wrap:hover .sec-tog{color:var(--accent);}
+.sec-wrap.collapsed .row{display:none;}
+
+.row{display:flex;align-items:center;gap:8px;padding:5px 16px;cursor:pointer;transition:background .15s;}
+.row:hover{background:rgba(255,255,255,.025);}
+.row.off .sw{opacity:.22;}.row.off .rl{color:var(--dim);}.row.off .rc{opacity:.25;}
+.row.highlighted{background:rgba(122,179,204,.08);}
+.sw{flex-shrink:0;}.sw.dot{width:8px;height:8px;border-radius:50%;}.sw.line{width:16px;height:3px;border-radius:1.5px;}.sw.arc{width:14px;height:8px;border:2px solid;border-bottom:none;border-radius:8px 8px 0 0;box-sizing:border-box;}
+.rl{font-size:10px;color:var(--mid);letter-spacing:.03em;flex:1;line-height:1.3;}
+.rc{font-size:9px;color:var(--dim);flex-shrink:0;}
+.tog{flex-shrink:0;width:24px;height:12px;background:var(--border);border-radius:6px;position:relative;transition:background .2s;}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--dim);transition:transform .2s,background .2s;}
+.row:not(.off) .tog{background:rgba(122,179,204,.3);}
+.row:not(.off) .tog::after{transform:translateX(12px);background:var(--accent);}
+
+#card{position:fixed;pointer-events:none;background:rgba(4,9,20,.97);border:1px solid var(--border);width:230px;display:none;z-index:60;backdrop-filter:blur(12px);}
+#card .card-bar{height:3px;width:100%;}
+#card .card-top{display:flex;align-items:center;gap:10px;padding:12px 14px 8px;}
+#card .card-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;letter-spacing:.04em;flex-shrink:0;}
+#card .card-info{flex:1;min-width:0;}
+#card .card-name{font-size:12px;color:#d8eef8;font-weight:700;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#card .card-loc{font-size:8px;color:var(--dim);letter-spacing:.1em;margin-top:2px;}
+#card .card-role-badge{display:inline-block;font-size:7px;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;border-radius:2px;margin-top:4px;}
+#card .card-body{padding:4px 14px 12px;}
+#card .card-bio{font-size:9px;color:var(--mid);line-height:1.5;letter-spacing:.03em;margin-bottom:8px;}
+#card .card-conns-title{font-size:7px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-bottom:4px;}
+#card .card-conn-item{font-size:8px;color:var(--mid);letter-spacing:.04em;padding:2px 0;display:flex;justify-content:space-between;}
+#card .card-conn-type{font-size:7px;color:var(--dim);letter-spacing:.08em;}
+
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:100;}
+#loading p{font-size:9px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;}
+.bar-wrap{width:160px;height:2px;background:var(--border);border-radius:1px;}
+.bar{height:100%;width:0%;background:var(--accent);border-radius:1px;transition:width .3s;}
+</style>
+</head>
+<body>
+
+<canvas id="canvas-3d"></canvas>
+<canvas id="canvas-2d" class="view-hidden"></canvas>
+<canvas id="avatar-layer"></canvas>
+
+<div id="view-toggle">
+  <button id="view-btn-globe" class="active">Globe</button>
+  <button id="view-btn-flat">2D Map</button>
+</div>
+<button id="rotate-btn"><span class="dot"></span><span id="rotate-label">AUTO ROTATE</span></button>
+<div id="map-controls">
+  <button id="zoom-in">+ Zoom</button>
+  <button id="zoom-out">− Zoom</button>
+  <button id="reset-v">Reset</button>
+</div>
+
+<div id="stat-bar">
+  <div class="stat-chip">MEMBERS <span id="stat-users">40</span></div>
+  <div class="stat-chip">CONNECTIONS <span id="stat-conns">65</span></div>
+  <div class="stat-chip">VISIBLE <span id="stat-visible">40</span></div>
+</div>
+
+<div id="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
+
+<div id="panel">
+  <div id="panel-head"><h2>Network</h2><button id="toggle-all">All Off</button></div>
+  <div id="panel-scroll"></div>
+</div>
+
+<div id="card">
+  <div class="card-bar" id="card-bar"></div>
+  <div class="card-top">
+    <div class="card-avatar" id="card-avatar"></div>
+    <div class="card-info">
+      <div class="card-name" id="card-name"></div>
+      <div class="card-loc" id="card-loc"></div>
+      <div class="card-role-badge" id="card-role"></div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="card-bio" id="card-bio"></div>
+    <div class="card-conns-title">CONNECTIONS (<span id="card-conn-count"></span>)</div>
+    <div id="card-conns-list"></div>
+  </div>
+</div>
+
+<div id="loading">
+  <p id="load-msg">Initialising</p>
+  <div class="bar-wrap"><div class="bar" id="load-bar"></div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+const USERS=[
+{id:"u1", name:"Alex Chen",       city:"San Francisco",country:"US",lat:37.77,lon:-122.42,role:"engineer",  bio:"Climate tech lead at solar startup"},
+{id:"u2", name:"Jordan Rivera",   city:"New York",     country:"US",lat:40.71,lon:-74.01, role:"researcher",bio:"Atmospheric science at Columbia"},
+{id:"u3", name:"Emma Williams",   city:"London",       country:"GB",lat:51.51,lon:-0.13,  role:"policy",    bio:"Climate policy advisor at COP"},
+{id:"u4", name:"Lukas Müller",    city:"Berlin",       country:"DE",lat:52.52,lon:13.41,  role:"engineer",  bio:"Renewable energy grid systems"},
+{id:"u5", name:"Sophie Dubois",   city:"Paris",        country:"FR",lat:48.86,lon:2.35,   role:"activist",  bio:"Youth climate organizer EU"},
+{id:"u6", name:"Yuki Tanaka",     city:"Tokyo",        country:"JP",lat:35.68,lon:139.69, role:"researcher",bio:"Ocean acidification studies"},
+{id:"u7", name:"Liam O'Brien",    city:"Sydney",       country:"AU",lat:-33.87,lon:151.21,role:"journalist",bio:"Climate correspondent Asia-Pac"},
+{id:"u8", name:"Ana Silva",       city:"São Paulo",    country:"BR",lat:-23.55,lon:-46.63,role:"activist",  bio:"Amazon rainforest conservation"},
+{id:"u9", name:"Oluwaseun Adeyemi",city:"Lagos",       country:"NG",lat:6.52, lon:3.38,   role:"educator",  bio:"Environmental education programs"},
+{id:"u10",name:"Wanjiku Mwangi",  city:"Nairobi",      country:"KE",lat:-1.29,lon:36.82,  role:"policy",    bio:"East Africa climate adaptation"},
+{id:"u11",name:"Priya Sharma",    city:"Mumbai",       country:"IN",lat:19.08,lon:72.88,  role:"engineer",  bio:"Solar microgrid innovation"},
+{id:"u12",name:"Wei Zhang",       city:"Beijing",      country:"CN",lat:39.90,lon:116.40, role:"researcher",bio:"Carbon capture R&D lab director"},
+{id:"u13",name:"Min-jun Park",    city:"Seoul",        country:"KR",lat:37.57,lon:126.98, role:"engineer",  bio:"EV battery technology lead"},
+{id:"u14",name:"Astrid Lindgren", city:"Stockholm",    country:"SE",lat:59.33,lon:18.07,  role:"policy",    bio:"Nordic climate council member"},
+{id:"u15",name:"Marco Rossi",     city:"Toronto",      country:"CA",lat:43.65,lon:-79.38, role:"researcher",bio:"Climate modeling & prediction"},
+{id:"u16",name:"Isabella García", city:"Mexico City",  country:"MX",lat:19.43,lon:-99.13, role:"activist",  bio:"Environmental justice advocate"},
+{id:"u17",name:"Thabo Ndlovu",    city:"Cape Town",    country:"ZA",lat:-33.93,lon:18.42, role:"educator",  bio:"Sustainability curriculum design"},
+{id:"u18",name:"Fatima Hassan",   city:"Cairo",        country:"EG",lat:30.04,lon:31.24,  role:"journalist",bio:"MENA climate reporting lead"},
+{id:"u19",name:"Omar Al-Rashid",  city:"Dubai",        country:"AE",lat:25.20,lon:55.27,  role:"engineer",  bio:"Green building & smart cities"},
+{id:"u20",name:"Mei Lin Tan",     city:"Singapore",    country:"SG",lat:1.35, lon:103.82, role:"policy",    bio:"ASEAN sustainability framework"},
+{id:"u21",name:"Somchai Prasert", city:"Bangkok",      country:"TH",lat:13.76,lon:100.50, role:"researcher",bio:"Monsoon & flood pattern analysis"},
+{id:"u22",name:"Rina Putri",      city:"Jakarta",      country:"ID",lat:-6.21,lon:106.85, role:"activist",  bio:"Coral reef protection network"},
+{id:"u23",name:"Aroha Ngata",     city:"Auckland",     country:"NZ",lat:-36.85,lon:174.76,role:"educator",  bio:"Indigenous climate knowledge"},
+{id:"u24",name:"Mateo Fernández", city:"Buenos Aires", country:"AR",lat:-34.60,lon:-58.38,role:"journalist",bio:"South American ecology writer"},
+{id:"u25",name:"Camila Rojas",    city:"Lima",         country:"PE",lat:-12.05,lon:-77.04,role:"policy",    bio:"Andean water resource policy"},
+{id:"u26",name:"Jan de Vries",    city:"Amsterdam",    country:"NL",lat:52.37,lon:4.90,   role:"engineer",  bio:"Flood defense & water systems"},
+{id:"u27",name:"Ingrid Solberg",  city:"Oslo",         country:"NO",lat:59.91,lon:10.75,  role:"researcher",bio:"Arctic ice sheet monitoring"},
+{id:"u28",name:"Ciara Murphy",    city:"Dublin",       country:"IE",lat:53.35,lon:-6.26,  role:"activist",  bio:"North Atlantic ocean protection"},
+{id:"u29",name:"Diego Martín",    city:"Madrid",       country:"ES",lat:40.42,lon:-3.70,  role:"educator",  bio:"Climate science curriculum lead"},
+{id:"u30",name:"Giulia Bianchi",  city:"Rome",         country:"IT",lat:41.90,lon:12.50,  role:"journalist",bio:"Mediterranean climate reporting"},
+{id:"u31",name:"Elif Yılmaz",     city:"Istanbul",     country:"TR",lat:41.01,lon:28.98,  role:"policy",    bio:"Cross-border climate agreements"},
+{id:"u32",name:"Dmitry Volkov",   city:"Moscow",       country:"RU",lat:55.76,lon:37.62,  role:"researcher",bio:"Permafrost & methane studies"},
+{id:"u33",name:"Valentina López", city:"Bogotá",       country:"CO",lat:4.71, lon:-74.07, role:"activist",  bio:"Tropical deforestation watchdog"},
+{id:"u34",name:"Sebastián Vega",  city:"Santiago",     country:"CL",lat:-33.45,lon:-70.67,role:"engineer",  bio:"Lithium mining sustainability"},
+{id:"u35",name:"Kwame Asante",    city:"Accra",        country:"GH",lat:5.60, lon:-0.19,  role:"educator",  bio:"Community climate resilience"},
+{id:"u36",name:"Maria Santos",    city:"Manila",       country:"PH",lat:14.60,lon:120.98, role:"journalist",bio:"Typhoon & disaster reporting"},
+{id:"u37",name:"Li Wei Chen",     city:"Taipei",       country:"TW",lat:25.03,lon:121.57, role:"engineer",  bio:"Smart grid & energy storage"},
+{id:"u38",name:"Aisha Rahman",    city:"Kuala Lumpur", country:"MY",lat:3.14, lon:101.69, role:"policy",    bio:"Palm oil sustainability policy"},
+{id:"u39",name:"Noah Thompson",   city:"Vancouver",    country:"CA",lat:49.28,lon:-123.12,role:"activist",  bio:"Old growth forest protection"},
+{id:"u40",name:"Maya Johnson",    city:"Chicago",      country:"US",lat:41.88,lon:-87.63, role:"researcher",bio:"Urban heat island mitigation"}
+];
+
+const CONNECTIONS=[
+{from:"u1",to:"u2",type:"colleague"},{from:"u1",to:"u39",type:"friend"},{from:"u1",to:"u15",type:"collaborator"},
+{from:"u1",to:"u11",type:"mentor"},{from:"u1",to:"u40",type:"colleague"},{from:"u2",to:"u3",type:"collaborator"},
+{from:"u2",to:"u6",type:"collaborator"},{from:"u2",to:"u40",type:"colleague"},{from:"u3",to:"u4",type:"colleague"},
+{from:"u3",to:"u5",type:"friend"},{from:"u3",to:"u14",type:"collaborator"},{from:"u3",to:"u28",type:"collaborator"},
+{from:"u4",to:"u26",type:"collaborator"},{from:"u4",to:"u27",type:"colleague"},{from:"u5",to:"u29",type:"friend"},
+{from:"u5",to:"u8",type:"collaborator"},{from:"u5",to:"u16",type:"friend"},{from:"u14",to:"u27",type:"colleague"},
+{from:"u14",to:"u26",type:"friend"},{from:"u27",to:"u32",type:"colleague"},{from:"u29",to:"u30",type:"colleague"},
+{from:"u30",to:"u31",type:"friend"},{from:"u28",to:"u29",type:"friend"},{from:"u18",to:"u10",type:"collaborator"},
+{from:"u18",to:"u31",type:"colleague"},{from:"u18",to:"u19",type:"friend"},{from:"u19",to:"u11",type:"collaborator"},
+{from:"u19",to:"u20",type:"colleague"},{from:"u9",to:"u10",type:"colleague"},{from:"u9",to:"u35",type:"collaborator"},
+{from:"u9",to:"u17",type:"mentor"},{from:"u10",to:"u17",type:"friend"},{from:"u6",to:"u12",type:"colleague"},
+{from:"u6",to:"u13",type:"collaborator"},{from:"u6",to:"u21",type:"mentor"},{from:"u12",to:"u37",type:"collaborator"},
+{from:"u12",to:"u32",type:"colleague"},{from:"u13",to:"u37",type:"friend"},{from:"u13",to:"u20",type:"collaborator"},
+{from:"u11",to:"u12",type:"colleague"},{from:"u11",to:"u38",type:"friend"},{from:"u20",to:"u22",type:"collaborator"},
+{from:"u20",to:"u38",type:"colleague"},{from:"u21",to:"u22",type:"colleague"},{from:"u21",to:"u36",type:"friend"},
+{from:"u22",to:"u36",type:"collaborator"},{from:"u36",to:"u38",type:"colleague"},{from:"u7",to:"u23",type:"friend"},
+{from:"u7",to:"u17",type:"colleague"},{from:"u7",to:"u24",type:"collaborator"},{from:"u8",to:"u33",type:"collaborator"},
+{from:"u8",to:"u25",type:"friend"},{from:"u8",to:"u24",type:"colleague"},{from:"u24",to:"u34",type:"colleague"},
+{from:"u25",to:"u34",type:"collaborator"},{from:"u33",to:"u16",type:"friend"},{from:"u15",to:"u39",type:"friend"},
+{from:"u15",to:"u40",type:"colleague"},{from:"u26",to:"u3",type:"collaborator"},{from:"u7",to:"u30",type:"colleague"},
+{from:"u35",to:"u17",type:"friend"},{from:"u16",to:"u25",type:"collaborator"},{from:"u37",to:"u1",type:"collaborator"},
+{from:"u23",to:"u34",type:"friend"},{from:"u1",to:"u37",type:"collaborator"}
+];
+
+const ROLE_CFG={
+  engineer:  {label:'Engineer',  color:[96,165,250], hex:'#60a5fa'},
+  researcher:{label:'Researcher',color:[167,139,250],hex:'#a78bfa'},
+  activist:  {label:'Activist',  color:[52,211,153], hex:'#34d399'},
+  policy:    {label:'Policy',    color:[251,191,36],  hex:'#fbbf24'},
+  educator:  {label:'Educator',  color:[248,113,113], hex:'#f87171'},
+  journalist:{label:'Journalist',color:[45,212,191],  hex:'#2dd4bf'}
+};
+const CONN_CFG={
+  collaborator:{label:'Collaborator',color:[96,165,250], hex:'#60a5fa'},
+  friend:      {label:'Friend',      color:[52,211,153], hex:'#34d399'},
+  mentor:      {label:'Mentor',      color:[251,191,36], hex:'#fbbf24'},
+  colleague:   {label:'Colleague',   color:[167,139,250],hex:'#a78bfa'}
+};
+
+const userMap={};USERS.forEach(u=>userMap[u.id]=u);
+function initials(n){return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
+function getUserConns(uid){return CONNECTIONS.filter(c=>c.from===uid||c.to===uid).map(c=>{const oid=c.from===uid?c.to:c.from;return{user:userMap[oid],type:c.type};}).filter(c=>c.user);}
+document.getElementById('stat-users').textContent=USERS.length;
+document.getElementById('stat-conns').textContent=CONNECTIONS.length;
+
+const vis={};
+Object.keys(ROLE_CFG).forEach(k=>vis[k]=true);
+Object.keys(CONN_CFG).forEach(k=>vis['c_'+k]=true);
+vis['borders']=true;
+let allOn=true;
+
+// ═══════════════════════════════════════════════
+// VIEW STATE
+// ═══════════════════════════════════════════════
+let is3D=true;
+const canvas3=document.getElementById('canvas-3d');
+const canvas2=document.getElementById('canvas-2d');
+
+// ═══════════════════════════════════════════════
+// WEBGL (3D GLOBE)
+// ═══════════════════════════════════════════════
+const gl=canvas3.getContext('webgl',{antialias:true,alpha:false});
+gl.getExtension('OES_element_index_uint');
+
+function resize3(){canvas3.width=window.innerWidth;canvas3.height=window.innerHeight;gl.viewport(0,0,canvas3.width,canvas3.height);}
+resize3();
+window.addEventListener('resize',()=>{resize3();resize2();resizeAvCanvas();if(is3D)draw3();else draw2();});
+
+function mkShader(t,s){const sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);return sh;}
+function mkProg(vs,fs){const p=gl.createProgram();gl.attachShader(p,mkShader(gl.VERTEX_SHADER,vs));gl.attachShader(p,mkShader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);return p;}
+function mkVBO(d){const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,d,gl.STATIC_DRAW);return b;}
+function mkIBO(d){const b=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,b);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(d),gl.STATIC_DRAW);return b;}
+
+const globeProg=mkProg(
+  `attribute vec3 aPos;uniform mat4 uMVP;varying vec3 vN;void main(){vN=aPos;gl_Position=uMVP*vec4(aPos,1.);}`,
+  `precision mediump float;varying vec3 vN;void main(){vec3 n=normalize(vN);float d=max(dot(n,normalize(vec3(1.2,1.6,.8))),0.);vec3 c=vec3(.018,.068,.148)+d*vec3(.025,.07,.14);float gLa=pow(abs(cos(asin(clamp(n.y,-1.,1.))*6.)),26.);float gLo=pow(abs(cos(atan(n.z,n.x)*6.)),26.);c=mix(c,c+vec3(.025,.05,.09),max(gLa,gLo)*.55);gl_FragColor=vec4(c,1.);}`
+);
+const ptProg=mkProg(
+  `attribute vec3 aPos;attribute vec3 aCol;attribute float aSz;uniform mat4 uMVP;uniform vec3 uEye;varying vec3 vCol;varying float vVis;void main(){vCol=aCol;vVis=dot(normalize(aPos),normalize(uEye));gl_Position=uMVP*vec4(aPos,1.);gl_PointSize=vVis>.05?aSz:0.;}`,
+  `precision mediump float;varying vec3 vCol;varying float vVis;void main(){if(vVis<.05)discard;vec2 c=gl_PointCoord-.5;if(dot(c,c)>.25)discard;float r=sqrt(dot(c,c));float core=1.-smoothstep(.0,.12,r);float ring=smoothstep(.12,.22,r)*(1.-smoothstep(.22,.25,r));float a=(core*.9+ring*.5)*min(vVis*3.,1.);gl_FragColor=vec4(vCol,a);}`
+);
+const lineProg=mkProg(
+  `attribute vec3 aPos;uniform mat4 uMVP;uniform vec3 uEye;uniform vec3 uCol;varying vec3 vC;varying float vF;void main(){vC=uCol;vF=dot(normalize(aPos),normalize(uEye));gl_Position=uMVP*vec4(aPos,1.);}`,
+  `precision mediump float;varying vec3 vC;varying float vF;uniform float uA;void main(){if(vF<.06)discard;gl_FragColor=vec4(vC,smoothstep(.06,.28,vF)*uA);}`
+);
+
+const m4=()=>new Float32Array(16);
+function mul4(o,a,b){for(let i=0;i<4;i++)for(let j=0;j<4;j++){o[j*4+i]=0;for(let k=0;k<4;k++)o[j*4+i]+=a[k*4+i]*b[j*4+k];}return o;}
+function persp(m,fov,asp,n,f){m.fill(0);const t=1/Math.tan(fov/2);m[0]=t/asp;m[5]=t;m[10]=(f+n)/(n-f);m[11]=-1;m[14]=2*f*n/(n-f);return m;}
+function lookAt(m,e,c,u){const z=n3(sub3(e,c)),x=n3(cross3(u,z)),y=cross3(z,x);m[0]=x[0];m[4]=x[1];m[8]=x[2];m[12]=-dot3(x,e);m[1]=y[0];m[5]=y[1];m[9]=y[2];m[13]=-dot3(y,e);m[2]=z[0];m[6]=z[1];m[10]=z[2];m[14]=-dot3(z,e);m[3]=m[7]=m[11]=0;m[15]=1;return m;}
+const sub3=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const dot3=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const n3=a=>{const l=Math.sqrt(dot3(a,a));return[a[0]/l,a[1]/l,a[2]/l];};
+function ll2xyz(lat,lon,r){const ph=(90-lat)*Math.PI/180,th=(lon+180)*Math.PI/180;return[-r*Math.sin(ph)*Math.cos(th),r*Math.cos(ph),r*Math.sin(ph)*Math.sin(th)];}
+function projPt(pt,VP){const[x,y,z]=pt,cx=VP[0]*x+VP[4]*y+VP[8]*z+VP[12],cy=VP[1]*x+VP[5]*y+VP[9]*z+VP[13],cw=VP[3]*x+VP[7]*y+VP[11]*z+VP[15];if(Math.abs(cw)<.0001)return null;return[(cx/cw*.5+.5)*canvas3.width,(1-(cy/cw*.5+.5))*canvas3.height];}
+
+// Sphere
+function buildSphere(R,la,lo){const v=[],idx=[];for(let i=0;i<=la;i++){const t=i/la*Math.PI;for(let j=0;j<=lo;j++){const p=j/lo*2*Math.PI;v.push(R*Math.sin(t)*Math.cos(p),R*Math.cos(t),R*Math.sin(t)*Math.sin(p));}}for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=i*(lo+1)+j,b=a+lo+1;idx.push(a,b,a+1,b,b+1,a+1);}return{v:new Float32Array(v),idx:new Uint16Array(idx)};}
+const sph=buildSphere(1,64,96);
+const globeVBO=mkVBO(sph.v);
+const globeIBO=(()=>{const b=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,b);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,sph.idx,gl.STATIC_DRAW);return b;})();
+
+// Star field
+const STAR_N=340;
+const _sPos=new Float32Array(STAR_N*3),_sPacked=new Float32Array(STAR_N*2),_sBri=new Float32Array(STAR_N);
+for(let i=0;i<STAR_N;i++){const u=Math.random()*2-1,th=Math.random()*Math.PI*2,r=Math.sqrt(Math.max(0,1-u*u));_sPos[i*3]=r*Math.cos(th)*4.8;_sPos[i*3+1]=u*4.8;_sPos[i*3+2]=r*Math.sin(th)*4.8;_sBri[i]=.25+Math.random()*.75;_sPacked[i*2]=Math.random()*Math.PI*2;_sPacked[i*2+1]=.25+Math.random()*.6;}
+const starVBO=mkVBO(_sPos),starBriVBO=mkVBO(_sBri),starPackVBO=mkVBO(_sPacked);
+const starProg=mkProg(
+  `attribute vec3 aPos;attribute float aBri;attribute vec2 aPS;uniform mat4 uMVP;uniform float uT;varying float vA;void main(){float blink=0.55+0.45*sin(uT*aPS[1]+aPS[0]);vA=aBri*blink;gl_Position=uMVP*vec4(aPos,1.);gl_PointSize=1.0+aBri*1.6;}`,
+  `precision mediump float;varying float vA;void main(){float d=length(gl_PointCoord-.5)*2.;if(d>1.)discard;gl_FragColor=vec4(.80,.93,1.,vA*(1.-d*.4));}`
+);
+let _starT=0,_starLast=performance.now();
+function drawStars(VP){const now=performance.now();_starT+=(now-_starLast)/1000;_starLast=now;gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.useProgram(starProg);gl.uniformMatrix4fv(gl.getUniformLocation(starProg,'uMVP'),false,VP);gl.uniform1f(gl.getUniformLocation(starProg,'uT'),_starT);const pa=gl.getAttribLocation(starProg,'aPos'),ba=gl.getAttribLocation(starProg,'aBri'),psa=gl.getAttribLocation(starProg,'aPS');gl.bindBuffer(gl.ARRAY_BUFFER,starVBO);gl.enableVertexAttribArray(pa);gl.vertexAttribPointer(pa,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,starBriVBO);gl.enableVertexAttribArray(ba);gl.vertexAttribPointer(ba,1,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,starPackVBO);gl.enableVertexAttribArray(psa);gl.vertexAttribPointer(psa,2,gl.FLOAT,false,0,0);gl.drawArrays(gl.POINTS,0,STAR_N);}
+
+// Camera
+let rX=0.3,rY=0,camD=2.7,drag3=false,lx3=0,ly3=0,autoRot=true;
+function eyePos(){const cx=Math.cos(rX),sx=Math.sin(rX),cy=Math.cos(rY),sy=Math.sin(rY);return[-camD*cx*sy,camD*sx,camD*cx*cy];}
+function getVP(){const e=eyePos(),V=m4(),P=m4(),VP=m4();lookAt(V,e,[0,0,0],[0,1,0]);persp(P,Math.PI/4,canvas3.width/canvas3.height,.1,100);mul4(VP,P,V);return{VP,eye:e};}
+
+canvas3.addEventListener('mousedown',e=>{drag3=true;lx3=e.clientX;ly3=e.clientY;stopRot();});
+addEventListener('mouseup',()=>{drag3=false;});
+canvas3.addEventListener('mousemove',e=>{if(!is3D)return;if(drag3){rY+=(e.clientX-lx3)*.005;rX+=(e.clientY-ly3)*.005;rX=Math.max(-1.4,Math.min(1.4,rX));lx3=e.clientX;ly3=e.clientY;draw3();hideCard();return;}handleHover3(e);});
+canvas3.addEventListener('wheel',e=>{camD=Math.max(1.35,Math.min(6,camD+e.deltaY*.003));draw3();},{passive:true});
+canvas3.addEventListener('mouseleave',()=>{hoveredUser=null;hideCard();});
+let ltd=0;
+canvas3.addEventListener('touchstart',e=>{if(e.touches.length===1){drag3=true;lx3=e.touches[0].clientX;ly3=e.touches[0].clientY;stopRot();}if(e.touches.length===2)ltd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);},{passive:true});
+addEventListener('touchend',()=>drag3=false);
+canvas3.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag3){rY+=(e.touches[0].clientX-lx3)*.005;rX+=(e.touches[0].clientY-ly3)*.005;rX=Math.max(-1.4,Math.min(1.4,rX));lx3=e.touches[0].clientX;ly3=e.touches[0].clientY;draw3();}if(e.touches.length===2){const nd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);camD=Math.max(1.35,Math.min(6,camD-(nd-ltd)*.005));ltd=nd;draw3();}},{passive:true});
+
+const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementById('rotate-label');
+function stopRot(){autoRot=false;rotBtn.classList.remove('active');rotLabel.textContent='AUTO ROTATE';}
+function startRot(){autoRot=true;rotBtn.classList.add('active');rotLabel.textContent='ROTATING\u2026';}
+rotBtn.addEventListener('click',()=>autoRot?stopRot():startRot());
+startRot();
+
+// GPU buffers
+const roleBufs={};
+const arcBufs={};
+let borderBuf3=null;
+
+function buildPointBufs(){
+  const byRole={};
+  USERS.forEach(u=>{if(!byRole[u.role])byRole[u.role]=[];byRole[u.role].push(u);});
+  Object.entries(byRole).forEach(([role,users])=>{
+    const cfg=ROLE_CFG[role];const pos=[],col=[],sz=[];
+    users.forEach(u=>{const[x,y,z]=ll2xyz(u.lat,u.lon,1.008);pos.push(x,y,z);col.push(cfg.color[0]/255,cfg.color[1]/255,cfg.color[2]/255);sz.push(16);});
+    roleBufs[role]={posVBO:mkVBO(new Float32Array(pos)),colVBO:mkVBO(new Float32Array(col)),szVBO:mkVBO(new Float32Array(sz)),count:users.length,users};
+  });
+}
+
+function buildArcBufs(){
+  const byType={};
+  CONNECTIONS.forEach(c=>{if(!byType[c.type])byType[c.type]=[];byType[c.type].push(c);});
+  Object.entries(byType).forEach(([type,conns])=>{
+    const pos=[],idx=[];
+    conns.forEach(conn=>{
+      const u1=userMap[conn.from],u2=userMap[conn.to];
+      if(!u1||!u2)return;
+      const si=pos.length/3,segs=24;
+      const p1=ll2xyz(u1.lat,u1.lon,1),p2=ll2xyz(u2.lat,u2.lon,1);
+      const d=Math.max(-1,Math.min(1,p1[0]*p2[0]+p1[1]*p2[1]+p1[2]*p2[2]));
+      const omega=Math.acos(d),sinO=Math.sin(omega);
+      for(let i=0;i<=segs;i++){
+        const t=i/segs;let x,y,z;
+        if(Math.abs(sinO)<.001){x=p1[0]+(p2[0]-p1[0])*t;y=p1[1]+(p2[1]-p1[1])*t;z=p1[2]+(p2[2]-p1[2])*t;}
+        else{const a=Math.sin((1-t)*omega)/sinO,b=Math.sin(t*omega)/sinO;x=a*p1[0]+b*p2[0];y=a*p1[1]+b*p2[1];z=a*p1[2]+b*p2[2];}
+        const len=Math.sqrt(x*x+y*y+z*z),lift=1+.06*Math.sin(t*Math.PI);
+        pos.push(x/len*lift,y/len*lift,z/len*lift);
+      }
+      for(let i=0;i<segs;i++)idx.push(si+i,si+i+1);
+    });
+    const cfg=CONN_CFG[type];
+    arcBufs[type]={posVBO:mkVBO(new Float32Array(pos)),idxBuf:mkIBO(idx),count:idx.length,color:cfg.color};
+  });
+}
+
+function buildLineBuf3(geo){
+  const pos=[],idx=[];
+  geo.features.forEach(feat=>{const g=feat.geometry;if(!g)return;const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];polys.forEach(poly=>poly.forEach(ring=>{const si=pos.length/3;ring.forEach(c=>{const[x,y,z]=ll2xyz(c[1],c[0],1.002);pos.push(x,y,z);});for(let i=0;i<ring.length-1;i++)idx.push(si+i,si+i+1);}));});
+  return{posVBO:mkVBO(new Float32Array(pos)),idxBuf:mkIBO(idx),count:idx.length};
+}
+
+let hoveredUser=null;
+
+function draw3(){
+  if(!is3D)return;
+  gl.clearColor(.018,.038,.078,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
+  const{VP,eye}=getVP();
+  // Globe
+  gl.disable(gl.BLEND);gl.useProgram(globeProg);gl.uniformMatrix4fv(gl.getUniformLocation(globeProg,'uMVP'),false,VP);
+  gl.bindBuffer(gl.ARRAY_BUFFER,globeVBO);const gA=gl.getAttribLocation(globeProg,'aPos');gl.enableVertexAttribArray(gA);gl.vertexAttribPointer(gA,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,globeIBO);gl.drawElements(gl.TRIANGLES,sph.idx.length,gl.UNSIGNED_SHORT,0);
+  // Stars
+  gl.enable(gl.BLEND);drawStars(VP);
+  // Borders
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  if(borderBuf3&&vis['borders']){
+    gl.useProgram(lineProg);gl.uniformMatrix4fv(gl.getUniformLocation(lineProg,'uMVP'),false,VP);gl.uniform3fv(gl.getUniformLocation(lineProg,'uEye'),eye);
+    gl.uniform3f(gl.getUniformLocation(lineProg,'uCol'),.204,.373,.533);gl.uniform1f(gl.getUniformLocation(lineProg,'uA'),.42);
+    gl.bindBuffer(gl.ARRAY_BUFFER,borderBuf3.posVBO);const la=gl.getAttribLocation(lineProg,'aPos');gl.enableVertexAttribArray(la);gl.vertexAttribPointer(la,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,borderBuf3.idxBuf);gl.drawElements(gl.LINES,borderBuf3.count,gl.UNSIGNED_INT,0);
+  }
+  // Arcs
+  const arcAlpha=.4+.15*Math.sin(performance.now()/600);
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+  Object.entries(arcBufs).forEach(([type,buf])=>{
+    if(!vis['c_'+type])return;
+    gl.useProgram(lineProg);gl.uniformMatrix4fv(gl.getUniformLocation(lineProg,'uMVP'),false,VP);gl.uniform3fv(gl.getUniformLocation(lineProg,'uEye'),eye);
+    gl.uniform3f(gl.getUniformLocation(lineProg,'uCol'),buf.color[0]/255,buf.color[1]/255,buf.color[2]/255);
+    gl.uniform1f(gl.getUniformLocation(lineProg,'uA'),arcAlpha);
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf.posVBO);const la=gl.getAttribLocation(lineProg,'aPos');gl.enableVertexAttribArray(la);gl.vertexAttribPointer(la,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,buf.idxBuf);gl.drawElements(gl.LINES,buf.count,gl.UNSIGNED_INT,0);
+  });
+  // Highlighted arcs for hovered user
+  if(hoveredUser){
+    const hConns=getUserConns(hoveredUser.id);
+    hConns.forEach(({user:other,type})=>{
+      if(!other)return;
+      const p1=ll2xyz(hoveredUser.lat,hoveredUser.lon,1),p2=ll2xyz(other.lat,other.lon,1);
+      const d=Math.max(-1,Math.min(1,p1[0]*p2[0]+p1[1]*p2[1]+p1[2]*p2[2]));
+      const omega=Math.acos(d),sinO=Math.sin(omega),segs=24,pos=[];
+      for(let i=0;i<=segs;i++){const t=i/segs;let x,y,z;if(Math.abs(sinO)<.001){x=p1[0]+(p2[0]-p1[0])*t;y=p1[1]+(p2[1]-p1[1])*t;z=p1[2]+(p2[2]-p1[2])*t;}else{const a=Math.sin((1-t)*omega)/sinO,b=Math.sin(t*omega)/sinO;x=a*p1[0]+b*p2[0];y=a*p1[1]+b*p2[1];z=a*p1[2]+b*p2[2];}const len=Math.sqrt(x*x+y*y+z*z),lift=1+.08*Math.sin(t*Math.PI);pos.push(x/len*lift,y/len*lift,z/len*lift);}
+      const hVBO=mkVBO(new Float32Array(pos.flat()));const idx=[];for(let i=0;i<segs;i++)idx.push(i,i+1);const hIBO=mkIBO(idx);
+      const cfg=CONN_CFG[type]||CONN_CFG.colleague;
+      gl.useProgram(lineProg);gl.uniformMatrix4fv(gl.getUniformLocation(lineProg,'uMVP'),false,VP);gl.uniform3fv(gl.getUniformLocation(lineProg,'uEye'),eye);
+      gl.uniform3f(gl.getUniformLocation(lineProg,'uCol'),cfg.color[0]/255,cfg.color[1]/255,cfg.color[2]/255);gl.uniform1f(gl.getUniformLocation(lineProg,'uA'),.9);
+      gl.bindBuffer(gl.ARRAY_BUFFER,hVBO);const la=gl.getAttribLocation(lineProg,'aPos');gl.enableVertexAttribArray(la);gl.vertexAttribPointer(la,3,gl.FLOAT,false,0,0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,hIBO);gl.drawElements(gl.LINES,idx.length,gl.UNSIGNED_INT,0);
+    });
+  }
+  // User points
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.useProgram(ptProg);gl.uniformMatrix4fv(gl.getUniformLocation(ptProg,'uMVP'),false,VP);gl.uniform3fv(gl.getUniformLocation(ptProg,'uEye'),eye);
+  const pa=gl.getAttribLocation(ptProg,'aPos'),ca=gl.getAttribLocation(ptProg,'aCol'),sa=gl.getAttribLocation(ptProg,'aSz');
+  Object.entries(roleBufs).forEach(([role,buf])=>{
+    if(!vis[role])return;
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf.posVBO);gl.enableVertexAttribArray(pa);gl.vertexAttribPointer(pa,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf.colVBO);gl.enableVertexAttribArray(ca);gl.vertexAttribPointer(ca,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf.szVBO);gl.enableVertexAttribArray(sa);gl.vertexAttribPointer(sa,1,gl.FLOAT,false,0,0);
+    gl.drawArrays(gl.POINTS,0,buf.count);
+  });
+  drawAvatarLayer();
+}
+
+// 3D hover
+let hovT3=null;
+function handleHover3(e){
+  if(drag3)return;
+  clearTimeout(hovT3);
+  hovT3=setTimeout(()=>{
+    const{VP,eye}=getVP();const camN=n3(eye);
+    let best=null,bestD=18;
+    USERS.forEach(u=>{
+      if(!vis[u.role])return;
+      const[x,y,z]=ll2xyz(u.lat,u.lon,1.008);
+      if(dot3(n3([x,y,z]),camN)<.05)return;
+      const sc=projPt([x,y,z],VP);if(!sc)return;
+      const dd=Math.hypot(sc[0]-e.clientX,sc[1]-e.clientY);
+      if(dd<bestD){bestD=dd;best=u;}
+    });
+    hoveredUser=best;
+    if(best)showCard(best,e.clientX,e.clientY);else hideCard();
+    draw3();
+  },25);
+}
+
+// ═══════════════════════════════════════════════
+// CANVAS 2D (FLAT MAP)
+// ═══════════════════════════════════════════════
+let W2,H2,baseW,baseH,offsetX=0,offsetY=0,scale2=1;
+let drag2=false,lx2=0,ly2=0;
+let bordersGeo=null;
+const _yMax=Math.log(Math.tan(85*Math.PI/180)+1/Math.cos(85*Math.PI/180));
+
+function ll2px(lat,lon){
+  const mW=baseW*scale2,mH=baseH*scale2;
+  const x=(lon+180)/360*mW;
+  const latR=Math.max(-85,Math.min(85,lat))*Math.PI/180;
+  const yM=Math.log(Math.tan(latR)+1/Math.cos(latR));
+  const y=(1-(yM+_yMax)/(2*_yMax))*mH;
+  return[x+offsetX,y+offsetY];
+}
+function computeBase(){const aW=W2-220,aH=H2,asp=Math.PI/_yMax;if(aW/aH>asp){baseH=Math.floor(aH*.94);baseW=Math.floor(baseH*asp);}else{baseW=Math.floor(aW*.96);baseH=Math.floor(baseW/asp);}offsetX=Math.floor((aW-baseW)/2);offsetY=Math.floor((aH-baseH)/2);}
+function resize2(){W2=canvas2.width=window.innerWidth;H2=canvas2.height=window.innerHeight;scale2=1;computeBase();}
+resize2();
+
+const ctx=canvas2.getContext('2d');
+
+function drawRing2(ring){if(ring.length<2)return;ctx.beginPath();let first=true;for(let i=0;i<ring.length;i++){const[px,py]=ll2px(ring[i][1],ring[i][0]);if(first){ctx.moveTo(px,py);first=false;continue;}if(Math.abs(ring[i][0]-ring[i-1][0])>180){ctx.moveTo(px,py);continue;}ctx.lineTo(px,py);}ctx.stroke();}
+
+function draw2(){
+  if(is3D)return;
+  const mW=baseW*scale2,mH=baseH*scale2;
+  ctx.clearRect(0,0,W2,H2);ctx.fillStyle='#050a14';ctx.fillRect(0,0,W2,H2);
+  ctx.fillStyle='#081422';ctx.fillRect(offsetX,offsetY,mW,mH);
+  ctx.strokeStyle='rgba(26,47,69,0.8)';ctx.lineWidth=1;ctx.strokeRect(offsetX,offsetY,mW,mH);
+  ctx.strokeStyle='rgba(22,42,64,0.5)';ctx.lineWidth=.5;
+  for(let lon=-180;lon<=180;lon+=30){const[x]=ll2px(0,lon);ctx.beginPath();ctx.moveTo(x,offsetY);ctx.lineTo(x,offsetY+mH);ctx.stroke();}
+  for(let lat=-80;lat<=80;lat+=20){const[,y]=ll2px(lat,0);ctx.beginPath();ctx.moveTo(offsetX,y);ctx.lineTo(offsetX+mW,y);ctx.stroke();}
+  // Borders
+  if(bordersGeo&&vis['borders']){ctx.strokeStyle='rgba(52,95,138,0.55)';ctx.lineWidth=Math.max(.5,.7*Math.sqrt(scale2));bordersGeo.features.forEach(feat=>{const g=feat.geometry;if(!g)return;const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];polys.forEach(poly=>poly.forEach(ring=>drawRing2(ring)));});}
+  // Connection arcs
+  const arcA=.35+.15*Math.sin(performance.now()/600);
+  CONNECTIONS.forEach(conn=>{
+    if(!vis['c_'+conn.type])return;
+    const u1=userMap[conn.from],u2=userMap[conn.to];
+    if(!u1||!u2||!vis[u1.role]||!vis[u2.role])return;
+    const[x1,y1]=ll2px(u1.lat,u1.lon),[x2,y2]=ll2px(u2.lat,u2.lon);
+    if(Math.abs(u1.lon-u2.lon)>300)return;
+    const cfg=CONN_CFG[conn.type];const[cr,cg,cb]=cfg.color;
+    const isHov=hoveredUser&&(conn.from===hoveredUser.id||conn.to===hoveredUser.id);
+    const mx=(x1+x2)/2,my=(y1+y2)/2-Math.abs(x2-x1)*.12;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);
+    ctx.strokeStyle=`rgba(${cr},${cg},${cb},${isHov?.8:arcA})`;
+    ctx.lineWidth=isHov?2:1;
+    if(isHov){ctx.shadowColor=cfg.hex;ctx.shadowBlur=8;}
+    ctx.stroke();ctx.shadowBlur=0;
+  });
+  // User points
+  USERS.forEach(u=>{
+    if(!vis[u.role])return;
+    const cfg=ROLE_CFG[u.role];const[px,py]=ll2px(u.lat,u.lon);
+    if(px<-20||px>W2+20||py<-20||py>H2+20)return;
+    const r=Math.max(3,5.5*Math.sqrt(scale2));
+    const[cr,cg,cb]=cfg.color;const isHov=hoveredUser&&hoveredUser.id===u.id;
+    ctx.shadowColor=`rgb(${cr},${cg},${cb})`;ctx.shadowBlur=r*2.5;
+    ctx.strokeStyle=`rgba(${cr},${cg},${cb},${isHov?1:.6})`;ctx.lineWidth=isHov?2:1;
+    ctx.beginPath();ctx.arc(px,py,isHov?r*1.3:r,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=`rgba(${cr},${cg},${cb},0.85)`;ctx.shadowBlur=r*1.5;
+    ctx.beginPath();ctx.arc(px,py,r*.45,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  });
+  updateStatBar();
+  drawAvatarLayer();
+}
+
+// 2D interaction
+canvas2.addEventListener('mousedown',e=>{drag2=true;lx2=e.clientX;ly2=e.clientY;hideCard();});
+addEventListener('mouseup',()=>drag2=false);
+canvas2.addEventListener('mousemove',e=>{if(!is3D&&drag2){offsetX+=e.clientX-lx2;offsetY+=e.clientY-ly2;lx2=e.clientX;ly2=e.clientY;draw2();return;}if(!is3D)handleHover2(e);});
+canvas2.addEventListener('mouseleave',()=>{hoveredUser=null;hideCard();draw2();});
+canvas2.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.15:1/1.15,mx=e.clientX,my=e.clientY;offsetX=mx-(mx-offsetX)*f;offsetY=my-(my-offsetY)*f;scale2=Math.max(1,Math.min(50,scale2*f));draw2();},{passive:false});
+document.getElementById('zoom-in').addEventListener('click',()=>{const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)*1.4;offsetY=cy-(cy-offsetY)*1.4;scale2=Math.min(50,scale2*1.4);draw2();});
+document.getElementById('zoom-out').addEventListener('click',()=>{if(scale2<=1)return;const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)/1.4;offsetY=cy-(cy-offsetY)/1.4;scale2=Math.max(1,scale2/1.4);draw2();});
+document.getElementById('reset-v').addEventListener('click',()=>{scale2=1;computeBase();draw2();});
+
+let td2=0;
+canvas2.addEventListener('touchstart',e=>{if(e.touches.length===1){drag2=true;lx2=e.touches[0].clientX;ly2=e.touches[0].clientY;}if(e.touches.length===2)td2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);},{passive:true});
+addEventListener('touchend',()=>drag2=false);
+canvas2.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag2){offsetX+=e.touches[0].clientX-lx2;offsetY+=e.touches[0].clientY-ly2;lx2=e.touches[0].clientX;ly2=e.touches[0].clientY;draw2();}if(e.touches.length===2){const nd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);const cx=(e.touches[0].clientX+e.touches[1].clientX)/2,cy=(e.touches[0].clientY+e.touches[1].clientY)/2;const f=nd/td2;offsetX=cx-(cx-offsetX)*f;offsetY=cy-(cy-offsetY)*f;scale2=Math.max(1,Math.min(50,scale2*f));td2=nd;draw2();}},{passive:true});
+
+let hovT2=null;
+function handleHover2(e){
+  clearTimeout(hovT2);
+  hovT2=setTimeout(()=>{
+    const thresh=Math.max(10,14/Math.sqrt(scale2));
+    let best=null,bestD=thresh;
+    USERS.forEach(u=>{if(!vis[u.role])return;const[px,py]=ll2px(u.lat,u.lon);const dd=Math.hypot(px-e.clientX,py-e.clientY);if(dd<bestD){bestD=dd;best=u;}});
+    hoveredUser=best;if(best)showCard(best,e.clientX,e.clientY);else hideCard();draw2();
+  },20);
+}
+
+// ═══════════════════════════════════════════════
+// VIEW TOGGLE
+// ═══════════════════════════════════════════════
+const viewBtnGlobe=document.getElementById('view-btn-globe');
+const viewBtnFlat=document.getElementById('view-btn-flat');
+const mapCtrl=document.getElementById('map-controls');
+const hint=document.getElementById('hint');
+
+function setView3D(yes){
+  is3D=!!yes;
+  canvas3.classList.toggle('view-hidden',!is3D);canvas2.classList.toggle('view-hidden',is3D);
+  viewBtnGlobe.classList.toggle('active',is3D);viewBtnFlat.classList.toggle('active',!is3D);
+  rotBtn.style.display=is3D?'':'none';mapCtrl.classList.toggle('visible',!is3D);
+  hint.textContent=is3D?'DRAG TO ROTATE · SCROLL TO ZOOM':'DRAG TO PAN · SCROLL TO ZOOM';
+  if(!is3D){resize2();draw2();}else draw3();hideCard();
+}
+viewBtnGlobe.addEventListener('click',()=>setView3D(true));
+viewBtnFlat.addEventListener('click',()=>setView3D(false));
+
+// ═══════════════════════════════════════════════
+// CARD POPUP
+// ═══════════════════════════════════════════════
+const card=document.getElementById('card');
+
+function showCard(u,mx,my){
+  const cfg=ROLE_CFG[u.role];
+  document.getElementById('card-bar').style.background=cfg.hex;
+  const av=document.getElementById('card-avatar');
+  av.style.background=cfg.hex+'33';av.style.color=cfg.hex;av.textContent=initials(u.name);
+  document.getElementById('card-name').textContent=u.name;
+  document.getElementById('card-loc').textContent=u.city+', '+u.country;
+  const rb=document.getElementById('card-role');
+  rb.textContent=cfg.label;rb.style.background=cfg.hex+'22';rb.style.color=cfg.hex;
+  document.getElementById('card-bio').textContent=u.bio;
+  const conns=getUserConns(u.id);
+  document.getElementById('card-conn-count').textContent=conns.length;
+  const cl=document.getElementById('card-conns-list');
+  cl.innerHTML=conns.slice(0,6).map(c=>`<div class="card-conn-item"><span>${c.user.name}</span><span class="card-conn-type">${c.type}</span></div>`).join('');
+  if(conns.length>6)cl.innerHTML+=`<div class="card-conn-item" style="color:var(--dim)">+${conns.length-6} more</div>`;
+  const cw=230,ch=260;
+  const lft=mx+16+cw>window.innerWidth-230?mx-cw-8:mx+16;
+  const top=Math.max(8,Math.min(my-40,window.innerHeight-ch-8));
+  card.style.cssText=`display:block;left:${lft}px;top:${top}px;`;
+  card.style.borderColor=cfg.hex+'44';
+}
+function hideCard(){card.style.display='none';}
+
+// ═══════════════════════════════════════════════
+// STAT BAR
+// ═══════════════════════════════════════════════
+function updateStatBar(){
+  const vc=USERS.filter(u=>vis[u.role]).length;
+  document.getElementById('stat-visible').textContent=vc;
+}
+
+// ═══════════════════════════════════════════════
+// PANEL
+// ═══════════════════════════════════════════════
+function buildPanel(){
+  const scroll=document.getElementById('panel-scroll');scroll.innerHTML='';
+
+  function makeRow(key,colorHex,swType,label,count){
+    const r=document.createElement('div');r.className='row'+(vis[key]?'':' off');r.dataset.key=key;
+    const swClass=swType==='arc'?'sw arc':'sw '+(swType||'dot');
+    const style=swType==='arc'?`border-color:${colorHex}`:`background:${colorHex};box-shadow:0 0 6px ${colorHex}44`;
+    r.innerHTML=`<div class="${swClass}" style="${style}"></div><span class="rl">${label}</span>${count!=null?`<span class="rc">${count}</span>`:''}<div class="tog"></div>`;
+    r.addEventListener('click',()=>{vis[key]=!vis[key];r.classList.toggle('off',!vis[key]);if(is3D)draw3();else draw2();updateStatBar();updateUserList();});
+    return r;
+  }
+  function makeSec(label){
+    const wrap=document.createElement('div');wrap.className='sec-wrap';
+    const hdr=document.createElement('div');hdr.className='sec';
+    hdr.innerHTML=`<span class="sec-label">${label}</span><span class="sec-tog">▾</span>`;
+    wrap.appendChild(hdr);
+    hdr.addEventListener('click',()=>{wrap.classList.toggle('collapsed');hdr.querySelector('.sec-tog').textContent=wrap.classList.contains('collapsed')?'▸':'▾';});
+    return wrap;
+  }
+
+  // Map section
+  const mapSec=makeSec('Map');mapSec.appendChild(makeRow('borders','#34608a','line','Country Borders',null));scroll.appendChild(mapSec);
+
+  // Roles section
+  const roleSec=makeSec('Roles');
+  const roleCounts={};USERS.forEach(u=>roleCounts[u.role]=(roleCounts[u.role]||0)+1);
+  Object.entries(ROLE_CFG).forEach(([key,cfg])=>{roleSec.appendChild(makeRow(key,cfg.hex,'dot',cfg.label,roleCounts[key]||0));});
+  scroll.appendChild(roleSec);
+
+  // Connection types section
+  const connSec=makeSec('Connections');
+  const connCounts={};CONNECTIONS.forEach(c=>connCounts[c.type]=(connCounts[c.type]||0)+1);
+  Object.entries(CONN_CFG).forEach(([key,cfg])=>{connSec.appendChild(makeRow('c_'+key,cfg.hex,'arc',cfg.label,connCounts[key]||0));});
+  scroll.appendChild(connSec);
+
+  // User list section
+  const userSec=makeSec('Members');
+  const userListDiv=document.createElement('div');userListDiv.id='user-list';
+  userSec.appendChild(userListDiv);scroll.appendChild(userSec);
+  updateUserList();
+
+  document.getElementById('toggle-all').addEventListener('click',()=>{
+    allOn=!allOn;document.getElementById('toggle-all').textContent=allOn?'All Off':'All On';
+    Object.keys(ROLE_CFG).forEach(k=>vis[k]=allOn);
+    Object.keys(CONN_CFG).forEach(k=>vis['c_'+k]=allOn);
+    vis['borders']=allOn;
+    scroll.querySelectorAll('.row').forEach(r=>{const k=r.dataset.key;if(k)r.classList.toggle('off',!vis[k]);});
+    if(is3D)draw3();else draw2();updateStatBar();updateUserList();
+  });
+}
+
+function updateUserList(){
+  const div=document.getElementById('user-list');if(!div)return;
+  const sorted=[...USERS].filter(u=>vis[u.role]).sort((a,b)=>getUserConns(b.id).length-getUserConns(a.id).length);
+  div.innerHTML=sorted.map(u=>{
+    const cfg=ROLE_CFG[u.role];const nc=getUserConns(u.id).length;
+    const hl=hoveredUser&&hoveredUser.id===u.id?' highlighted':'';
+    return`<div class="row${hl}" data-uid="${u.id}" onmouseenter="window._hU('${u.id}')" onmouseleave="window._uhU()"><div class="sw dot" style="background:${cfg.hex};box-shadow:0 0 4px ${cfg.hex}44"></div><span class="rl">${u.name}</span><span class="rc">${nc}</span></div>`;
+  }).join('');
+}
+window._hU=id=>{hoveredUser=userMap[id];updateUserList();if(is3D)draw3();else draw2();};
+window._uhU=()=>{hoveredUser=null;hideCard();updateUserList();if(is3D)draw3();else draw2();};
+
+// ═══════════════════════════════════════════════
+// TOPOJSON → GEOJSON
+// ═══════════════════════════════════════════════
+function topoToGeo(topo){
+  const sc=topo.transform?.scale||[1,1],tr=topo.transform?.translate||[0,0];
+  const arcs=topo.arcs.map(arc=>{let x=0,y=0;return arc.map(p=>{x+=p[0];y+=p[1];return[x*sc[0]+tr[0],y*sc[1]+tr[1]];});});
+  function getArc(i){return i>=0?arcs[i]:arcs[~i].slice().reverse();}
+  function toRing(ids){return ids.flatMap((i,j)=>{const a=getArc(i);return j<ids.length-1?a.slice(0,-1):a;});}
+  const obj=topo.objects.countries||topo.objects.land||Object.values(topo.objects)[0];
+  return{type:'FeatureCollection',features:obj.geometries.map(geom=>{
+    if(geom.type==='Polygon')return{type:'Feature',geometry:{type:'Polygon',coordinates:geom.arcs.map(toRing)},properties:{}};
+    if(geom.type==='MultiPolygon')return{type:'Feature',geometry:{type:'MultiPolygon',coordinates:geom.arcs.map(p=>p.map(toRing))},properties:{}};
+    return null;
+  }).filter(Boolean)};
+}
+
+// ═══════════════════════════════════════════════
+// AVATAR OVERLAY
+// ═══════════════════════════════════════════════
+const avCanvas=document.getElementById('avatar-layer');
+const ac=avCanvas.getContext('2d');
+let aW,aH;
+function resizeAvCanvas(){aW=avCanvas.width=window.innerWidth;aH=avCanvas.height=window.innerHeight;}
+resizeAvCanvas();
+
+const avatarImgs={};
+const AVATAR_API='https://api.dicebear.com/7.x/adventurer/svg';
+function loadAvatars(){
+  USERS.forEach(u=>{
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.src=AVATAR_API+'?seed='+encodeURIComponent(u.name)+'&backgroundColor=transparent';
+    img.onload=()=>drawAvatarLayer();
+    avatarImgs[u.id]=img;
+  });
+}
+
+let avReady=false;
+function drawAvatarLayer(){
+  if(!avReady)return;
+  ac.clearRect(0,0,aW,aH);
+  const pts=[];
+  if(is3D){
+    const VP=getVP();const eye=VP.eye;const camN=n3(eye);
+    USERS.forEach(u=>{
+      if(!vis[u.role])return;
+      const p=ll2xyz(u.lat,u.lon,1.008);
+      const fv=dot3(n3(p),camN);
+      if(fv<.15)return;
+      const sc=projPt(p,VP.VP);
+      if(!sc||sc[0]<-50||sc[0]>aW+50||sc[1]<-50||sc[1]>aH+50)return;
+      pts.push({u,x:sc[0],y:sc[1],fv});
+    });
+  }else{
+    USERS.forEach(u=>{
+      if(!vis[u.role])return;
+      const[px,py]=ll2px(u.lat,u.lon);
+      if(px<-50||px>aW+50||py<-50||py>aH+50)return;
+      pts.push({u,x:px,y:py,fv:1});
+    });
+  }
+  pts.sort((a,b)=>getUserConns(a.u.id).length-getUserConns(b.u.id).length);
+
+  const avR=is3D?14:Math.max(10,Math.min(28,14*Math.sqrt(scale2)));
+  const cDist=avR*2.1;
+  const clusters=[];
+  pts.forEach(pt=>{
+    let merged=false;
+    for(const cl of clusters){
+      if(Math.hypot(pt.x-cl.x,pt.y-cl.y)<cDist){cl.members.push(pt);merged=true;break;}
+    }
+    if(!merged)clusters.push({x:pt.x,y:pt.y,members:[pt],primary:pt});
+  });
+
+  clusters.forEach(cl=>{
+    if(cl.members.length===1){
+      const pt=cl.members[0];
+      drawAvatar(pt.u,pt.x,pt.y,avR,pt.fv);
+    }else{
+      drawCluster(cl,avR);
+    }
+  });
+}
+
+function drawAvatar(user,x,y,r,faceVis){
+  const cfg=ROLE_CFG[user.role];
+  const img=avatarImgs[user.id];
+  const isHov=hoveredUser&&hoveredUser.id===user.id;
+  const sz=isHov?r*1.4:r;
+  const alpha=is3D?Math.min(1,faceVis*2.5):1;
+  ac.globalAlpha=alpha;
+
+  if(isHov){ac.shadowColor=cfg.hex;ac.shadowBlur=16;}
+
+  ac.beginPath();ac.arc(x,y,sz+2.5,0,Math.PI*2);
+  ac.fillStyle=cfg.hex;ac.fill();
+  ac.shadowBlur=0;
+
+  ac.save();
+  ac.beginPath();ac.arc(x,y,sz,0,Math.PI*2);ac.clip();
+  if(img&&img.complete&&img.naturalWidth>0){
+    ac.drawImage(img,x-sz,y-sz,sz*2,sz*2);
+  }else{
+    const gr=ac.createRadialGradient(x-sz*.3,y-sz*.3,0,x,y,sz);
+    const[cr,cg,cb]=cfg.color;
+    gr.addColorStop(0,`rgba(${Math.min(255,cr+50)},${Math.min(255,cg+50)},${Math.min(255,cb+50)},0.9)`);
+    gr.addColorStop(1,`rgba(${Math.max(0,cr-20)},${Math.max(0,cg-20)},${Math.max(0,cb-20)},0.9)`);
+    ac.fillStyle=gr;ac.fillRect(x-sz,y-sz,sz*2,sz*2);
+    ac.fillStyle='#fff';
+    ac.font=`bold ${Math.max(8,sz*.85)}px 'Courier New',monospace`;
+    ac.textAlign='center';ac.textBaseline='middle';
+    ac.fillText(initials(user.name),x,y+.5);
+  }
+  ac.restore();
+  ac.globalAlpha=1;
+}
+
+function drawCluster(cl,r){
+  const cr=r+5;
+  const rcounts={};
+  cl.members.forEach(m=>{const ro=m.u.role;rcounts[ro]=(rcounts[ro]||0)+1;});
+  const dom=Object.entries(rcounts).sort((a,b)=>b[1]-a[1])[0][0];
+  const cfg=ROLE_CFG[dom];
+
+  ac.shadowColor=cfg.hex;ac.shadowBlur=8;
+  ac.beginPath();ac.arc(cl.x,cl.y,cr,0,Math.PI*2);
+  ac.fillStyle='rgba(6,13,26,0.92)';ac.fill();
+  ac.strokeStyle=cfg.hex;ac.lineWidth=2;ac.stroke();
+  ac.shadowBlur=0;
+
+  const n=Math.min(cl.members.length,8);
+  for(let i=0;i<n;i++){
+    const ang=i/n*Math.PI*2-Math.PI/2;
+    const dx=cl.x+Math.cos(ang)*(cr-4),dy=cl.y+Math.sin(ang)*(cr-4);
+    const mcfg=ROLE_CFG[cl.members[i].u.role];
+    ac.beginPath();ac.arc(dx,dy,2.5,0,Math.PI*2);ac.fillStyle=mcfg.hex;ac.fill();
+  }
+
+  ac.fillStyle='#d8eef8';
+  ac.font=`bold ${Math.max(10,cr*.65)}px 'Courier New',monospace`;
+  ac.textAlign='center';ac.textBaseline='middle';
+  ac.fillText(cl.members.length.toString(),cl.x,cl.y);
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+function setLoad(pct,msg){document.getElementById('load-bar').style.width=pct+'%';if(msg)document.getElementById('load-msg').textContent=msg;}
+
+function init(){
+  setLoad(5,'Loading avatars\u2026');
+  loadAvatars();
+  setLoad(10,'Building user network\u2026');
+  buildPointBufs();
+  buildArcBufs();
+
+  setLoad(35,'Building panel\u2026');
+  buildPanel();updateStatBar();
+
+  setLoad(55,'Fetching borders\u2026');
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')
+    .then(r=>r.json()).then(topo=>{
+      setLoad(80,'Processing borders\u2026');
+      bordersGeo=topoToGeo(topo);
+      borderBuf3=buildLineBuf3(bordersGeo);
+      finish();
+    }).catch(()=>finish());
+}
+
+function finish(){
+  setLoad(100,'');
+  avReady=true;
+  setTimeout(()=>document.getElementById('loading').style.display='none',300);
+  draw3();
+}
+
+init();
+
+// Render loop
+(function loop(){
+  if(is3D&&autoRot){rY+=.0012;draw3();}
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

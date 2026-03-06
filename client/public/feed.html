@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feed — Your Earth</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   YOUR EARTH DESIGN TOKENS
+═══════════════════════════════════════ */
+:root {
+  --bg:              #0f172a;
+  --bg-elevated:     #1e293b;
+  --bg-hover:        #334155;
+  --glass-subtle:    rgba(255,255,255,0.03);
+  --glass-medium:    rgba(255,255,255,0.06);
+  --glass-prominent: rgba(255,255,255,0.10);
+  --glass-strong:    rgba(255,255,255,0.15);
+  --gb-s:            rgba(255,255,255,0.08);
+  --gb-m:            rgba(255,255,255,0.12);
+  --gb-p:            rgba(255,255,255,0.20);
+  --shadow-glass:    0 8px 32px rgba(0,0,0,0.37);
+  --shadow-glass-lg: 0 16px 48px rgba(0,0,0,0.50);
+  --text-100:        #ffffff;
+  --text-87:         rgba(255,255,255,0.87);
+  --text-70:         rgba(255,255,255,0.70);
+  --text-56:         rgba(255,255,255,0.56);
+  --text-38:         rgba(255,255,255,0.38);
+  --green:           #10b981;
+  --green-glow:      rgba(16,185,129,0.3);
+  /* 7 categories */
+  --energy:    #fbbf24; --energy-bg:    rgba(251,191,36,0.12);
+  --food:      #fb923c; --food-bg:      rgba(251,146,60,0.12);
+  --mobility:  #60a5fa; --mobility-bg:  rgba(96,165,250,0.12);
+  --industry:  #94a3b8; --industry-bg:  rgba(148,163,184,0.12);
+  --technology:#c084fc; --technology-bg:rgba(192,132,252,0.12);
+  --policy:    #f87171; --policy-bg:    rgba(248,113,113,0.12);
+  --nature:    #34d399; --nature-bg:    rgba(52,211,153,0.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text-70);
+  font-family:'Inter',sans-serif;
+  font-size:15px;line-height:1.6;
+  min-height:100vh;overflow-x:hidden;
+}
+
+/* ── ANIMATED ORB BACKGROUND ── */
+.orb-layer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);animation:orbPulse 7s ease-in-out infinite;}
+.o1{width:600px;height:600px;background:rgba(16,185,129,0.07);top:-150px;left:-150px;animation-delay:0s;}
+.o2{width:500px;height:500px;background:rgba(59,130,246,0.07);bottom:-100px;right:-100px;animation-delay:2.5s;}
+.o3{width:350px;height:350px;background:rgba(168,85,247,0.05);top:40%;left:40%;transform:translate(-50%,-50%);animation-delay:5s;}
+.o4{width:280px;height:280px;background:rgba(251,191,36,0.04);top:20%;right:20%;animation-delay:1.5s;}
+@keyframes orbPulse{0%,100%{opacity:.5;transform:scale(1);}50%{opacity:.9;transform:scale(1.08);}}
+.o3{animation-name:orbPulse3;}
+@keyframes orbPulse3{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1);}50%{opacity:.9;transform:translate(-50%,-50%) scale(1.08);}}
+
+/* ── SUB-HEADER BAR ── */
+#sub-header{
+  position:fixed;top:0;left:0;right:0;height:48px;z-index:200;
+  background:rgba(15,23,42,0.82);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--gb-s);
+  display:flex;align-items:center;padding:0 16px;gap:10px;
+}
+.sh-search{
+  display:flex;align-items:center;gap:8px;flex:1;max-width:420px;
+  background:var(--glass-subtle);border:1px solid var(--gb-s);border-radius:8px;
+  padding:6px 12px;transition:border-color .2s;
+}
+.sh-search:focus-within{border-color:var(--gb-m);}
+.sh-search input{
+  background:none;border:none;outline:none;
+  font-family:'Inter',sans-serif;font-size:13px;
+  color:var(--text-87);width:100%;
+}
+.sh-search input::placeholder{color:var(--text-38);}
+.sh-actions{display:flex;align-items:center;gap:6px;margin-left:auto;}
+.sh-icon-btn{
+  width:32px;height:32px;border-radius:8px;
+  border:1px solid var(--gb-s);background:var(--glass-subtle);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:var(--text-56);transition:all .2s;position:relative;
+}
+.sh-icon-btn:hover{background:var(--glass-medium);border-color:var(--gb-m);color:var(--text-87);}
+.sh-badge{
+  position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;
+  border-radius:99px;font-size:9px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 4px;border:1.5px solid var(--bg);
+}
+
+/* ── LIVE TICKER ── */
+#ticker{
+  position:fixed;top:48px;left:0;right:0;height:36px;z-index:100;
+  background:rgba(15,23,42,0.75);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--gb-s);
+  display:flex;align-items:center;overflow:hidden;
+}
+.ticker-label{
+  flex-shrink:0;padding:0 14px;font-size:10px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--green);
+  border-right:1px solid var(--gb-s);height:100%;
+  display:flex;align-items:center;gap:7px;
+}
+.ticker-pulse{
+  width:7px;height:7px;border-radius:50%;background:var(--green);
+  animation:tickerPulse 1.5s ease-in-out infinite;
+  box-shadow:0 0 6px var(--green);
+}
+@keyframes tickerPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.ticker-track{display:flex;animation:tickerScroll 55s linear infinite;white-space:nowrap;align-items:center;}
+.ticker-track:hover{animation-play-state:paused;}
+.ticker-item{
+  display:flex;align-items:center;gap:8px;
+  padding:0 24px;font-size:12px;color:var(--text-56);
+  flex-shrink:0;
+}
+.ticker-item .ti-avatar{
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:#0f172a;flex-shrink:0;
+}
+.ticker-item .ti-text b{color:var(--text-87);}
+.ticker-item .ti-cat{
+  font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;flex-shrink:0;
+}
+.ticker-sep{color:var(--gb-p);margin:0 4px;flex-shrink:0;}
+@keyframes tickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+/* ── LAYOUT ── */
+#layout{
+  display:flex;
+  margin-top:84px; /* sub-header 40 + ticker 36 */
+  min-height:calc(100vh - 84px);
+  position:relative;z-index:1;
+}
+
+/* ── LEFT SIDEBAR ── */
+#sidebar{
+  width:252px;flex-shrink:0;
+  position:sticky;top:84px;height:calc(100vh - 84px);
+  overflow-y:auto;padding:16px 10px;
+  border-right:1px solid var(--gb-s);
+}
+#sidebar::-webkit-scrollbar{width:3px;}
+#sidebar::-webkit-scrollbar-thumb{background:var(--gb-m);border-radius:2px;}
+
+/* Sidebar user card at top */
+.sb-user-card{
+  display:flex;align-items:center;gap:10px;padding:12px;
+  background:var(--glass-subtle);border:1px solid var(--gb-s);
+  border-radius:14px;margin-bottom:14px;cursor:pointer;transition:all .15s;
+}
+.sb-user-card:hover{background:var(--glass-medium);border-color:var(--gb-m);}
+.sb-user-av{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#10b981,#3b82f6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#0f172a;
+  border:2px solid rgba(16,185,129,0.3);
+}
+.sb-user-name{font-size:13px;font-weight:700;color:var(--text-87);margin-bottom:2px;}
+.sb-user-role{font-size:11px;color:var(--text-38);}
+.sb-user-badge{
+  margin-left:auto;font-size:10px;padding:2px 7px;border-radius:99px;
+  background:rgba(16,185,129,0.1);color:var(--green);
+  border:1px solid rgba(16,185,129,0.2);flex-shrink:0;
+}
+
+.sb-section-label{
+  font-size:10px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-38);
+  padding:8px 12px 4px;
+}
+.sb-link{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;
+  border-radius:10px;font-size:13px;font-weight:500;
+  color:var(--text-56);text-decoration:none;cursor:pointer;
+  transition:all .15s;margin-bottom:1px;border:1px solid transparent;
+}
+.sb-link:hover{background:var(--glass-subtle);color:var(--text-70);}
+.sb-link.active{
+  background:var(--glass-medium);color:var(--text-100);
+  border-color:var(--gb-s);
+}
+.sb-link-icon{width:20px;text-align:center;font-size:15px;flex-shrink:0;}
+.sb-badge{
+  margin-left:auto;font-size:10px;font-weight:700;padding:2px 7px;
+  border-radius:99px;background:var(--glass-subtle);color:var(--text-38);
+}
+.sb-badge.live{background:rgba(16,185,129,0.15);color:var(--green);}
+.sb-divider{height:1px;background:var(--gb-s);margin:10px 12px;}
+
+/* Category sidebar items */
+.sb-cat{
+  display:flex;align-items:center;gap:9px;padding:8px 12px;
+  border-radius:10px;font-size:13px;color:var(--text-56);
+  cursor:pointer;transition:all .15s;margin-bottom:1px;
+}
+.sb-cat:hover{background:var(--glass-subtle);color:var(--text-70);}
+.sb-cat .sb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sb-cat .sb-count{margin-left:auto;font-size:11px;color:var(--text-38);}
+
+/* Community sidebar items */
+.sb-comm{
+  display:flex;align-items:center;gap:9px;padding:8px 12px;
+  border-radius:10px;font-size:13px;color:var(--text-56);
+  cursor:pointer;transition:all .15s;margin-bottom:1px;
+}
+.sb-comm:hover{background:var(--glass-subtle);color:var(--text-70);}
+.sb-comm-icon{
+  width:24px;height:24px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0;
+}
+
+/* ── MAIN ── */
+#main{flex:1;min-width:0;max-width:680px;padding:24px 28px;border-right:1px solid var(--gb-s);}
+
+.feed-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.feed-title{font-size:22px;font-weight:800;color:var(--text-100);letter-spacing:-.03em;}
+.feed-header-actions{display:flex;align-items:center;gap:8px;}
+.btn-ghost{
+  display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;
+  border:1px solid var(--gb-s);background:var(--glass-subtle);
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+  color:var(--text-56);cursor:pointer;transition:all .2s;
+}
+.btn-ghost:hover{background:var(--glass-medium);color:var(--text-70);border-color:var(--gb-m);}
+.btn-primary{
+  display:flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;
+  background:linear-gradient(135deg,#10b981 0%,#059669 100%);border:none;
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:#fff;
+  cursor:pointer;transition:all .2s;
+  box-shadow:0 0 20px var(--green-glow);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 24px var(--green-glow);}
+
+/* Welcome banner */
+.welcome-banner{
+  background:linear-gradient(135deg,rgba(16,185,129,0.12) 0%,rgba(59,130,246,0.08) 100%);
+  border:1px solid rgba(16,185,129,0.2);border-radius:18px;
+  padding:18px 20px;margin-bottom:16px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;overflow:hidden;
+}
+.welcome-banner::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent,rgba(255,255,255,0.02));
+  pointer-events:none;
+}
+.wb-text h3{font-size:15px;font-weight:700;color:var(--text-100);margin-bottom:4px;}
+.wb-text p{font-size:13px;color:var(--text-56);}
+.wb-icon{font-size:40px;opacity:.7;flex-shrink:0;}
+.wb-close{
+  position:absolute;top:10px;right:12px;
+  width:24px;height:24px;border-radius:6px;background:var(--glass-subtle);
+  border:1px solid var(--gb-s);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font-size:12px;color:var(--text-38);transition:all .15s;
+}
+.wb-close:hover{color:var(--text-70);background:var(--glass-medium);}
+
+/* Compose box */
+.compose-box{
+  display:flex;align-items:center;gap:12px;
+  background:var(--glass-medium);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--gb-m);border-radius:16px;
+  padding:14px 16px;margin-bottom:16px;cursor:pointer;
+  transition:all .2s;
+}
+.compose-box:hover{background:var(--glass-prominent);border-color:var(--gb-p);transform:translateY(-1px);}
+.compose-avatar{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#10b981,#3b82f6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:#0f172a;
+  border:2px solid rgba(16,185,129,0.3);
+}
+.compose-hint{flex:1;font-size:14px;color:var(--text-38);}
+.compose-actions{display:flex;gap:8px;}
+.compose-action-btn{
+  display:flex;align-items:center;gap:5px;padding:6px 11px;
+  border-radius:8px;border:1px solid var(--gb-s);background:var(--glass-subtle);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:500;
+  color:var(--text-38);cursor:pointer;transition:all .15s;
+}
+.compose-action-btn:hover{border-color:var(--gb-m);color:var(--text-56);}
+
+/* Filter chips */
+.filter-strip{display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;}
+.filter-strip::-webkit-scrollbar{height:3px;}
+.filter-strip::-webkit-scrollbar-thumb{background:var(--gb-m);border-radius:2px;}
+.chip{
+  display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:99px;
+  border:1px solid var(--gb-s);background:var(--glass-subtle);
+  font-size:12px;font-weight:500;color:var(--text-38);
+  cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0;
+}
+.chip:hover{border-color:var(--gb-m);color:var(--text-56);}
+.chip.active{
+  background:var(--glass-medium);color:var(--text-100);
+  border-color:var(--gb-p);
+}
+.chip-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+
+/* ── POST CARD TOP BORDER handled in responsive section ── */
+
+.post-header{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 18px 10px;}
+.post-meta{display:flex;align-items:center;gap:11px;flex:1;min-width:0;}
+.post-avatar{
+  width:42px;height:42px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:#0f172a;
+}
+.post-info{flex:1;min-width:0;}
+.post-name-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:3px;}
+.post-name{font-size:14px;font-weight:700;color:var(--text-100);}
+.post-badge{
+  font-size:10px;font-weight:600;padding:2px 9px;border-radius:99px;
+  display:flex;align-items:center;gap:4px;
+}
+.post-badge-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.post-time{font-size:11px;color:var(--text-38);}
+.post-community{font-size:11px;color:var(--text-38);}
+.post-community b{color:var(--text-56);font-weight:500;}
+.post-top-right{display:flex;gap:3px;flex-shrink:0;padding-top:2px;}
+.post-icon-btn{
+  width:30px;height:30px;border-radius:8px;border:none;
+  background:none;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:14px;color:var(--text-38);transition:all .15s;
+}
+.post-icon-btn:hover{background:var(--glass-subtle);color:var(--text-70);}
+
+/* Post image */
+.post-image-wrap{
+  position:relative;overflow:hidden;
+  border-top:1px solid var(--gb-s);border-bottom:1px solid var(--gb-s);
+  cursor:pointer;
+}
+.post-image-wrap:hover .post-image-overlay{opacity:1;}
+.post-image-overlay{
+  position:absolute;inset:0;
+  background:rgba(15,23,42,0.35);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .2s;
+}
+.post-image-overlay-icon{
+  width:42px;height:42px;border-radius:50%;
+  background:rgba(255,255,255,0.18);
+  backdrop-filter:blur(8px);
+  border:1.5px solid rgba(255,255,255,0.3);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.post-image{width:100%;height:220px;object-fit:cover;display:block;transition:transform .4s ease;}
+.post-image-wrap:hover .post-image{transform:scale(1.02);}
+.post-image-ph{
+  width:100%;height:220px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:52px;
+}
+.post-image-gradient{
+  position:absolute;bottom:0;left:0;right:0;height:80px;
+  background:linear-gradient(to top,rgba(15,23,42,0.8),transparent);
+  pointer-events:none;
+}
+.post-image-tag{
+  position:absolute;bottom:12px;left:14px;
+  display:flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:99px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.12);
+  font-size:10px;font-weight:600;
+}
+
+/* Post body */
+.post-body{padding:14px 18px 10px;}
+.post-title{font-size:17px;font-weight:700;color:var(--text-100);line-height:1.4;margin-bottom:8px;letter-spacing:-.02em;}
+.post-text{font-size:13px;color:var(--text-56);line-height:1.7;margin-bottom:8px;}
+.post-see-more{color:var(--green);cursor:pointer;font-weight:500;font-size:12px;}
+.post-see-more:hover{text-decoration:underline;}
+
+/* Post tags row */
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
+.post-tag{
+  font-size:11px;font-weight:500;padding:3px 9px;border-radius:99px;
+  background:var(--glass-subtle);border:1px solid var(--gb-s);color:var(--text-38);
+}
+
+/* Post footer */
+.post-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px;border-top:1px solid var(--gb-s);
+}
+.post-footer-left{display:flex;gap:2px;}
+.react-btn{
+  display:flex;align-items:center;gap:5px;padding:7px 11px;border-radius:10px;
+  background:none;border:none;font-family:'Inter',sans-serif;
+  font-size:12px;font-weight:500;color:var(--text-38);
+  cursor:pointer;transition:all .15s;
+}
+.react-btn:hover{background:var(--glass-subtle);color:var(--text-70);}
+.react-btn.liked{color:#f87171;}
+.react-btn.reposted{color:#34d399;}
+.react-btn.saved{color:#fbbf24;}
+.react-btn svg{width:14px;height:14px;flex-shrink:0;}
+.post-footer-right{display:flex;align-items:center;gap:10px;}
+.post-views{font-size:11px;color:var(--text-38);}
+/* Like animation */
+@keyframes likePop{0%{transform:scale(1);}40%{transform:scale(1.35);}70%{transform:scale(.9);}100%{transform:scale(1);}}
+.like-pop{animation:likePop .35s ease both;}
+
+/* Load more */
+.load-more{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px;border-radius:14px;
+  background:var(--glass-subtle);border:1px solid var(--gb-s);
+  font-size:13px;font-weight:500;color:var(--text-38);
+  cursor:pointer;transition:all .2s;margin-top:4px;
+}
+.load-more:hover{background:var(--glass-medium);border-color:var(--gb-m);color:var(--text-70);}
+
+/* ── RIGHT PANEL ── */
+#right{
+  width:304px;flex-shrink:0;padding:24px 18px;
+  position:sticky;top:84px;height:calc(100vh - 84px);overflow-y:auto;
+}
+#right::-webkit-scrollbar{width:3px;}
+#right::-webkit-scrollbar-thumb{background:var(--gb-m);border-radius:2px;}
+
+.widget{
+  background:var(--glass-medium);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--gb-m);border-radius:18px;
+  padding:16px;margin-bottom:14px;overflow:hidden;position:relative;
+}
+.widget-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;
+}
+.widget-title{font-size:13px;font-weight:700;color:var(--text-100);letter-spacing:-.01em;}
+.widget-action{
+  font-size:11px;font-weight:600;color:var(--green);cursor:pointer;
+  padding:4px 9px;border-radius:7px;border:1px solid rgba(16,185,129,0.25);
+  background:rgba(16,185,129,0.08);transition:all .15s;
+}
+.widget-action:hover{background:rgba(16,185,129,0.16);}
+
+/* Category grid widget */
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.cat-tile{
+  padding:11px;border-radius:12px;cursor:pointer;
+  transition:all .2s;text-align:center;border:1px solid var(--gb-s);
+  position:relative;overflow:hidden;
+}
+.cat-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-glass);}
+.cat-tile-icon{font-size:22px;margin-bottom:5px;}
+.cat-tile-name{font-size:12px;font-weight:600;color:var(--text-87);}
+.cat-tile-count{font-size:10px;color:var(--text-38);margin-top:2px;}
+
+/* Communities widget */
+.comm-item{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--gb-s);cursor:pointer;transition:all .15s;
+}
+.comm-item:last-child{border-bottom:none;padding-bottom:0;}
+.comm-item:hover .comm-name{color:var(--green);}
+.comm-avatar{
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  border:1px solid var(--gb-s);
+}
+.comm-info{flex:1;min-width:0;}
+.comm-name{font-size:13px;font-weight:600;color:var(--text-70);transition:color .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.comm-meta{font-size:11px;color:var(--text-38);margin-top:1px;}
+.comm-join-btn{
+  padding:5px 11px;border-radius:8px;
+  background:var(--glass-subtle);border:1px solid var(--gb-m);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+  color:var(--text-56);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;
+}
+.comm-join-btn:hover{background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.35);color:var(--green);}
+.comm-join-btn.joined{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:var(--green);}
+
+/* People to follow widget */
+.follow-person{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--gb-s);
+}
+.follow-person:last-child{border-bottom:none;padding-bottom:0;}
+.fp-avatar{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#0f172a;
+}
+.fp-info{flex:1;min-width:0;}
+.fp-name{font-size:13px;font-weight:600;color:var(--text-70);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fp-meta{font-size:11px;color:var(--text-38);margin-top:1px;}
+.fp-follow-btn{
+  padding:5px 12px;border-radius:8px;
+  background:var(--glass-subtle);border:1px solid var(--gb-m);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+  color:var(--text-56);cursor:pointer;transition:all .15s;flex-shrink:0;
+}
+.fp-follow-btn:hover{background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.35);color:var(--green);}
+.fp-follow-btn.following{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:var(--green);}
+.fp-mutual{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text-38);margin-top:2px;}
+  
+/* Stats widget */
+.stat-grid-2x2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-box{
+  padding:12px;border-radius:12px;
+  background:var(--glass-subtle);border:1px solid var(--gb-s);text-align:center;
+}
+.stat-num{font-size:22px;font-weight:800;color:var(--text-100);letter-spacing:-.03em;}
+.stat-lbl{font-size:10px;color:var(--text-38);margin-top:2px;text-transform:uppercase;letter-spacing:.05em;}
+
+/* Events widget */
+.event-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--gb-s);}
+.event-item:last-child{border-bottom:none;padding-bottom:0;}
+.event-date{
+  width:40px;flex-shrink:0;text-align:center;padding:6px 3px;
+  background:var(--glass-subtle);border:1px solid var(--gb-s);border-radius:10px;
+}
+.event-day{font-size:17px;font-weight:800;color:var(--text-100);line-height:1;}
+.event-mon{font-size:8px;font-weight:700;color:var(--text-38);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.event-info{flex:1;}
+.event-name{font-size:13px;font-weight:500;color:var(--text-70);line-height:1.35;margin-bottom:2px;}
+.event-time{font-size:11px;color:var(--text-38);}
+.event-attending{font-size:10px;color:var(--green);margin-top:2px;font-weight:600;}
+
+/* Trending widget */
+.trending-item{
+  display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gb-s);
+  cursor:pointer;transition:all .15s;
+}
+.trending-item:last-child{border-bottom:none;padding-bottom:0;}
+.trending-item:hover .trending-title{color:var(--green);}
+.trending-rank{font-size:13px;font-weight:800;color:var(--text-38);width:16px;flex-shrink:0;text-align:center;}
+.trending-thumb{
+  width:34px;height:34px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  border:1px solid var(--gb-s);
+}
+.trending-title{font-size:12px;font-weight:500;color:var(--text-56);line-height:1.35;transition:color .15s;}
+.trending-by{font-size:10px;color:var(--text-38);margin-top:2px;}
+.trending-pct{display:flex;align-items:center;gap:3px;font-size:10px;color:#34d399;flex-shrink:0;}
+
+/* ── MODALS ── */
+.overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,0.88);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  z-index:500;display:none;align-items:center;justify-content:center;padding:20px;
+}
+.overlay.open{display:flex;}
+.modal{
+  background:#1e293b;
+  border:1px solid var(--gb-m);border-radius:22px;
+  width:600px;max-width:100%;max-height:90vh;overflow-y:auto;
+  box-shadow:var(--shadow-glass-lg);
+}
+.modal::-webkit-scrollbar{width:4px;}
+.modal::-webkit-scrollbar-thumb{background:var(--gb-m);border-radius:2px;}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 24px;border-bottom:1px solid var(--gb-s);
+  position:sticky;top:0;background:#1e293b;z-index:10;
+}
+.modal-title{font-size:17px;font-weight:700;color:var(--text-100);}
+.modal-close{
+  width:32px;height:32px;border-radius:9px;border:1px solid var(--gb-m);
+  background:var(--glass-subtle);color:var(--text-38);cursor:pointer;
+  font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.modal-close:hover{background:var(--glass-medium);color:var(--text-100);}
+.modal-body{padding:24px;}
+.modal-img{width:100%;border-radius:14px;max-height:320px;object-fit:cover;margin-bottom:18px;border:1px solid var(--gb-s);}
+.modal-img-ph{
+  width:100%;height:240px;border-radius:14px;border:1px solid var(--gb-s);
+  display:flex;align-items:center;justify-content:center;font-size:64px;margin-bottom:18px;
+}
+.modal-location{font-size:20px;font-weight:800;color:var(--text-100);margin-bottom:6px;letter-spacing:-.02em;}
+.modal-meta{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.modal-type-badge{
+  display:flex;align-items:center;gap:5px;padding:4px 11px;
+  border-radius:99px;font-size:11px;font-weight:600;
+}
+.modal-date{font-size:12px;color:var(--text-38);}
+.modal-desc{font-size:14px;color:var(--text-56);line-height:1.75;}
+.modal-actions{
+  display:flex;gap:10px;margin-top:20px;padding-top:16px;
+  border-top:1px solid var(--gb-s);
+}
+
+/* Compose modal */
+.compose-modal-avatar{
+  display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;
+}
+.compose-textarea{
+  flex:1;background:var(--glass-subtle);border:1px solid var(--gb-m);
+  border-radius:12px;padding:12px 14px;font-family:'Inter',sans-serif;
+  font-size:14px;color:var(--text-70);outline:none;resize:none;height:110px;line-height:1.6;
+  transition:border-color .2s;
+}
+.compose-textarea:focus{border-color:var(--gb-p);}
+.compose-toolbar{
+  display:flex;align-items:center;gap:8px;margin-bottom:16px;
+  padding:10px;border-radius:10px;background:var(--glass-subtle);border:1px solid var(--gb-s);
+}
+.toolbar-btn{
+  padding:6px 12px;border-radius:8px;border:1px solid var(--gb-s);background:none;
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:500;
+  color:var(--text-38);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;
+}
+.toolbar-btn:hover{background:var(--glass-subtle);border-color:var(--gb-m);color:var(--text-56);}
+
+/* Form elements */
+.form-row{margin-bottom:16px;}
+.form-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-38);margin-bottom:7px;}
+.form-input{
+  width:100%;background:var(--glass-subtle);border:1px solid var(--gb-m);
+  border-radius:10px;padding:10px 14px;font-family:'Inter',sans-serif;
+  font-size:14px;color:var(--text-70);outline:none;transition:border-color .2s;
+}
+.form-input:focus{border-color:var(--gb-p);color:var(--text-87);}
+.form-textarea{height:80px;resize:none;}
+
+/* Category pill selector */
+.cat-pill-grid{display:flex;flex-wrap:wrap;gap:7px;}
+.cat-pill{
+  display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:99px;
+  border:1px solid var(--gb-s);background:var(--glass-subtle);
+  cursor:pointer;transition:all .2s;font-size:12px;font-weight:500;color:var(--text-38);
+}
+.cat-pill:hover{border-color:var(--gb-m);color:var(--text-56);}
+.cat-pill.selected{border-color:var(--green);background:rgba(16,185,129,0.12);color:var(--green);}
+
+/* Community type selector */
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.type-card{
+  padding:14px 12px;border-radius:12px;border:1px solid var(--gb-s);
+  background:var(--glass-subtle);cursor:pointer;transition:all .2s;text-align:center;
+}
+.type-card:hover{border-color:var(--gb-m);}
+.type-card.selected{border-color:var(--green);background:rgba(16,185,129,0.10);}
+.type-icon{font-size:22px;margin-bottom:6px;}
+.type-name{font-size:12px;font-weight:600;color:var(--text-70);}
+.type-desc{font-size:11px;color:var(--text-38);margin-top:2px;}
+
+/* Community admin panel inside modal */
+.admin-section{
+  padding:14px;border-radius:12px;
+  background:var(--glass-subtle);border:1px solid var(--gb-s);margin-bottom:12px;
+}
+.admin-section-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-38);margin-bottom:10px;}
+.admin-member-row{
+  display:flex;align-items:center;gap:10px;padding:8px 0;
+  border-bottom:1px solid var(--gb-s);
+}
+.admin-member-row:last-child{border-bottom:none;padding-bottom:0;}
+.admin-member-av{
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#0f172a;
+}
+.admin-role-badge{
+  margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;
+}
+.admin-role-admin{background:rgba(16,185,129,0.15);color:var(--green);}
+.admin-role-mod{background:rgba(96,165,250,0.15);color:#60a5fa;}
+.admin-role-member{background:var(--glass-subtle);color:var(--text-38);}
+
+/* Responsive */
+@media(max-width:1280px){#right{display:none;}}
+@media(max-width:860px){#sidebar{display:none;}#main{max-width:100%;border-right:none;padding:20px 16px;}}
+@media(max-width:480px){.feed-header{flex-direction:column;align-items:flex-start;gap:12px;}}
+
+/* ── PROFILE HOVER CARD ── */
+.profile-card{
+  position:fixed;z-index:600;pointer-events:none;
+  background:#1e293b;border:1px solid var(--gb-m);border-radius:18px;
+  width:240px;padding:18px;
+  box-shadow:var(--shadow-glass-lg);
+  opacity:0;transform:translateY(-6px);
+  transition:opacity .18s,transform .18s;
+}
+.profile-card.visible{opacity:1;transform:translateY(0);pointer-events:auto;}
+.pc-avatar{
+  width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:800;color:#0f172a;
+  margin-bottom:10px;border:2px solid rgba(255,255,255,0.15);
+}
+.pc-name{font-size:15px;font-weight:700;color:var(--text-100);letter-spacing:-.02em;margin-bottom:3px;}
+.pc-role{font-size:11px;color:var(--text-38);margin-bottom:10px;}
+.pc-stats{display:flex;gap:14px;padding:10px 0;border-top:1px solid var(--gb-s);border-bottom:1px solid var(--gb-s);margin-bottom:10px;}
+.pc-stat-n{font-size:14px;font-weight:700;color:var(--text-100);}
+.pc-stat-l{font-size:10px;color:var(--text-38);text-transform:uppercase;letter-spacing:.05em;margin-top:1px;}
+.pc-follow-btn{
+  width:100%;padding:7px;border-radius:10px;border:1px solid var(--gb-m);
+  background:var(--glass-subtle);font-family:'Inter',sans-serif;
+  font-size:12px;font-weight:600;color:var(--text-56);cursor:pointer;transition:all .15s;
+}
+.pc-follow-btn:hover{background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.35);color:var(--green);}
+.pc-follow-btn.following{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:var(--green);}
+
+/* ── SEARCH CLEAR BTN ── */
+.search-clear{
+  width:18px;height:18px;border-radius:50%;border:none;background:var(--text-38);
+  display:none;align-items:center;justify-content:center;cursor:pointer;
+  font-size:10px;color:var(--bg);line-height:1;font-weight:700;transition:all .15s;flex-shrink:0;
+}
+.search-clear:hover{background:var(--text-70);}
+.search-clear.visible{display:flex;}
+
+/* ── NOTIFICATION BADGE ── */
+.notif-count{
+  position:absolute;top:6px;right:6px;
+  background:#f87171;color:#fff;
+  font-size:8px;font-weight:800;
+  width:14px;height:14px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  border:1.5px solid var(--bg);
+}
+
+/* ── POST CARD CATEGORY TOP BORDER ── */
+.post-card{
+  background:var(--glass-medium);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--gb-m);
+  border-top:2px solid var(--cat-color,var(--green));
+  border-radius:20px;margin-bottom:14px;overflow:hidden;
+  transition:all .25s;
+  animation:fadeUp .35s ease both;
+}
+.post-card:hover{
+  background:var(--glass-prominent);border-color:var(--gb-p);
+  border-top-color:var(--cat-color,var(--green));
+  transform:translateY(-2px);box-shadow:var(--shadow-glass);
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+
+<!-- Orbs -->
+<div class="orb-layer">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+  <div class="orb o4"></div>
+</div>
+
+<!-- SUB-HEADER BAR -->
+<div id="sub-header">
+  <div class="sh-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" placeholder="Search posts, topics, communities…" id="search-input">
+  </div>
+  <div class="sh-actions">
+    <button class="sh-icon-btn" title="Messages">💬<span class="sh-badge" style="background:#60a5fa;color:#0f172a;" id="msg-badge">1</span></button>
+    <button class="sh-icon-btn" title="Notifications">🔔<span class="sh-badge" style="background:#f87171;color:#fff;" id="notif-badge">3</span></button>
+  </div>
+</div>
+
+<!-- LIVE ACTIVITY TICKER -->
+<div id="ticker">
+  <div class="ticker-label">
+    <div class="ticker-pulse"></div>
+    Live
+  </div>
+  <div style="overflow:hidden;flex:1;">
+    <div class="ticker-track" id="ticker-track"></div>
+  </div>
+</div>
+
+<div id="layout">
+<!-- LEFT SIDEBAR -->
+<aside id="sidebar">
+  <!-- User profile mini card -->
+  <div class="sb-user-card">
+    <div class="sb-user-av">ST</div>
+    <div style="flex:1;min-width:0;">
+      <div class="sb-user-name">Sho T.</div>
+      <div class="sb-user-role">Harvard Business School</div>
+    </div>
+    <span class="sb-user-badge">Admin</span>
+  </div>
+
+  <div class="sb-section-label">General</div>
+  <a class="sb-link active" href="#">
+    <span class="sb-link-icon">📋</span> Feed
+    <span class="sb-badge live">Live</span>
+  </a>
+  <a class="sb-link" href="index.html">
+    <span class="sb-link-icon">🏠</span> Home
+  </a>
+  <a class="sb-link" href="#">
+    <span class="sb-link-icon">📣</span> Announcements
+  </a>
+  <a class="sb-link" href="#">
+    <span class="sb-link-icon">📅</span> Events
+    <span class="sb-badge">4</span>
+  </a>
+  <a class="sb-link" href="#">
+    <span class="sb-link-icon">⚡</span> Take Action
+  </a>
+  <a class="sb-link" href="#">
+    <span class="sb-link-icon">👥</span> Members
+  </a>
+
+  <div class="sb-divider"></div>
+  <div class="sb-section-label">Topics</div>
+  <div class="sb-cat" onclick="filterByCategory('energy')">
+    <span class="sb-dot" style="background:var(--energy)"></span> Energy
+    <span class="sb-count">12.8k</span>
+  </div>
+  <div class="sb-cat" onclick="filterByCategory('food')">
+    <span class="sb-dot" style="background:var(--food)"></span> Food
+    <span class="sb-count">9.2k</span>
+  </div>
+  <div class="sb-cat" onclick="filterByCategory('mobility')">
+    <span class="sb-dot" style="background:var(--mobility)"></span> Mobility
+    <span class="sb-count">8.1k</span>
+  </div>
+  <div class="sb-cat" onclick="filterByCategory('industry')">
+    <span class="sb-dot" style="background:var(--industry)"></span> Industry
+    <span class="sb-count">6.8k</span>
+  </div>
+  <div class="sb-cat" onclick="filterByCategory('technology')">
+    <span class="sb-dot" style="background:var(--technology)"></span> Technology
+    <span class="sb-count">11.5k</span>
+  </div>
+  <div class="sb-cat" onclick="filterByCategory('policy')">
+    <span class="sb-dot" style="background:var(--policy)"></span> Policy
+    <span class="sb-count">7.9k</span>
+  </div>
+  <div class="sb-cat" onclick="filterByCategory('nature')">
+    <span class="sb-dot" style="background:var(--nature)"></span> Nature
+    <span class="sb-count">15.6k</span>
+  </div>
+
+  <div class="sb-divider"></div>
+  <div class="sb-section-label">My Communities</div>
+  <div class="sb-comm" onclick="openCommunityDetail('climate-reality')">
+    <div class="sb-comm-icon" style="background:var(--nature-bg)">🌱</div>
+    <span style="font-size:13px;color:var(--text-56);">Climate Reality</span>
+  </div>
+  <div class="sb-comm" onclick="openCommunityDetail('hbs-energy')">
+    <div class="sb-comm-icon" style="background:var(--energy-bg)">⚡</div>
+    <span style="font-size:13px;color:var(--text-56);">HBS Energy Club</span>
+  </div>
+  <div class="sb-comm" onclick="openCommunityDetail('ocean')">
+    <div class="sb-comm-icon" style="background:var(--mobility-bg)">🌊</div>
+    <span style="font-size:13px;color:var(--text-56);">Ocean Defenders</span>
+  </div>
+  <div class="sb-comm" onclick="document.getElementById('modal-create-community').classList.add('open')">
+    <div class="sb-comm-icon" style="background:var(--glass-subtle);border:1px dashed var(--gb-m)">+</div>
+    <span style="font-size:13px;color:var(--text-38);">Create Community</span>
+  </div>
+
+  <div class="sb-divider"></div>
+  <div class="sb-section-label">Maps</div>
+  <a class="sb-link" href="/?page=learn-infra-map" target="_parent">
+    <span class="sb-link-icon">🌐</span> Infrastructure Globe
+  </a>
+  <a class="sb-link" href="/?page=learn-disaster-map" target="_parent">
+    <span class="sb-link-icon">⚠️</span> Disaster Map
+  </a>
+  <a class="sb-link" href="/?page=learn-electricity-map" target="_parent">
+    <span class="sb-link-icon">⚡</span> Electricity Map
+  </a>
+  <a class="sb-link" href="/?page=learn-emissions-map" target="_parent">
+    <span class="sb-link-icon">📊</span> Emissions Map
+  </a>
+</aside>
+
+<!-- MAIN FEED -->
+<main id="main">
+  <div class="feed-header">
+    <span class="feed-title">Community Feed</span>
+    <div class="feed-header-actions">
+      <button class="btn-ghost" id="sort-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+        Latest
+      </button>
+      <button class="btn-primary" onclick="document.getElementById('modal-compose').classList.add('open')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        New Post
+      </button>
+    </div>
+  </div>
+
+  <!-- Welcome banner -->
+  <div class="welcome-banner" id="welcome-banner">
+    <div class="wb-text">
+      <h3>Welcome to Your Earth Community 🌍</h3>
+      <p>Share climate insights across 7 topics · 72k members worldwide · 152 disaster events tracked</p>
+    </div>
+    <div class="wb-icon">🌿</div>
+    <button class="wb-close" onclick="document.getElementById('welcome-banner').style.display='none'">✕</button>
+  </div>
+
+  <!-- Compose box -->
+  <div class="compose-box" onclick="document.getElementById('modal-compose').classList.add('open')">
+    <div class="compose-avatar">YE</div>
+    <span class="compose-hint">Share a climate insight, observation, or action…</span>
+    <div class="compose-actions" onclick="event.stopPropagation()">
+      <button class="compose-action-btn">📷 Photo</button>
+      <button class="compose-action-btn">📊 Data</button>
+      <button class="compose-action-btn">📅 Event</button>
+    </div>
+  </div>
+
+  <!-- Filter chips -->
+  <div class="filter-strip" id="filter-strip">
+    <div class="chip active" data-filter="all">All</div>
+    <div class="chip" data-filter="energy"><span class="chip-dot" style="background:var(--energy)"></span>Energy</div>
+    <div class="chip" data-filter="food"><span class="chip-dot" style="background:var(--food)"></span>Food</div>
+    <div class="chip" data-filter="mobility"><span class="chip-dot" style="background:var(--mobility)"></span>Mobility</div>
+    <div class="chip" data-filter="industry"><span class="chip-dot" style="background:var(--industry)"></span>Industry</div>
+    <div class="chip" data-filter="technology"><span class="chip-dot" style="background:var(--technology)"></span>Technology</div>
+    <div class="chip" data-filter="policy"><span class="chip-dot" style="background:var(--policy)"></span>Policy</div>
+    <div class="chip" data-filter="nature"><span class="chip-dot" style="background:var(--nature)"></span>Nature</div>
+  </div>
+
+  <div id="feed-container"></div>
+  <div class="load-more" id="load-more">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    Load more posts
+  </div>
+</main>
+
+<!-- RIGHT PANEL -->
+<aside id="right">
+
+  <!-- Category tiles -->
+  <div class="widget">
+    <div class="widget-head">
+      <div class="widget-title">Explore Topics</div>
+      <span class="widget-action">See all</span>
+    </div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+
+  <!-- Communities -->
+  <div class="widget">
+    <div class="widget-head">
+      <div class="widget-title">Communities</div>
+      <span class="widget-action" onclick="document.getElementById('modal-create-community').classList.add('open')">+ Create</span>
+    </div>
+    <div id="communities-list"></div>
+  </div>
+  
+  <!-- People to Follow -->
+  <div class="widget">
+    <div class="widget-head">
+      <div class="widget-title">People to Follow</div>
+      <span class="widget-action" onclick="renderMoreSuggestions()">Refresh</span>
+    </div>
+    <div id="follow-suggestions"></div>
+  </div>
+  
+  <!-- Platform stats -->
+  <div class="widget">
+    <div class="widget-head"><div class="widget-title">Platform Stats</div><span class="widget-action">View Report</span></div>
+    <div class="stat-grid-2x2">
+      <div class="stat-box"><div class="stat-num">152</div><div class="stat-lbl">Events Tracked</div></div>
+      <div class="stat-box"><div class="stat-num">72k</div><div class="stat-lbl">Members</div></div>
+      <div class="stat-box"><div class="stat-num">7</div><div class="stat-lbl">Categories</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-visible">—</div><div class="stat-lbl">Matching Feed</div></div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--gb-s);">
+      <div style="font-size:10px;color:var(--text-38);margin-bottom:6px;letter-spacing:.04em;">Posts today (hourly)</div>
+      <div id="activity-sparkline" style="display:flex;gap:3px;height:28px;align-items:flex-end;"></div>
+    </div>
+  </div>
+
+  <!-- Upcoming events -->
+  <div class="widget">
+    <div class="widget-head">
+      <div class="widget-title">Upcoming Events</div>
+      <span class="widget-action">View all</span>
+    </div>
+    <div class="event-item">
+      <div class="event-date"><div class="event-day">15</div><div class="event-mon">Apr</div></div>
+      <div class="event-info">
+        <div class="event-name">Climate Data Hackathon</div>
+        <div class="event-time">10:00 – 14:00 UTC · Virtual</div>
+        <div class="event-attending">✓ 3 friends attending</div>
+      </div>
+    </div>
+    <div class="event-item">
+      <div class="event-date"><div class="event-day">22</div><div class="event-mon">Apr</div></div>
+      <div class="event-info">
+        <div class="event-name">Earth Day Global Action</div>
+        <div class="event-time">All Day · Worldwide</div>
+      </div>
+    </div>
+    <div class="event-item">
+      <div class="event-date"><div class="event-day">3</div><div class="event-mon">May</div></div>
+      <div class="event-info">
+        <div class="event-name">Flood Risk Workshop</div>
+        <div class="event-time">9:00 – 11:00 UTC · Online</div>
+      </div>
+    </div>
+    <div class="event-item">
+      <div class="event-date"><div class="event-day">18</div><div class="event-mon">May</div></div>
+      <div class="event-info">
+        <div class="event-name">Infrastructure Resilience Talk</div>
+        <div class="event-time">16:00 – 17:30 UTC</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trending -->
+  <div class="widget">
+    <div class="widget-head"><div class="widget-title">Trending Now</div></div>
+    <div id="trending-list"></div>
+  </div>
+
+</aside>
+</div><!-- /layout -->
+
+<!-- ═══════ MODALS ═══════ -->
+
+<!-- COMPOSE MODAL -->
+<div class="overlay" id="modal-compose">
+  <div class="modal" style="width:560px">
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="compose-avatar" style="width:36px;height:36px;font-size:12px;flex-shrink:0;">YE</div>
+        <div>
+          <span class="modal-title">Create Post</span>
+          <div style="font-size:11px;color:var(--text-38);margin-top:1px;">Sho T. · Harvard Business School</div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-compose')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="position:relative;margin-bottom:14px;">
+        <textarea class="compose-textarea" id="compose-text" placeholder="Share a climate observation, data insight, or action…" oninput="updateCharCount(this)" style="width:100%"></textarea>
+        <div style="position:absolute;bottom:10px;right:12px;font-size:10px;color:var(--text-38);" id="char-count">0 / 500</div>
+      </div>
+      <div class="compose-toolbar" style="margin-bottom:10px;">
+        <span style="font-size:11px;color:var(--text-38);margin-right:4px;flex-shrink:0;">Topic:</span>
+        <div class="cat-pill-grid" id="compose-cat-pills"></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-38);margin-bottom:7px;">Post to community</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="compose-community-chips">
+          <div onclick="toggleComposeComm(this,'all')" class="chip active" data-comm="all">🌍 All Feed</div>
+          <div onclick="toggleComposeComm(this,'hbs')" class="chip" data-comm="hbs">⚡ HBS Energy Club</div>
+          <div onclick="toggleComposeComm(this,'climate-reality')" class="chip" data-comm="climate-reality">🌱 Climate Reality</div>
+          <div onclick="toggleComposeComm(this,'ocean')" class="chip" data-comm="ocean">🌊 Ocean Defenders</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button class="toolbar-btn">📷 Photo</button>
+        <button class="toolbar-btn">🔗 Link</button>
+        <button class="toolbar-btn">📊 Data</button>
+        <button class="toolbar-btn">📍 Location</button>
+        <button class="toolbar-btn">📅 Event</button>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn-ghost" onclick="closeModal('modal-compose')">Cancel</button>
+        <button class="btn-primary" onclick="submitPost()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m22 2-7 20-4-9-9-4z"/></svg>
+          Post
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POST DETAIL MODAL -->
+<div class="overlay" id="modal-post">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modal-post-title">Event Detail</span>
+      <button class="modal-close" onclick="closeModal('modal-post')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-post-img-wrap"></div>
+      <div class="modal-location" id="modal-post-location"></div>
+      <div class="modal-meta">
+        <div class="modal-type-badge" id="modal-post-badge"></div>
+        <div class="modal-date" id="modal-post-date"></div>
+      </div>
+      <div class="modal-desc" id="modal-post-desc"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="modal-like-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          Like
+        </button>
+        <button class="btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Comment
+        </button>
+        <button class="btn-ghost" onclick="event.currentTarget.style.color='#34d399'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          Repost
+        </button>
+        <button class="btn-ghost" style="margin-left:auto" onclick="event.currentTarget.style.color='#fbbf24'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          Save
+        </button>
+        <button class="btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE COMMUNITY MODAL -->
+<div class="overlay" id="modal-create-community">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Create a Community</span>
+      <button class="modal-close" onclick="closeModal('modal-create-community')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-label">Community Name</div>
+        <input class="form-input" type="text" placeholder="e.g. HBS Energy Club, Climate Reality Berlin, MIT Sustainability…">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Description</div>
+        <textarea class="form-input form-textarea" placeholder="What is this community about? Who should join? What actions do you take?"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Primary Topic Category</div>
+        <div class="cat-pill-grid" id="create-cat-pills"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Community Type</div>
+        <div class="type-grid">
+          <div class="type-card selected" id="type-open" onclick="selectCommType('open')">
+            <div class="type-icon">🌐</div>
+            <div class="type-name">Open</div>
+            <div class="type-desc">Anyone can join and post</div>
+          </div>
+          <div class="type-card" id="type-private" onclick="selectCommType('private')">
+            <div class="type-icon">🔒</div>
+            <div class="type-name">Private</div>
+            <div class="type-desc">Admin approves members</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Admin / Organiser Name</div>
+        <input class="form-input" type="text" placeholder="Your name or organisation">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Contact Email</div>
+        <input class="form-input" type="email" placeholder="community@yourorg.com">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
+        <button class="btn-ghost" onclick="closeModal('modal-create-community')">Cancel</button>
+        <button class="btn-primary" onclick="closeModal('modal-create-community')">
+          🌱 Create Community
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMMUNITY DETAIL MODAL -->
+<div class="overlay" id="modal-community">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="comm-modal-title">Community</span>
+      <button class="modal-close" onclick="closeModal('modal-community')">✕</button>
+    </div>
+    <div class="modal-body" id="comm-modal-body">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// DATA
+// ══════════════════════════════════════
+const SUPABASE_URL = 'https://pgqisbbixphfzgvzdmfa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBncWlzYmJpeHBoZnpndnpkbWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTM1MjgsImV4cCI6MjA3NjI4OTUyOH0.iX5XNO8eAsPwe7JwCkxjH50tKgygFZ5DHp0ahO2HFJM';
+const SUPABASE_STORAGE = `${SUPABASE_URL}/storage/v1/object/public`;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+
+async function initAuth(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(session?.user){
+    currentUser = session.user;
+    // Fetch profile
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    if(profile){
+      // Update compose box and user card with real name/avatar
+      const initials = (profile.username || 'YE').slice(0,2).toUpperCase();
+      document.querySelectorAll('.compose-avatar, .sb-user-av').forEach(el => el.textContent = initials);
+      const nameEl = document.querySelector('.sb-user-name');
+      if(nameEl) nameEl.textContent = profile.username || 'You';
+    }
+  }
+  // Always load feed regardless of auth state
+  await loadSupabaseFeed(true);
+}
+
+async function loadSupabaseFeed(reset = false){
+  const container = document.getElementById('feed-container');
+  const loadMoreBtn = document.getElementById('load-more');
+
+  if(reset){
+    currentPage = 0;
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-38);font-size:13px;">Loading posts…</div>';
+  }
+
+  try {
+    let query = sb
+      .from('posts')
+      .select(`
+        id, content, image_url, created_at, category,
+        profiles:user_id ( id, username, avatar_url )
+      `)
+      .order('created_at', { ascending: false })
+      .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
+
+    if(activeFilter !== 'all') query = query.eq('category', activeFilter);
+
+    const { data: posts, error } = await query;
+
+    if(error) throw error;
+
+    if(reset) container.innerHTML = '';
+
+    if(!posts || posts.length === 0){
+      if(reset){
+        // No real posts yet — fall back to mock disaster data
+        renderFeed(true);
+        return;
+      }
+      loadMoreBtn.style.display = 'none';
+      return;
+    }
+
+    posts.forEach((post, i) => {
+      const profile = post.profiles || {};
+      const username = profile.username || 'Anonymous';
+      const initials = username.slice(0,2).toUpperCase();
+      const catKey = post.category || 'nature';
+      const cat = CAT[catKey] || CAT.nature;
+      const timeStr = timeAgoFromDate(post.created_at);
+      const isLiked = likedPosts.has(post.id);
+
+      const html = `
+<div class="post-card" data-id="${post.id}" style="animation-delay:${i * 50}ms;--cat-color:${cat.color}">
+  <div class="post-header">
+    <div class="post-meta">
+      <div class="post-avatar" style="background:linear-gradient(135deg,${cat.color},${cat.color}88);">${initials}</div>
+      <div class="post-info">
+        <div class="post-name-row">
+          <span class="post-name">${username}</span>
+          <span class="post-badge" style="background:${cat.bg};color:${cat.color};border:1px solid ${cat.color}30">${cat.icon} ${cat.label}</span>
+          <span class="post-time">${timeStr}</span>
+        </div>
+        <div class="post-community">Posted in <b>Community Feed</b></div>
+      </div>
+    </div>
+    <div class="post-top-right">
+      <button class="post-icon-btn" title="Save" onclick="toggleSave('${post.id}',this)">🔖</button>
+      <button class="post-icon-btn" onclick="showPostMenu(event,'${post.id}')">···</button>
+    </div>
+  </div>
+
+  ${post.image_url ? `
+  <div class="post-image-wrap">
+    <img class="post-image" src="${post.image_url}" alt="Post image" style="height:220px;object-fit:cover;width:100%;display:block;">
+    <div class="post-image-overlay"><div class="post-image-overlay-icon">🔍</div></div>
+    <div class="post-image-gradient"></div>
+  </div>` : ''}
+
+  <div class="post-body">
+    <div class="post-text">${post.content.length > 200 ? post.content.slice(0,200) + '…' : post.content}</div>
+    <div class="post-tags">
+      <span class="post-tag">#ClimateAction</span>
+      <span class="post-tag">#${cat.label.replace(/\s/g,'')}</span>
+      <span class="post-tag">#YourEarth</span>
+    </div>
+  </div>
+
+  <div class="post-footer">
+    <div class="post-footer-left">
+      <button class="react-btn ${isLiked ? 'liked' : ''}" id="like-btn-${post.id}" onclick="handleLike('${post.id}',this)">
+        <svg viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span class="like-count" data-base="0">0</span>
+      </button>
+      <button class="react-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        0
+      </button>
+    </div>
+    <div class="post-footer-right">
+      <span class="post-views">👁 —</span>
+    </div>
+  </div>
+</div>`;
+      container.insertAdjacentHTML('beforeend', html);
+    });
+
+    currentPage++;
+    loadMoreBtn.style.display = posts.length < PAGE_SIZE ? 'none' : 'flex';
+    loadMoreBtn.onclick = () => loadSupabaseFeed(false);
+    document.getElementById('stat-visible').textContent = container.querySelectorAll('.post-card').length;
+
+  } catch(err) {
+    console.warn('Supabase feed error, falling back to mock data:', err);
+    renderFeed(reset);
+  }
+}
+
+function timeAgoFromDate(dateStr){
+  if(!dateStr) return '—';
+  const now = new Date();
+  const d = new Date(dateStr);
+  const secs = Math.floor((now - d) / 1000);
+  if(secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if(mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if(hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if(days < 7) return `${days}d`;
+  if(days < 30) return `${Math.floor(days/7)}w`;
+  if(days < 365) return `${Math.floor(days/30)}mo`;
+  return `${Math.floor(days/365)}y`;
+}
+
+async function handleLike(postId, btn){
+  toggleLike(postId, btn); // optimistic UI update immediately
+
+  if(!currentUser) return; // not logged in — UI update only
+
+  const isNowLiked = likedPosts.has(postId);
+  try {
+    if(isNowLiked){
+      await sb.from('reactions').upsert({
+        post_id: postId,
+        user_id: currentUser.id,
+        type: 'heart'
+      }, { onConflict: 'post_id,user_id' });
+    } else {
+      await sb.from('reactions').delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+    }
+  } catch(err){
+    console.warn('Reaction sync failed:', err);
+  }
+}
+
+
+const DISASTERS = [{"id":"d1","date":"05/01/2020","location":"Canberra, Australia","type":"heat","photo":"disasters/cards/d1.jpg"},{"id":"d2","date":"02/06/2019","location":"Amritsar, India","type":"heat","photo":"disasters/cards/d2.jpg"},{"id":"d3","date":"02/06/2019","location":"Lahore, Pakistan","type":"heat","photo":"disasters/cards/d3.jpg"},{"id":"d4","date":"25/07/2019","location":"Temperatures in Europe","type":"heat","photo":"disasters/cards/d4.jpg"},{"id":"d5","date":"14/07/2018","location":"Tokyo, Japan","type":"heat","photo":"disasters/cards/d5.jpg"},{"id":"d6","date":"06/04/2020","location":"Navrongo, Ghana","type":"heat","photo":"disasters/cards/d6.jpg"},{"id":"d7","date":"05/07/2018","location":"Ouargla, Algeria","type":"heat","photo":"disasters/cards/d7.jpg"},{"id":"d8","date":"08/06/2019","location":"Kuwait City, Kuwait","type":"heat","photo":"disasters/cards/d8.jpg"},{"id":"d9","date":"02/06/2017","location":"Quetta, Pakistan","type":"heat","photo":"disasters/cards/d9.jpg"},{"id":"d10","date":"27/08/2017","location":"Houston, Texas","type":"flood","photo":"disasters/cards/d10.jpg"},{"id":"d11","date":"26/05/2020","location":"Miami, Florida","type":"flood","photo":"disasters/cards/d11.jpg"},{"id":"d12","date":"21/05/2020","location":"Satkhira, Bangladesh","type":"flood","photo":"disasters/cards/d12.jpg"},{"id":"d13","date":"19/05/2020","location":"Cyclone Evacuation Camp, Orissa, India","type":"flood","photo":"disasters/cards/d13.jpg"},{"id":"d14","date":"14/05/2020","location":"Catbalogan City, Philippines","type":"flood","photo":"disasters/cards/d14.jpg"},{"id":"d15","date":"12/10/2019","location":"Tokyo, Japan","type":"flood","photo":"disasters/cards/d15.jpg"},{"id":"d16","date":"11/10/2018","location":"Mexico Beach, Florida","type":"flood","photo":"disasters/cards/d16.jpg"},{"id":"d17","date":"04/09/2019","location":"Marsh Harbour, Bahamas","type":"flood","photo":"disasters/cards/d17.jpg"},{"id":"d18","date":"05/09/2019","location":"Abaco Island, Bahamas","type":"flood","photo":"disasters/cards/d18.jpg"},{"id":"d19","date":"24/09/2017","location":"Corozal, Puerto Rico","type":"flood","photo":"disasters/cards/d19.jpg"},{"id":"d20","date":"29/10/2012","location":"Manhattan, New York","type":"flood","photo":"disasters/cards/d20.jpg"},{"id":"d21","date":"19/03/2019","location":"Buzi, Mozambique","type":"flood","photo":"disasters/cards/d21.jpg"},{"id":"d22","date":"21/02/2017","location":"San Jose, California","type":"flood","photo":"disasters/cards/d22.jpg"},{"id":"d23","date":"18/07/2016","location":"Phoenix, Arizona","type":"flood","photo":"disasters/cards/d23.jpg"},{"id":"d24","date":"27/05/2018","location":"Ellicott City, Maryland","type":"flood","photo":"disasters/cards/d24.jpg"},{"id":"d25","date":"17/04/2020","location":"Red River (North Dakota/Minnesota, USA)","type":"flood","photo":"disasters/cards/d25.jpg"},{"id":"d26","date":"15/02/2020","location":"Savannah, Tennessee","type":"flood","photo":"disasters/cards/d26.jpg"},{"id":"d27","date":"16/02/2020","location":"Jackson, Mississippi","type":"flood","photo":"disasters/cards/d27.jpg"},{"id":"d28","date":"08/07/2019","location":"Washington, D.C.","type":"flood","photo":"disasters/cards/d28.jpg"},{"id":"d29","date":"20/06/2019","location":"Westville, New Jersey","type":"flood","photo":"disasters/cards/d29.jpg"},{"id":"d30","date":"10/07/2019","location":"New Orleans, Louisiana","type":"flood","photo":"disasters/cards/d30.jpg"},{"id":"d31","date":"18/03/2019","location":"Pacific Junction, Iowa, USA","type":"flood","photo":"disasters/cards/d31.jpg"},{"id":"d32","date":"19/03/2019","location":"Bellevue, Nebraska","type":"flood","photo":"disasters/cards/d32.jpg"},{"id":"d33","date":"05/05/2019","location":"Orchard, Nebraska","type":"flood","photo":"disasters/cards/d33.jpg"},{"id":"d34","date":"06/07/2020","location":"Wuhan, China","type":"flood","photo":"disasters/cards/d34.jpg"},{"id":"d35","date":"24/06/2020","location":"Lu'an, Anhui Province, China","type":"flood","photo":"disasters/cards/d35.jpg"},{"id":"d36","date":"08/06/2020","location":"Qingyuan, Guangdong Province, China","type":"flood","photo":"disasters/cards/d36.jpg"},{"id":"d37","date":"05/07/2020","location":"Kuma Town, Japan","type":"flood","photo":"disasters/cards/d37.jpg"},{"id":"d38","date":"30/06/2019","location":"Mashiki, Japan","type":"flood","photo":"disasters/cards/d38.jpg"},{"id":"d39","date":"21/05/2020","location":"Beni, DR Congo","type":"flood","photo":"disasters/cards/d39.jpg"},{"id":"d40","date":"29/04/2020","location":"Nakuru, Kenya","type":"flood","photo":"disasters/cards/d40.jpg"},{"id":"d41","date":"26/08/2019","location":"Wad Ramli, Sudan","type":"flood","photo":"disasters/cards/d41.jpg"},{"id":"d42","date":"07/03/2019","location":"Southern Malawi","type":"flood","photo":"disasters/cards/d42.jpg"},{"id":"d43","date":"29/01/2020","location":"Belo Horizonte, Brazil","type":"flood","photo":"disasters/cards/d43.jpg"},{"id":"d44","date":"08/01/2019","location":"Norberto de la Riestra, Argentina","type":"flood","photo":"disasters/cards/d44.jpg"},{"id":"d45","date":"26/10/2017","location":"Cordoba, Argentina","type":"flood","photo":"disasters/cards/d45.jpg"},{"id":"d46","date":"30/06/2019","location":"Guadalajara, Mexico","type":"flood","photo":"disasters/cards/d46.jpg"},{"id":"d47","date":"13/06/2020","location":"Calgary, Alberta, Canada","type":"flood","photo":"disasters/cards/d47.jpg"},{"id":"d48","date":"25/05/2019","location":"Asuncion, Paraguay","type":"flood","photo":"disasters/cards/d48.jpg"},{"id":"d49","date":"21/03/2019","location":"Golestan Province, Iran","type":"flood","photo":"disasters/cards/d49.jpg"},{"id":"d50","date":"03/06/2020","location":"Alta, Norway","type":"flood","photo":"disasters/cards/d50.jpg"},{"id":"d51","date":"25/06/2020","location":"Chernivtsi Region, Ukraine","type":"flood","photo":"disasters/cards/d51.jpg"},{"id":"d52","date":"01/07/2019","location":"Irkutsk Region, Siberia, Russia","type":"flood","photo":"disasters/cards/d52.jpg"},{"id":"d53","date":"13/09/2019","location":"Almoradi, Spain","type":"flood","photo":"disasters/cards/d53.jpg"},{"id":"d54","date":"21/02/2020","location":"Gloucestershire, England","type":"flood","photo":"disasters/cards/d54.jpg"},{"id":"d55","date":"11/02/2020","location":"York, England","type":"flood","photo":"disasters/cards/d55.jpg"},{"id":"d56","date":"28/12/2015","location":"York, England","type":"flood","photo":"disasters/cards/d56.jpg"},{"id":"d57","date":"19/05/2020","location":"Sanford Dam, Sanford, Michigan","type":"flood","photo":"disasters/cards/d57.jpg"},{"id":"d58","date":"20/05/2020","location":"Sanford, Michigan","type":"flood","photo":"disasters/cards/d58.jpg"},{"id":"d59","date":"21/05/2020","location":"Sanford, Michigan","type":"flood","photo":"disasters/cards/d59.jpg"},{"id":"d60","date":"20/05/2020","location":"Midland, Michigan","type":"flood","photo":"disasters/cards/d60.jpg"},{"id":"d61","date":"20/05/2020","location":"Dow Chemical Company, Midland, Michigan","type":"flood","photo":"disasters/cards/d61.jpg"},{"id":"d62","date":"01/09/2017","location":"Port Arthur, Texas","type":"flood","photo":"disasters/cards/d62.jpg"},{"id":"d63","date":"31/08/2017","location":"Motiva Oil Refinery, Port Arthur, Texas","type":"flood","photo":"disasters/cards/d63.jpg"},{"id":"d64","date":"29/04/2020","location":"Nakuru, Kenya","type":"heat","photo":"disasters/cards/d64.jpg"},{"id":"d65","date":"2009","location":"Melbourne, Australia","type":"heat","photo":"disasters/cards/d65.jpg"},{"id":"d66","date":"02/08/2019","location":"Kitakyushu City, Japan","type":"heat","photo":"disasters/cards/d66.jpg"},{"id":"d67","date":"18/09/2019","location":"High-Speed Rail Line, Germany","type":"heat","photo":"disasters/cards/d67.jpg"},{"id":"d68","date":"10/06/2020","location":"Ambarnaya River, Russian Arctic","type":"heat","photo":"disasters/cards/d68.jpg"},{"id":"d69","date":"19/06/2020","location":"Tucson, Arizona","type":"wildfire","photo":"disasters/cards/d69.jpg"},{"id":"d70","date":"06/05/2020","location":"Santa Rosa County, Florida","type":"wildfire","photo":"disasters/cards/d70.jpg"},{"id":"d71","date":"24/10/2019","location":"Kincade Fire, Jimtown, California","type":"wildfire","photo":"disasters/cards/d71.jpg"},{"id":"d72","date":"24/10/2019","location":"Tick Fire, North of Los Angeles, California","type":"wildfire","photo":"disasters/cards/d72.jpg"},{"id":"d73","date":"30/10/2019","location":"Reagan Presidential Library, Simi Valley, California","type":"wildfire","photo":"disasters/cards/d73.jpg"},{"id":"d74","date":"08/11/2018","location":"Paradise, California","type":"wildfire","photo":"disasters/cards/d74.jpg"},{"id":"d75","date":"31/07/2018","location":"Lakeport, California","type":"wildfire","photo":"disasters/cards/d75.jpg"},{"id":"d76","date":"04/09/2017","location":"North Bonneville, Washington","type":"wildfire","photo":"disasters/cards/d76.jpg"},{"id":"d77","date":"31/12/2019","location":"Lake Conjola, NSW, Australia","type":"wildfire","photo":"disasters/cards/d77.jpg"},{"id":"d78","date":"03/11/2019","location":"Port Macquarie Koala Hospital, Australia","type":"wildfire","photo":"disasters/cards/d78.jpg"},{"id":"d79","date":"04/01/2020","location":"Southeastern Australia","type":"wildfire","photo":"disasters/cards/d79.jpg"},{"id":"d80","date":"23/04/2020","location":"Kemerovo, Siberia, Russia","type":"wildfire","photo":"disasters/cards/d80.jpg"},{"id":"d81","date":"02/06/2020","location":"Yakutsk, Siberia, Russia","type":"wildfire","photo":"disasters/cards/d81.jpg"},{"id":"d82","date":"05/04/2019","location":"Sokcho, South Korea","type":"wildfire","photo":"disasters/cards/d82.jpg"},{"id":"d83","date":"10/07/2019","location":"Southwestern Greenland","type":"wildfire","photo":"disasters/cards/d83.jpg"},{"id":"d84","date":"22/11/2018","location":"Imja Glacier, Nepal","type":"other","photo":"disasters/cards/d84.jpg"},{"id":"d85","date":"03/06/2020","location":"Krakow am See, Poland","type":"drought","photo":"disasters/cards/d85.jpg"},{"id":"d86","date":"03/06/2020","location":"Simferopol, Crimea","type":"drought","photo":"disasters/cards/d86.jpg"},{"id":"d87","date":"24/07/2019","location":"Loire River, Montjean-sur-Loire, France","type":"drought","photo":"disasters/cards/d87.jpg"},{"id":"d88","date":"10/11/2019","location":"Gan River, Nanchang, China","type":"drought","photo":"disasters/cards/d88.jpg"},{"id":"d89","date":"21/05/2019","location":"Chembarambakkam Lake, Chennai, India","type":"drought","photo":"disasters/cards/d89.jpg"},{"id":"d90","date":"2018","location":"Cape Town, South Africa","type":"drought","photo":"disasters/cards/d90.jpg"},{"id":"d91","date":"28/01/2020","location":"Buhera, Zimbabwe","type":"drought","photo":"disasters/cards/d91.jpg"},{"id":"d92","date":"20/02/2020","location":"Food Distribution, Mudzi, Zimbabwe","type":"drought","photo":"disasters/cards/d92.jpg"},{"id":"d93","date":"12/05/2020","location":"Auckland, New Zealand","type":"drought","photo":"disasters/cards/d93.jpg"},{"id":"d94","date":"04/10/2019","location":"Boggabri, Australia","type":"drought","photo":"disasters/cards/d94.jpg"},{"id":"d95","date":"01/05/2020","location":"Tolarno Station, NSW, Australia","type":"drought","photo":"disasters/cards/d95.jpg"},{"id":"d96","date":"20/09/2015","location":"Tovarnik, Croatia","type":"other","photo":"disasters/cards/d96.jpg"},{"id":"d97","date":"05/11/2018","location":"Cordoba, Mexico","type":"other","photo":"disasters/cards/d97.jpg"},{"id":"d98","date":"01/08/2018","location":"Jiquilisco, El Salvador","type":"drought","photo":"disasters/cards/d98.jpg"},{"id":"d99","date":"29/12/2019","location":"Moscow, Russia","type":"heat","photo":"disasters/cards/d99.jpg"},{"id":"d100","date":"26/02/2018","location":"Rome, Italy","type":"other","photo":"disasters/cards/d100.jpg"},{"id":"d101","date":"29/01/2019","location":"Chicago, Illinois","type":"other","photo":"disasters/cards/d101.jpg"},{"id":"d102","date":"01/07/2016","location":"Yamal Peninsula, Siberia, Russia","type":"other","photo":"disasters/cards/d102.jpg"},{"id":"d103","date":"1985","location":"Yamal Peninsula, Siberia, Russia","type":"other","photo":"disasters/cards/d103.jpg"},{"id":"d104","date":"17/09/2019","location":"Kivalina, Alaska","type":"heat","photo":"disasters/cards/d104.jpg"},{"id":"d105","date":"Summer 2013","location":"Unnamed Glacier, Southwest Greenland","type":"heat","photo":"disasters/cards/d105.jpg"},{"id":"d106","date":"13/06/2019","location":"Northwest Greenland","type":"heat","photo":"disasters/cards/d106.jpg"},{"id":"d107","date":"01/01/2019","location":"Ice Sheet, Kangerlussuaq, Greenland","type":"heat","photo":"disasters/cards/d107.jpg"},{"id":"d108","date":"09/02/2020","location":"Seymour Island, Antarctica","type":"heat","photo":"disasters/cards/d108.jpg"},{"id":"d109","date":"","location":"Thwaites Glacier, West Antarctica","type":"heat","photo":"disasters/cards/d109.jpg"},{"id":"d110","date":"14/11/2016","location":"Miami Beach, Florida","type":"sea level rise","photo":"disasters/cards/d110.jpg"},{"id":"d111","date":"28/09/2019","location":"Miami Beach, Florida, USA","type":"sea level rise","photo":"disasters/cards/d111.jpg"},{"id":"d112","date":"06/09/2019","location":"Norfolk, Virginia","type":"sea level rise","photo":"disasters/cards/d112.jpg"},{"id":"d113","date":"05/06/2018","location":"National Mall, Washington, D.C.","type":"sea level rise","photo":"disasters/cards/d113.jpg"},{"id":"d114","date":"15/11/2019","location":"Venice, Italy","type":"sea level rise","photo":"disasters/cards/d114.jpg"},{"id":"d115","date":"13/11/2019","location":"Veneto Regional Council Chamber","type":"sea level rise","photo":"disasters/cards/d115.jpg"},{"id":"d116","date":"2007","location":"Flooding in Bangladesh","type":"sea level rise","photo":"disasters/cards/d116.jpg"},{"id":"d117","date":"2009","location":"Rosetta, Egypt","type":"sea level rise","photo":"disasters/cards/d117.jpg"},{"id":"d118","date":"25/01/2020","location":"Mekong Delta, Thailand","type":"sea level rise","photo":"disasters/cards/d118.jpg"},{"id":"d119","date":"30/03/2016","location":"Bac Lieu Province, Mekong Delta, Vietnam","type":"sea level rise","photo":"disasters/cards/d119.jpg"},{"id":"d120","date":"03/06/2020","location":"Ghentbrugge, Belgium","type":"drought","photo":"disasters/cards/d120.jpg"},{"id":"d121","date":"23/09/2019","location":"Dry Riverbed, Putaendo, Chile","type":"drought","photo":"disasters/cards/d121.jpg"},{"id":"d122","date":"06/06/2020","location":"Rajasthan, India","type":"pests","photo":"disasters/cards/d122.jpg"},{"id":"d123","date":"21/05/2020","location":"Samburu County, Kenya","type":"pests","photo":"disasters/cards/d123.jpg"},{"id":"d124","date":"23/10/2018","location":"Los Angeles, California","type":"pollution","photo":"disasters/cards/d124.jpg"},{"id":"d125","date":"15/04/2020","location":"Changchun, Jilin Province, China","type":"pollution","photo":"disasters/cards/d125.jpg"},{"id":"d126","date":"1918","location":"St. Louis, Missouri","type":"pollution","photo":"disasters/cards/d126.jpg"},{"id":"d127","date":"08/04/2020","location":"Navajo Nation, Shiprock, New Mexico","type":"pollution","photo":"disasters/cards/d127.jpg"},{"id":"d128","date":"","location":"Cancer Alley (Baton Rouge, Louisiana, USA)","type":"pollution","photo":"disasters/cards/d128.jpg"},{"id":"d129","date":"08/09/2018","location":"Eastern Houston, Texas","type":"pollution","photo":"disasters/cards/d129.jpg"},{"id":"d130","date":"30/01/2019","location":"Bangkok, Thailand","type":"pollution","photo":"disasters/cards/d130.jpg"},{"id":"d131","date":"24/02/2017","location":"Warsaw, Poland","type":"pollution","photo":"disasters/cards/d131.jpg"},{"id":"d132","date":"05/01/2016","location":"New Delhi, India","type":"pollution","photo":"disasters/cards/d132.jpg"},{"id":"d133","date":"19/12/2016","location":"Linzhou, Henan Province, China","type":"pollution","photo":"disasters/cards/d133.jpg"},{"id":"d134","date":"2015","location":"Yichuan, China","type":"pollution","photo":"disasters/cards/d134.jpg"},{"id":"d135","date":"","location":"Beijing, China","type":"pollution","photo":"disasters/cards/d135.jpg"},{"id":"d136","date":"2011","location":"Guizhou Province, China","type":"pollution","photo":"disasters/cards/d136.jpg"},{"id":"d137","date":"19/02/2019","location":"Union Hill, Virginia","type":"other","photo":"disasters/cards/d137.jpg"},{"id":"d138","date":"2014","location":"Jalalabad, Afghanistan","type":"other","photo":"disasters/cards/d138.jpg"},{"id":"d139","date":"12/09/2019","location":"Independence Heights Neighborhood, Houston","type":"other","photo":"disasters/cards/d139.jpg"},{"id":"d140","date":"08/04/2019","location":"Durham, North Carolina","type":"other","photo":"disasters/cards/d140.jpg"},{"id":"d141","date":"28/04/2020","location":"Yunnan Province, China","type":"other","photo":"disasters/cards/d141.jpg"},{"id":"d142","date":"29/09/2019","location":"South Kalimantan, Indonesia","type":"other","photo":"disasters/cards/d142.jpg"},{"id":"d143","date":"01/07/2018","location":"Sanibel Island, Florida","type":"other","photo":"disasters/cards/d143.jpg"},{"id":"d144","date":"01/03/2020","location":"Great Barrier Reef, Australia","type":"other","photo":"disasters/cards/d144.jpg"},{"id":"d145","date":"2016","location":"Bleached Coral, Great Barrier Reef","type":"other","photo":"disasters/cards/d145.jpg"},{"id":"d146","date":"15/08/2019","location":"Active Fires in South America","type":"wildfire","photo":"disasters/cards/d146.jpg"},{"id":"d147","date":"27/08/2019","location":"Altamira, Para State, Brazil","type":"wildfire","photo":"disasters/cards/d147.jpg"},{"id":"d148","date":"06/10/2019","location":"Riau, Indonesia","type":"wildfire","photo":"disasters/cards/d148.jpg"},{"id":"d149","date":"24/09/2019","location":"Peatland Fire, Riau Province, Indonesia","type":"wildfire","photo":"disasters/cards/d149.jpg"},{"id":"d150","date":"09/10/2019","location":"Edwards, Colorado","type":"heat","photo":"disasters/cards/d150.jpg"},{"id":"d151","date":"28/07/2019","location":"Addis Ababa, Ethiopia","type":"other","photo":"disasters/cards/d151.jpg"},{"id":"d152","date":"28/02/2020","location":"Kintia Park Nature Reserve, Ecuador","type":"other","photo":"disasters/cards/d152.jpg"}];
+
+const CAT = {
+  energy:     { label:'Energy',     color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   icon:'⚡', grad:'linear-gradient(135deg,#FFA726,#FB8C00)', members:'12.8k' },
+  food:       { label:'Food',       color:'#fb923c', bg:'rgba(251,146,60,0.12)',   icon:'🌾', grad:'linear-gradient(135deg,#66BB6A,#43A047)', members:'9.2k'  },
+  mobility:   { label:'Mobility',   color:'#60a5fa', bg:'rgba(96,165,250,0.12)',   icon:'🚗', grad:'linear-gradient(135deg,#42A5F5,#1E88E5)', members:'8.1k'  },
+  industry:   { label:'Industry',   color:'#94a3b8', bg:'rgba(148,163,184,0.12)', icon:'🏭', grad:'linear-gradient(135deg,#AB47BC,#8E24AA)', members:'6.8k'  },
+  technology: { label:'Technology', color:'#c084fc', bg:'rgba(192,132,252,0.12)', icon:'💻', grad:'linear-gradient(135deg,#26C6DA,#00ACC1)', members:'11.5k' },
+  policy:     { label:'Policy',     color:'#f87171', bg:'rgba(248,113,113,0.12)', icon:'⚖️', grad:'linear-gradient(135deg,#EF5350,#E53935)', members:'7.9k'  },
+  nature:     { label:'Nature',     color:'#34d399', bg:'rgba(52,211,153,0.12)',   icon:'🌿', grad:'linear-gradient(135deg,#9CCC65,#7CB342)', members:'15.6k' },
+};
+
+const DTYPE = {
+  heat:              { label:'Heat Wave',     hex:'#ff6b35', emoji:'🌡️', cat:'energy'   },
+  wildfire:          { label:'Wildfire',      hex:'#ff9500', emoji:'🔥', cat:'nature'   },
+  flood:             { label:'Flood',         hex:'#38bdf8', emoji:'🌊', cat:'nature'   },
+  hurricane:         { label:'Hurricane',     hex:'#a78bfa', emoji:'🌀', cat:'nature'   },
+  storm:             { label:'Storm',         hex:'#60a5fa', emoji:'⛈️', cat:'nature'   },
+  drought:           { label:'Drought',       hex:'#d4a853', emoji:'☀️', cat:'food'     },
+  pollution:         { label:'Pollution',     hex:'#b45adc', emoji:'🏭', cat:'industry' },
+  'sea level rise':  { label:'Sea Level Rise',hex:'#00d2be', emoji:'🌊', cat:'policy'   },
+  pests:             { label:'Pests',         hex:'#82c850', emoji:'🦗', cat:'food'     },
+  other:             { label:'Other',         hex:'#94a3b8', emoji:'⚠️', cat:'nature'   },
+};
+
+const AUTHORS = [
+  {name:'Sho T.',    init:'ST', grad:'135deg,#10b981,#3b82f6'},
+  {name:'Alex M.',   init:'AM', grad:'135deg,#a855f7,#6366f1'},
+  {name:'Priya K.',  init:'PK', grad:'135deg,#fb923c,#f59e0b'},
+  {name:'James L.',  init:'JL', grad:'135deg,#10b981,#0d9488'},
+  {name:'Maria S.',  init:'MS', grad:'135deg,#f87171,#ec4899'},
+  {name:'Yuki N.',   init:'YN', grad:'135deg,#60a5fa,#818cf8'},
+  {name:'Omar A.',   init:'OA', grad:'135deg,#fbbf24,#fb923c'},
+  {name:'Lin W.',    init:'LW', grad:'135deg,#2dd4bf,#34d399'},
+  {name:'Ivan P.',   init:'IP', grad:'135deg,#c084fc,#818cf8'},
+  {name:'Fatima R.', init:'FR', grad:'135deg,#34d399,#10b981'},
+];
+
+const CHANNELS = ['Share Your Climate Actions','Field Reports','Disaster Monitoring','Research Highlights','Community Updates','Policy Watch','Data Insights','Local Action'];
+
+const DESCS = {
+  heat: ['Extreme heat event recorded with temperatures significantly exceeding seasonal norms. Local authorities issued emergency advisories and cooling centres were opened for vulnerable populations across the region.','A prolonged heat dome settled over the area, breaking historical temperature records. Health services reported surge demand as the event highlighted the accelerating frequency of extreme heat under climate change.'],
+  wildfire: ['Rapid-spread wildfire driven by drought conditions and strong winds consumed thousands of hectares. Emergency services worked across multiple fronts as climate-driven fire seasons intensify in duration and scale globally.','Satellite imagery captured dramatic fire progression across parched landscapes. The scale and speed of spread reflects conditions increasingly associated with warming temperatures and reduced soil moisture.'],
+  flood: ['Flash flooding inundated low-lying areas following intense rainfall, displacing residents and causing widespread infrastructure damage. The event underscores growing flood exposure as precipitation extremes intensify with warming.','River levels exceeded flood stage as upstream precipitation overwhelmed drainage systems. Scientists note the event is consistent with intensifying hydrological extremes linked to a warming atmosphere holding more moisture.'],
+  hurricane: ['Category-level tropical cyclone made landfall bringing destructive winds and significant storm surge. Rapid intensification over abnormally warm ocean waters preceded impact — a pattern increasingly documented in recent storm seasons.','Recovery efforts spanned weeks following the storm\'s initial impact. The event highlighted vulnerabilities in coastal infrastructure as scientists document links between warming sea surface temperatures and intensifying tropical cyclones.'],
+  storm: ['Severe convective storm system produced damaging winds, large hail, and localised flash flooding. Meteorologists noted the role of elevated atmospheric moisture — a consequence of warming — in amplifying the event\'s severity.','An anomalously intense storm swept through the region causing widespread infrastructure damage. Emergency services responded across multiple affected zones as research continues to document the warming-storm intensity relationship.'],
+  drought: ['Multi-year drought conditions depleted water reserves to critical levels, triggering agricultural losses and water restrictions affecting millions. The event reveals the compounding socioeconomic toll of climate-driven drying trends.','Soil moisture deficits accumulated over consecutive dry seasons. The severity and duration are consistent with projected aridification trends for the region under continued greenhouse gas emissions scenarios.'],
+  pollution: ['Elevated pollution levels posed significant health risks to local communities, with industrial emissions and traffic contributing to readings well above safe thresholds. Community advocates called for urgent regulatory intervention.','Environmental monitoring detected serious contamination affecting both water and air quality across the region. The event illustrates the intersecting crises of local pollution and the broader climate vulnerability facing affected populations.'],
+  'sea level rise': ['Tidal flooding events documented the accelerating impact of sea level rise on coastal communities. Residents and planners face increasingly difficult decisions about long-term habitability and the scale of adaptation investment required.','King tide events combined with sea level rise to inundate streets and properties — a vivid preview of conditions projected to become routine in the coming decades without rapid global emissions reductions.'],
+  pests: ['Unusual pest outbreaks tied to shifting climate conditions caused significant crop damage and disrupted local ecosystems. Warming temperatures are expanding the geographic range of previously region-limited species at alarming speed.','Swarms linked to climate-driven changes in temperature and precipitation patterns disrupted agricultural systems. Authorities warned of growing threats to regional food security as climate change reshapes pest dynamics worldwide.'],
+  other: ['A significant climate-related event documented by field reporters and satellite data, contributing to the comprehensive global record maintained by Your Earth of accelerating impacts across diverse ecosystems and communities.','On-the-ground documentation captured the human and environmental dimensions of this climate event, illustrating why systematic, community-driven data collection is essential to effective climate response and adaptation planning.'],
+};
+
+const COMMUNITIES = [
+  {id:'climate-reality', name:'Climate Reality Project', icon:'🌱', cat:'nature',     members:'2,847', joined:false, desc:'A global network of climate activists, scientists, and communicators. Founded by Al Gore.',  admins:['Sho T.','Maria S.'],  posts_week:48 },
+  {id:'hbs-energy',      name:'HBS Energy Club',         icon:'⚡', cat:'energy',     members:'1,234', joined:true,  desc:'Harvard Business School students and alumni working on energy transition and clean tech.', admins:['Sho T.'],             posts_week:22 },
+  {id:'ocean',           name:'Ocean Defenders',         icon:'🌊', cat:'mobility',   members:'876',   joined:false, desc:'Protecting marine ecosystems through advocacy, research, and community action worldwide.',  admins:['James L.'],           posts_week:15 },
+  {id:'cleantech',       name:'CleanTech Innovators',    icon:'💡', cat:'technology', members:'3,102', joined:false, desc:'Connecting founders, investors, and engineers building climate solutions at scale.',        admins:['Yuki N.','Ivan P.'],  posts_week:61 },
+  {id:'food-systems',    name:'Food Systems Lab',        icon:'🌾', cat:'food',       members:'654',   joined:false, desc:'Researchers and practitioners reimagining food production for a climate-constrained world.', admins:['Priya K.'],           posts_week:12 },
+];
+
+// ── STATE ──
+let activeFilter = 'all', currentPage = 0, sortLatest = true;
+const PAGE_SIZE = 10;
+const likedPosts = new Set();
+const savedPosts = new Set();
+const repostedPosts = new Set();
+const imgCache = {};
+
+// ── HELPERS ──
+function getDesc(type){ const p=DESCS[type]||DESCS.other; return p[Math.floor(Math.random()*p.length)]; }
+function getAuthor(i){ return AUTHORS[i%AUTHORS.length]; }
+function getChannel(i){ return CHANNELS[i%CHANNELS.length]; }
+function randViews(){ return (Math.floor(Math.random()*900)+100).toLocaleString(); }
+function timeAgo(d){
+  if(!d)return'—';
+  const parts=d.split('/');
+  if(parts.length===3){
+    const dt=new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    if(!isNaN(dt)){
+      const days=Math.floor((new Date('2025-04-01')-dt)/86400000);
+      if(days<1)return'Today';if(days<7)return`${days}d`;
+      if(days<30)return`${Math.floor(days/7)}w`;
+      if(days<365)return`${Math.floor(days/30)}mo`;
+      return`${Math.floor(days/365)}y`;
+    }
+  }
+  return d;
+}
+
+// ── FILTERED DATA ──
+function getFiltered(){
+  let d = [...DISASTERS];
+  if(activeFilter!=='all') d=d.filter(r=>DTYPE[r.type]?.cat===activeFilter);
+  return sortLatest ? d.slice().reverse() : d;
+}
+
+// ── RENDER POST ──
+function renderPost(r, globalIdx, delay){
+  const dt  = DTYPE[r.type]||DTYPE.other;
+  const cat = CAT[dt.cat]||CAT.nature;
+  const auth= getAuthor(globalIdx);
+  const ch  = getChannel(globalIdx);
+  const desc= getDesc(r.type);
+  const short= desc.length>200 ? desc.slice(0,200)+'…' : desc;
+  const imgUrl= `${SUPABASE_STORAGE}/${r.photo}`;
+  const views = randViews();
+  const likes = Math.floor(Math.random()*180)+12;
+  const comments = Math.floor(Math.random()*42)+3;
+  const reposts = Math.floor(Math.random()*28)+1;
+  const isLiked = likedPosts.has(r.id);
+  const isSaved = savedPosts.has(r.id);
+
+  return `
+<div class="post-card" data-id="${r.id}" style="animation-delay:${delay}ms;--cat-color:${cat.color}">
+  <div class="post-header">
+    <div class="post-meta">
+      <div class="post-avatar" style="background:linear-gradient(${auth.grad});cursor:pointer"
+        onmouseenter="showProfileCard(event,'${auth.name}','${auth.init}','${auth.grad}')"
+        onmouseleave="hideProfileCard()">${auth.init}</div>
+      <div class="post-info">
+        <div class="post-name-row">
+          <span class="post-name" style="cursor:pointer"
+            onmouseenter="showProfileCard(event,'${auth.name}','${auth.init}','${auth.grad}')"
+            onmouseleave="hideProfileCard()">${auth.name}</span>
+          <span class="post-badge" style="background:${cat.bg};color:${cat.color};border:1px solid ${cat.color}30">
+            <span>${cat.icon}</span>${cat.label}
+          </span>
+          <span class="post-time">${timeAgo(r.date)}</span>
+        </div>
+        <div class="post-community">Posted in <b>${ch}</b></div>
+      </div>
+    </div>
+    <div class="post-top-right">
+      <button class="post-icon-btn ${isSaved?'saved-active':''}" title="${isSaved?'Saved':'Save'}" 
+        onclick="toggleSave('${r.id}',this)" style="${isSaved?'color:#fbbf24':''}">🔖</button>
+      <button class="post-icon-btn" title="More options" onclick="showPostMenu(event,'${r.id}')">···</button>
+    </div>
+  </div>
+
+  <div class="post-image-wrap" onclick="openPostModal('${r.id}')">
+    <div class="post-image-ph" id="ph-${r.id}" style="background:linear-gradient(135deg,#0f172a,${dt.hex}18)">${dt.emoji}</div>
+    <img class="post-image" id="img-${r.id}" src="" alt="${r.location}" style="display:none"
+      onload="this.style.display='block';document.getElementById('ph-${r.id}').style.display='none';"
+      onerror="this.style.display='none';document.getElementById('ph-${r.id}').style.display='flex';">
+    <div class="post-image-overlay"><div class="post-image-overlay-icon">🔍</div></div>
+    <div class="post-image-gradient"></div>
+    <div class="post-image-tag" style="color:${dt.hex}">
+      <span>${dt.emoji}</span>${dt.label}
+    </div>
+  </div>
+
+  <div class="post-body">
+    <div class="post-title">${r.location}</div>
+    <div class="post-text">${short}${desc.length>200?`<span class="post-see-more" onclick="openPostModal('${r.id}')"> See more</span>`:''}</div>
+    <div class="post-tags">
+      <span class="post-tag">#ClimateAction</span>
+      <span class="post-tag">#${dt.label.replace(/\s/g,'')}</span>
+      <span class="post-tag">#YourEarth</span>
+    </div>
+  </div>
+
+  <div class="post-footer">
+    <div class="post-footer-left">
+      <button class="react-btn ${isLiked?'liked':''}" id="like-btn-${r.id}" onclick="toggleLike('${r.id}',this)">
+        <svg viewBox="0 0 24 24" fill="${isLiked?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span class="like-count" data-base="${likes}">${isLiked?likes+1:likes}</span>
+      </button>
+      <button class="react-btn" onclick="openPostModal('${r.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        ${comments}
+      </button>
+      <button class="react-btn" id="repost-btn-${r.id}" onclick="toggleRepost('${r.id}',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        <span class="repost-count" data-base="${reposts}">${reposts}</span>
+      </button>
+    </div>
+    <div class="post-footer-right">
+      <span class="post-views">👁 ${views}</span>
+    </div>
+  </div>
+</div>`;
+}
+
+// ── IMAGE LOADING ──
+function loadImages(container){
+  container.querySelectorAll('img[id^="img-"]').forEach(img=>{
+    if(!img.src || img.src===window.location.href){
+      const id=img.id.replace('img-','');
+      const r=DISASTERS.find(d=>d.id===id);
+      if(r) img.src=`${SUPABASE_STORAGE}/${r.photo}`;
+    }
+  });
+}
+
+// ── RENDER FEED ──
+function renderFeed(reset=false){
+  const data=getFiltered();
+  if(reset){currentPage=0;document.getElementById('feed-container').innerHTML='';}
+  const start=currentPage*PAGE_SIZE;
+  const slice=data.slice(start,start+PAGE_SIZE);
+  const container=document.getElementById('feed-container');
+  slice.forEach((r,i)=>container.insertAdjacentHTML('beforeend',renderPost(r,start+i,(i%PAGE_SIZE)*50)));
+  loadImages(container);
+  currentPage++;
+  document.getElementById('load-more').style.display=currentPage*PAGE_SIZE>=data.length?'none':'flex';
+  document.getElementById('stat-visible').textContent=data.length;
+}
+
+// ── INTERACTIONS ──
+function toggleLike(id,btn){
+  const svg = btn.querySelector('svg');
+  const countEl = btn.querySelector('.like-count');
+  const base = parseInt(countEl.dataset.base||0);
+  if(likedPosts.has(id)){
+    likedPosts.delete(id);btn.classList.remove('liked');
+    svg.setAttribute('fill','none');
+    countEl.textContent = base;
+  } else {
+    likedPosts.add(id);btn.classList.add('liked');
+    svg.setAttribute('fill','currentColor');
+    countEl.textContent = base+1;
+    btn.classList.add('like-pop');
+    setTimeout(()=>btn.classList.remove('like-pop'),350);
+  }
+}
+
+function toggleSave(id, btn){
+  if(savedPosts.has(id)){
+    savedPosts.delete(id);
+    btn.style.color='';btn.title='Save';
+  } else {
+    savedPosts.add(id);
+    btn.style.color='#fbbf24';btn.title='Saved';
+    btn.classList.add('like-pop');
+    setTimeout(()=>btn.classList.remove('like-pop'),350);
+  }
+}
+
+function toggleRepost(id, btn){
+  const countEl = btn.querySelector('.repost-count');
+  const base = parseInt(countEl.dataset.base||0);
+  if(repostedPosts.has(id)){
+    repostedPosts.delete(id);btn.classList.remove('reposted');
+    countEl.textContent = base;
+  } else {
+    repostedPosts.add(id);btn.classList.add('reposted');
+    countEl.textContent = base+1;
+    btn.classList.add('like-pop');
+    setTimeout(()=>btn.classList.remove('like-pop'),350);
+  }
+}
+
+let profileCardTimer=null;
+const profileCard = document.createElement('div');
+profileCard.className='profile-card';
+profileCard.innerHTML=`
+  <div class="pc-avatar" id="pc-av"></div>
+  <div class="pc-name" id="pc-name"></div>
+  <div class="pc-role" id="pc-role">Climate Researcher · Your Earth</div>
+  <div class="pc-stats">
+    <div><div class="pc-stat-n" id="pc-posts"></div><div class="pc-stat-l">Posts</div></div>
+    <div><div class="pc-stat-n" id="pc-followers"></div><div class="pc-stat-l">Followers</div></div>
+    <div><div class="pc-stat-n" id="pc-actions"></div><div class="pc-stat-l">Actions</div></div>
+  </div>
+  <button class="pc-follow-btn" onclick="this.classList.toggle('following');this.textContent=this.classList.contains('following')?'✓ Following':'Follow'">Follow</button>`;
+document.body.appendChild(profileCard);
+
+function showProfileCard(e, name, init, grad){
+  clearTimeout(profileCardTimer);
+  const au = AUTHORS.find(a=>a.name===name)||AUTHORS[0];
+  document.getElementById('pc-av').textContent=init;
+  document.getElementById('pc-av').style.background=`linear-gradient(${grad})`;
+  document.getElementById('pc-name').textContent=name;
+  document.getElementById('pc-posts').textContent = Math.floor(Math.random()*80+10);
+  document.getElementById('pc-followers').textContent = (Math.floor(Math.random()*900)+100).toLocaleString();
+  document.getElementById('pc-actions').textContent = Math.floor(Math.random()*50+5);
+  const rect = e.target.getBoundingClientRect();
+  let left = rect.right + 10;
+  if(left + 250 > window.innerWidth) left = rect.left - 250;
+  let top = rect.top - 20;
+  if(top + 260 > window.innerHeight) top = window.innerHeight - 270;
+  profileCard.style.left = left+'px';
+  profileCard.style.top = top+'px';
+  profileCard.classList.add('visible');
+}
+function hideProfileCard(){
+  profileCardTimer = setTimeout(()=>profileCard.classList.remove('visible'),200);
+}
+profileCard.addEventListener('mouseenter',()=>clearTimeout(profileCardTimer));
+profileCard.addEventListener('mouseleave',()=>profileCard.classList.remove('visible'));
+
+function showPostMenu(e, id){
+  e.stopPropagation();
+  // Simple feedback - could expand to full context menu
+  const btn = e.currentTarget;
+  btn.textContent='⋮';
+  setTimeout(()=>btn.textContent='···', 300);
+}
+
+function clearSearch(){
+  document.getElementById('search-input').value='';
+  activeFilter='all';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.filter==='all'));
+  loadSupabaseFeed(true);
+}
+
+function openPostModal(id){
+  const r=DISASTERS.find(d=>d.id===id);if(!r)return;
+  const dt=DTYPE[r.type]||DTYPE.other;
+  const cat=CAT[dt.cat]||CAT.nature;
+  const auth=getAuthor(parseInt(r.id.replace('d',''))||0);
+  const desc=getDesc(r.type);
+  const likes=Math.floor(Math.random()*180)+12;
+  const isLiked=likedPosts.has(id);
+
+  document.getElementById('modal-post-title').textContent=r.location;
+  
+  const url=`${SUPABASE_STORAGE}/${r.photo}`;
+  const wrap=document.getElementById('modal-post-img-wrap');
+  wrap.innerHTML=`
+    <div id="mph" class="modal-img-ph" style="background:linear-gradient(135deg,#0f172a,${dt.hex}15)">${dt.emoji}</div>
+    <img class="modal-img" src="${url}" alt="${r.location}" style="display:none"
+      onload="this.style.display='block';document.getElementById('mph').style.display='none';"
+      onerror="this.style.display='none';document.getElementById('mph').style.display='flex';">`;
+
+  document.getElementById('modal-post-badge').innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(${auth.grad});display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#0f172a;">${auth.init}</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--text-100);">${auth.name}</div>
+        <div style="font-size:11px;color:var(--text-38);">${getChannel(parseInt(r.id.replace('d',''))||0)} · ${timeAgo(r.date)}</div>
+      </div>
+      <span style="margin-left:auto;background:${cat.bg};color:${cat.color};border:1px solid ${cat.color}30;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;">${cat.icon} ${cat.label}</span>
+    </div>
+    <span style="background:${dt.hex}18;color:${dt.hex};border:1px solid ${dt.hex}33;padding:4px 11px;border-radius:99px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">${dt.emoji} ${dt.label}</span>`;
+
+  document.getElementById('modal-post-date').textContent='';
+  document.getElementById('modal-post-location').textContent=r.location;
+  document.getElementById('modal-post-desc').innerHTML=`
+    <p style="font-size:14px;color:var(--text-56);line-height:1.75;margin-bottom:16px;">${desc}</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+      <span class="post-tag">#ClimateAction</span>
+      <span class="post-tag">#${dt.label.replace(/\s/g,'')}</span>
+      <span class="post-tag">#YourEarth</span>
+      <span class="post-tag">#${r.location.split(',')[0].replace(/\s/g,'')}</span>
+    </div>
+    <div style="padding-top:16px;border-top:1px solid var(--gb-s);">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-38);margin-bottom:12px;">Comments (${Math.floor(Math.random()*12)+2})</div>
+      ${generateComments(r)}
+    </div>`;
+
+  // Update like button
+  const likeBtn = document.getElementById('modal-like-btn');
+  likeBtn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${isLiked?'#f87171':'none'}" stroke="${isLiked?'#f87171':'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${isLiked?likes+1:likes}`;
+  likeBtn.style.color=isLiked?'#f87171':'';
+  likeBtn.onclick=()=>{
+    if(likedPosts.has(id)){likedPosts.delete(id);likeBtn.style.color='';likeBtn.innerHTML=likeBtn.innerHTML.replace(likes+1,likes).replace('#f87171','currentColor').replace('#f87171','none');
+    }else{likedPosts.add(id);likeBtn.style.color='#f87171';likeBtn.innerHTML=likeBtn.innerHTML.replace(likes,likes+1).replace('none','#f87171').replace('currentColor','#f87171');}
+    // also update the card if visible
+    const cardBtn=document.getElementById(`like-btn-${id}`);
+    if(cardBtn)toggleLike(id,cardBtn);
+  };
+
+  document.getElementById('modal-post').classList.add('open');
+}
+
+function generateComments(r){
+  const commentAuthors = AUTHORS.slice(0,4);
+  const commentTexts = [
+    'This is deeply concerning. Thanks for documenting and sharing this with the community.',
+    'We\'re tracking similar events in our region. The pattern is becoming impossible to ignore.',
+    'Important data point. Adding this to our regional resilience report.',
+    'Devastating to see. What can we do to help affected communities on the ground?',
+  ];
+  return commentAuthors.map((a,i)=>`
+    <div style="display:flex;gap:10px;margin-bottom:14px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(${a.grad});display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0f172a;flex-shrink:0;">${a.init}</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-70);">${a.name} <span style="font-size:10px;color:var(--text-38);font-weight:400;">${Math.floor(Math.random()*5)+1}d ago</span></div>
+        <div style="font-size:13px;color:var(--text-56);line-height:1.6;margin-top:3px;">${commentTexts[i]}</div>
+      </div>
+    </div>`).join('');
+}
+
+// Category filter - also syncs sidebar categories
+function filterByCategory(cat){
+  activeFilter=cat;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.filter===cat));
+  // sync sidebar
+  document.querySelectorAll('.sb-cat').forEach(el=>{
+    const isActive = el.getAttribute('onclick')?.includes(`'${cat}'`)||el.getAttribute('onclick')?.includes(`"${cat}"`);
+    el.style.background=isActive?'var(--glass-subtle)':'';
+    el.style.color=isActive?'var(--text-87)':'';
+  });
+  loadSupabaseFeed(true);
+}
+
+document.getElementById('filter-strip').addEventListener('click',e=>{
+  const chip=e.target.closest('.chip');if(!chip)return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilter=chip.dataset.filter;
+  loadSupabaseFeed(true);
+});
+
+// Sort toggle
+let sortLatestFlag=true;
+document.getElementById('sort-btn').addEventListener('click',function(){
+  sortLatestFlag=!sortLatestFlag;
+  sortLatest=sortLatestFlag;
+  this.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M11 18h2"/></svg>${sortLatestFlag?'Latest':'Oldest'}`;
+  loadSupabaseFeed(true);
+});
+
+// Load more
+document.getElementById('load-more').addEventListener('click',()=>loadSupabaseFeed(false));
+
+// Search
+document.getElementById('search-input').addEventListener('input',function(){
+  const q=this.value.trim().toLowerCase();
+  if(!q){activeFilter='all';document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.filter==='all'));loadSupabaseFeed(true);return;}
+  const results=DISASTERS.filter(r=>r.location.toLowerCase().includes(q)||r.type.includes(q));
+  const container=document.getElementById('feed-container');
+  container.innerHTML='';currentPage=0;
+  results.slice(0,PAGE_SIZE).forEach((r,i)=>container.insertAdjacentHTML('beforeend',renderPost(r,i,i*40)));
+  loadImages(container);
+  document.getElementById('stat-visible').textContent=results.length;
+  document.getElementById('load-more').style.display='none';
+});
+
+// Modal helpers
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay').forEach(el=>el.classList.remove('open'));});
+
+// Community type selector
+function selectCommType(t){
+  document.getElementById('type-open').classList.toggle('selected',t==='open');
+  document.getElementById('type-private').classList.toggle('selected',t==='private');
+}
+
+// Community detail modal
+function openCommunityDetail(id){
+  const c=COMMUNITIES.find(x=>x.id===id)||COMMUNITIES[0];
+  const cat=CAT[c.cat]||CAT.nature;
+  document.getElementById('comm-modal-title').textContent=c.name;
+  document.getElementById('comm-modal-body').innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding:16px;background:var(--glass-subtle);border:1px solid var(--gb-s);border-radius:14px;">
+      <div style="width:54px;height:54px;border-radius:14px;background:${cat.bg};border:1px solid ${cat.color}33;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">${c.icon}</div>
+      <div style="flex:1;">
+        <div style="font-size:17px;font-weight:800;color:var(--text-100);margin-bottom:4px;letter-spacing:-.02em;">${c.name}</div>
+        <div style="font-size:12px;color:var(--text-38);">${c.members} members · ${cat.label} · ${c.id==='type-private'?'Private':'Open'} community</div>
+      </div>
+      <button style="padding:8px 16px;border-radius:10px;background:${c.joined?'rgba(16,185,129,0.12)':'linear-gradient(135deg,#10b981,#059669)'};border:${c.joined?'1px solid rgba(16,185,129,0.3)':'none'};font-family:Inter,sans-serif;font-size:13px;font-weight:700;color:${c.joined?'#10b981':'#fff'};cursor:pointer;" onclick="this.textContent=this.textContent==='Join'?'✓ Joined':'Join'">${c.joined?'✓ Joined':'Join'}</button>
+    </div>
+    <p style="font-size:14px;color:var(--text-56);line-height:1.7;margin-bottom:18px;">${c.desc}</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;">
+      <div class="stat-box"><div class="stat-num">${c.members}</div><div class="stat-lbl">Members</div></div>
+      <div class="stat-box"><div class="stat-num">${c.posts_week}</div><div class="stat-lbl">Posts/week</div></div>
+      <div class="stat-box"><div class="stat-num">${c.admins.length}</div><div class="stat-lbl">Admins</div></div>
+    </div>
+    <div class="admin-section">
+      <div class="admin-section-title">Community Admins</div>
+      ${c.admins.map((a,i)=>{
+        const au=AUTHORS.find(x=>x.name===a)||AUTHORS[i];
+        return `<div class="admin-member-row">
+          <div class="admin-member-av" style="background:linear-gradient(${au.grad})">${au.init}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;color:var(--text-70);">${a}</div>
+            <div style="font-size:11px;color:var(--text-38);">Community Admin · ${cat.label}</div>
+          </div>
+          <span class="admin-role-badge admin-role-admin">Admin</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="admin-section" style="margin-top:10px;">
+      <div class="admin-section-title">Recent Activity</div>
+      ${DISASTERS.filter(d=>DTYPE[d.type]?.cat===c.cat).slice(0,3).map(r=>{
+        const dt=DTYPE[r.type]||DTYPE.other;
+        const au=getAuthor(parseInt(r.id.replace('d','')));
+        return `<div class="admin-member-row">
+          <div style="width:32px;height:32px;border-radius:8px;background:${dt.hex}18;border:1px solid ${dt.hex}30;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${dt.emoji}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:500;color:var(--text-56);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.location}</div>
+            <div style="font-size:11px;color:var(--text-38);">${au.name} · ${timeAgo(r.date)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn-primary" style="flex:1;justify-content:center;">📋 View Posts</button>
+      <button class="btn-ghost">⚙️ Settings</button>
+      <button class="btn-ghost">📤 Invite</button>
+    </div>
+  `;
+  document.getElementById('modal-community').classList.add('open');
+}
+
+// ── RENDER WIDGETS ──
+const SUGGESTIONS = [
+  {init:'PK', grad:'135deg,#fb923c,#f59e0b', name:'Priya K.',    role:'Food Systems Researcher',  mutual:3, posts:47},
+  {init:'JL', grad:'135deg,#10b981,#0d9488', name:'James L.',    role:'Ocean Conservation Lead',  mutual:5, posts:82},
+  {init:'YN', grad:'135deg,#60a5fa,#818cf8', name:'Yuki N.',     role:'CleanTech Founder · Tokyo',mutual:2, posts:63},
+  {init:'OA', grad:'135deg,#fbbf24,#fb923c', name:'Omar A.',     role:'Policy Analyst · Geneva',  mutual:4, posts:31},
+  {init:'MS', grad:'135deg,#f87171,#ec4899', name:'Maria S.',    role:'Climate Journalist',       mutual:6, posts:118},
+  {init:'IP', grad:'135deg,#c084fc,#818cf8', name:'Ivan P.',     role:'Carbon Markets Specialist',mutual:1, posts:29},
+  {init:'FR', grad:'135deg,#34d399,#10b981', name:'Fatima R.',   role:'Renewables Engineer · Lagos',mutual:3, posts:55},
+  {init:'LW', grad:'135deg,#2dd4bf,#34d399', name:'Lin W.',      role:'Biodiversity Researcher',  mutual:2, posts:41},
+];
+
+let suggOffset = 0;
+function renderFollowSuggestions(){
+  const container = document.getElementById('follow-suggestions');
+  if(!container) return;
+  container.innerHTML = '';
+  const picks = SUGGESTIONS.slice(suggOffset, suggOffset + 4);
+  picks.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'follow-person';
+    el.innerHTML = `
+      <div class="fp-avatar" style="background:linear-gradient(${p.grad})">${p.init}</div>
+      <div class="fp-info">
+        <div class="fp-name">${p.name}</div>
+        <div class="fp-meta">${p.role}</div>
+        <div class="fp-mutual">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ${p.mutual} mutual connections · ${p.posts} posts
+        </div>
+      </div>
+      <button class="fp-follow-btn" onclick="toggleFollow(this)">Follow</button>`;
+    container.appendChild(el);
+  });
+}
+
+function renderMoreSuggestions(){
+  suggOffset = (suggOffset + 4) % SUGGESTIONS.length;
+  renderFollowSuggestions();
+}
+
+async function toggleFollow(btn){
+  const isFollowing = btn.classList.contains('following');
+  btn.classList.toggle('following', !isFollowing);
+  btn.textContent = isFollowing ? 'Follow' : '✓ Following';
+
+  if(!currentUser) return;
+
+  const personEl = btn.closest('.follow-person');
+  const nameEl = personEl?.querySelector('.fp-name');
+  if(!nameEl) return;
+
+  try {
+    const { data: profile } = await sb.from('profiles').select('id').eq('username', nameEl.textContent.trim()).single();
+    if(!profile) return;
+
+    if(!isFollowing){
+      await sb.from('follows').upsert({ follower_id: currentUser.id, following_id: profile.id }, { onConflict: 'follower_id,following_id' });
+    } else {
+      await sb.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', profile.id);
+    }
+  } catch(err){
+    console.warn('Follow sync failed:', err);
+  }
+}
+
+function renderCatGrid(){
+  const g=document.getElementById('cat-grid');
+  Object.entries(CAT).forEach(([k,c])=>{
+    const d=document.createElement('div');
+    d.className='cat-tile';
+    d.style.cssText=`background:${c.bg};border-color:${c.color}22;`;
+    d.innerHTML=`<div class="cat-tile-icon">${c.icon}</div><div class="cat-tile-name">${c.label}</div><div class="cat-tile-count">${c.members}</div>`;
+    d.addEventListener('click',()=>filterByCategory(k));
+    g.appendChild(d);
+  });
+}
+
+function renderComposeCatPills(containerId){
+  const g=document.getElementById(containerId);if(!g)return;
+  Object.entries(CAT).forEach(([k,c])=>{
+    const d=document.createElement('div');
+    d.className='cat-pill';
+    d.innerHTML=`${c.icon} ${c.label}`;
+    d.addEventListener('click',()=>{g.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('selected'));d.classList.add('selected');});
+    g.appendChild(d);
+  });
+}
+
+function renderCreateCatPills(){
+  const g=document.getElementById('create-cat-pills');if(!g)return;
+  Object.entries(CAT).forEach(([k,c])=>{
+    const d=document.createElement('div');
+    d.className='cat-pill';
+    d.innerHTML=`${c.icon} ${c.label}`;
+    d.addEventListener('click',()=>{g.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('selected'));d.classList.add('selected');});
+    g.appendChild(d);
+  });
+}
+
+function renderCommunities(){
+  const container=document.getElementById('communities-list');
+  COMMUNITIES.forEach(c=>{
+    const cat=CAT[c.cat]||CAT.nature;
+    const el=document.createElement('div');
+    el.className='comm-item';
+    el.innerHTML=`
+      <div class="comm-avatar" style="background:${cat.bg};border-color:${cat.color}22;">${c.icon}</div>
+      <div class="comm-info">
+        <div class="comm-name">${c.name}</div>
+        <div class="comm-meta">${c.members} members · ${cat.label}</div>
+      </div>
+      <button class="comm-join-btn ${c.joined?'joined':''}" onclick="event.stopPropagation();toggleJoinComm(this)">${c.joined?'✓ Joined':'Join'}</button>`;
+    el.querySelector('.comm-avatar').addEventListener('click',()=>openCommunityDetail(c.id));
+    el.querySelector('.comm-name').addEventListener('click',()=>openCommunityDetail(c.id));
+    container.appendChild(el);
+  });
+}
+
+function toggleJoinComm(btn){
+  const joined=btn.classList.contains('joined');
+  btn.classList.toggle('joined',!joined);
+  btn.textContent=joined?'Join':'✓ Joined';
+}
+
+function renderTrending(){
+  const list=document.getElementById('trending-list');
+  const picks=DISASTERS.filter(r=>r.type!=='other').slice(0,5);
+  picks.forEach((r,idx)=>{
+    const dt=DTYPE[r.type]||DTYPE.other;
+    const au=getAuthor(parseInt(r.id.replace('d',''))||0);
+    const pct = Math.floor(Math.random()*45)+8;
+    const el=document.createElement('div');
+    el.className='trending-item';
+    el.innerHTML=`
+      <div style="font-size:13px;font-weight:800;color:var(--text-38);width:16px;flex-shrink:0;text-align:center;">${idx+1}</div>
+      <div class="trending-thumb" style="background:${dt.hex}14;border-color:${dt.hex}25;">${dt.emoji}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="trending-title">${r.location}</div>
+        <div class="trending-by">${au.name} · ${dt.label}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:#34d399;flex-shrink:0;">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        ${pct}%
+      </div>`;
+    el.addEventListener('click',()=>openPostModal(r.id));
+    list.appendChild(el);
+  });
+}
+
+// ── LIVE TICKER ──
+function buildTicker(){
+  const activities=[
+    {av:'SC',grad:'135deg,#10b981,#3b82f6',text:'<b>Sarah C.</b> joined Clean Energy Community',cat:'⚡',catColor:'var(--energy)'},
+    {av:'MJ',grad:'135deg,#f59e0b,#fb923c',text:'<b>Marcus J.</b> completed Solar Panel pledge',cat:'🌿',catColor:'var(--nature)'},
+    {av:'AP',grad:'135deg,#c084fc,#818cf8',text:'<b>Aisha P.</b> earned Climate Champion badge',cat:'💻',catColor:'var(--technology)'},
+    {av:'RK',grad:'135deg,#60a5fa,#38bdf8',text:'<b>NYC</b> hit 1,000 climate actions milestone 🎉',cat:'🏆',catColor:'var(--green)'},
+    {av:'LW',grad:'135deg,#34d399,#10b981',text:'<b>Lin W.</b> shared a new flood report',cat:'🌊',catColor:'var(--mobility)'},
+    {av:'OA',grad:'135deg,#fbbf24,#fb923c',text:'<b>Omar A.</b> posted in Policy Watch',cat:'⚖️',catColor:'var(--policy)'},
+    {av:'ST',grad:'135deg,#10b981,#3b82f6',text:'<b>Sho T.</b> created HBS Energy Club',cat:'⚡',catColor:'var(--energy)'},
+    {av:'FR',grad:'135deg,#34d399,#10b981',text:'<b>Fatima R.</b> joined Ocean Defenders',cat:'🌊',catColor:'var(--mobility)'},
+    {av:'JP',grad:'135deg,#a855f7,#818cf8',text:'<b>James P.</b> shared wildfire data',cat:'🔥',catColor:'#ff9500'},
+    {av:'YN',grad:'135deg,#60a5fa,#6366f1',text:'<b>Yuki N.</b> posted Climate Tech news',cat:'💡',catColor:'var(--technology)'},
+  ];
+  // Duplicate for seamless loop
+  const all=[...activities,...activities];
+  const track=document.getElementById('ticker-track');
+  track.innerHTML=all.map(a=>`
+    <div class="ticker-item">
+      <div class="ti-avatar" style="background:linear-gradient(${a.grad})">${a.av}</div>
+      <span class="ti-text">${a.text}</span>
+      <span class="ti-cat" style="background:${a.catColor}18;color:${a.catColor};border:1px solid ${a.catColor}30">${a.cat}</span>
+    </div>
+    <span class="ticker-sep">·</span>`).join('');
+}
+
+function updateCharCount(ta){
+  const n = ta.value.length;
+  const el = document.getElementById('char-count');
+  if(el){
+    el.textContent = n + ' / 500';
+    el.style.color = n > 450 ? '#f87171' : n > 350 ? '#fbbf24' : 'var(--text-38)';
+  }
+}
+
+function toggleComposeComm(el, id){
+  if(id==='all'){
+    document.querySelectorAll('#compose-community-chips .chip').forEach(c=>c.classList.toggle('active',c.dataset.comm==='all'));
+  } else {
+    el.classList.toggle('active');
+    document.querySelector('#compose-community-chips [data-comm="all"]').classList.remove('active');
+  }
+}
+
+async function submitPost(){
+  const textEl = document.getElementById('compose-text');
+  const text = textEl?.value?.trim();
+  if(!text){ closeModal('modal-compose'); return; }
+
+  const selectedPill = document.querySelector('#compose-cat-pills .cat-pill.selected');
+  const category = selectedPill ? Object.keys(CAT).find(k => CAT[k].label === selectedPill.textContent.trim().slice(2)) || 'nature' : 'nature';
+
+  const btn = document.querySelector('#modal-compose .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Posting…'; }
+
+  try {
+    if(currentUser){
+      const { error } = await sb.from('posts').insert({
+        user_id: currentUser.id,
+        content: text,
+        category: category,
+      });
+      if(error) throw error;
+    }
+
+    closeModal('modal-compose');
+    textEl.value = '';
+    updateCharCount(textEl);
+
+    await loadSupabaseFeed(true);
+
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:100px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#34d399;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:600;backdrop-filter:blur(12px);animation:fadeUp .3s ease;';
+    banner.textContent = '✓ Post shared to community!';
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 2500);
+
+  } catch(err) {
+    console.error('Post failed:', err);
+    closeModal('modal-compose');
+    textEl.value = '';
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = 'Post'; }
+  }
+}
+renderCatGrid();
+renderComposeCatPills('compose-cat-pills');
+renderCreateCatPills();
+renderCommunities();
+renderFollowSuggestions();
+renderTrending();
+buildTicker();
+initAuth();
+
+// Build activity sparkline
+(function(){
+  const vals=[14,22,18,31,27,42,38,51,44,36,48,55];
+  const maxV=Math.max(...vals);
+  const el=document.getElementById('activity-sparkline');
+  if(!el)return;
+  vals.forEach((v,i)=>{
+    const bar=document.createElement('div');
+    bar.style.cssText=`flex:1;background:${i===vals.length-1?'var(--green)':'var(--glass-medium)'};border-radius:2px 2px 0 0;height:${Math.round(v/maxV*100)}%;min-height:3px;transition:all .3s;cursor:pointer;`;
+    bar.title=`${v} posts`;
+    bar.addEventListener('mouseenter',()=>{ bar.style.background='var(--green)'; bar.style.opacity='1'; });
+    bar.addEventListener('mouseleave',()=>{ bar.style.background=i===vals.length-1?'var(--green)':'var(--glass-medium)'; });
+    el.appendChild(bar);
+  });
+})();
+</script>
+</body>
+</html>

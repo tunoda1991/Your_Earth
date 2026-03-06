@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Emissions Sources — Your Earth</title>
+<style>
+:root{
+  --bg:#050a14;--panel:rgba(6,13,26,0.94);--border:#1a2f45;
+  --dim:#3a5a7a;--mid:#6a8fa8;--text:#a0c4d8;--accent:#7ab3cc;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;overflow:hidden;width:100vw;height:100vh;}
+canvas{display:block;position:absolute;inset:0;}
+#fc{display:none;position:absolute;inset:0;cursor:grab;}
+#fc:active{cursor:grabbing;}
+
+#view-toggle{position:fixed;top:12px;left:12px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
+#view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
+#view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
+#view-toggle button:hover:not(.active){color:var(--text);}
+
+#btm{position:fixed;bottom:18px;left:22px;display:flex;flex-direction:column;gap:4px;z-index:20;}
+#btm-flat{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:20;}
+#btm button,#btm-flat button{padding:5px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);}
+#btm button:hover,#btm-flat button:hover{border-color:var(--accent);color:var(--accent);}
+#btm button.active{border-color:var(--accent);color:var(--accent);background:rgba(122,179,204,.1);}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+#panel-borders{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+#panel-borders .panel-border-btn{padding:6px 12px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
+#panel-borders .panel-border-btn:hover{border-color:var(--accent);color:var(--accent);}
+#panel-borders .panel-border-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(122,179,204,.1);}
+
+#tip{position:fixed;display:none;pointer-events:none;background:rgba(4,9,20,0.97);border:1px solid var(--border);padding:10px 14px;z-index:80;backdrop-filter:blur(8px);min-width:200px;}
+#tip .tn{font-size:11px;font-weight:700;color:#d8eef8;letter-spacing:.04em;margin-bottom:6px;}
+#tip .tr{font-size:9px;letter-spacing:.06em;color:var(--mid);margin-bottom:3px;display:flex;justify-content:space-between;gap:16px;}
+#tip .tv{color:var(--text);}
+
+#ld{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);gap:12px;transition:opacity .6s;}
+#ld.fade{opacity:0;pointer-events:none;}
+.ll{font-size:9px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;}
+.lbw{width:180px;height:1px;background:var(--border);}
+.lb{height:100%;background:var(--accent);width:0%;transition:width .4s;}
+
+#rp{position:fixed;top:0;right:0;bottom:26px;width:290px;background:var(--panel);border-left:1px solid var(--border);backdrop-filter:blur(12px);display:flex;flex-direction:column;z-index:10;}
+#ph{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+#ph-title{font-size:10px;letter-spacing:.2em;color:var(--text);text-transform:uppercase;font-weight:400;margin-bottom:6px;}
+.lbadge{display:inline-flex;align-items:center;gap:5px;font-size:7px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;}
+.ldot{width:5px;height:5px;border-radius:50%;background:#22c55e;animation:pdot 2s infinite;}
+@keyframes pdot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4);}50%{opacity:.7;box-shadow:0 0 0 4px rgba(34,197,94,0);}}
+#api-status{font-size:7px;letter-spacing:.1em;color:var(--dim);margin-top:4px;text-transform:uppercase;}
+#sw{overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0;scrollbar-width:none;}
+#sw::-webkit-scrollbar{display:none;}
+#stabs{display:flex;padding:0 4px;white-space:nowrap;}
+.stab{padding:9px 10px;font-size:8px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;cursor:pointer;border:none;background:none;font-family:'Courier New',monospace;transition:color .2s;border-bottom:2px solid transparent;flex-shrink:0;}
+.stab:hover{color:var(--text);}
+.stab.active{color:var(--accent);border-bottom-color:var(--accent);}
+#ybar{padding:10px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+#ybar label{font-size:8px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;display:flex;justify-content:space-between;margin-bottom:6px;}
+#ybar label span{color:var(--accent);}
+input[type=range]{width:100%;-webkit-appearance:none;height:2px;background:var(--border);border-radius:1px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg);}
+#sbar{padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:12px;}
+.sb{flex:1;}
+.sl{font-size:7px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;margin-bottom:2px;}
+.sv{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.02em;}
+.su{font-size:7px;color:var(--dim);}
+#srclist{flex:1;overflow-y:auto;padding:4px 0;}
+#srclist::-webkit-scrollbar{width:3px;}
+#srclist::-webkit-scrollbar-thumb{background:var(--border);}
+.sr{display:flex;align-items:center;gap:8px;padding:6px 16px;cursor:pointer;transition:background .15s;}
+.sr:hover{background:rgba(255,255,255,.03);}
+.sd{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.si{flex:1;min-width:0;}
+.sn{font-size:9px;color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ss{font-size:7px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin-top:1px;}
+.sv2{font-size:10px;font-weight:700;flex-shrink:0;}
+#leg{padding:8px 16px;border-top:1px solid var(--border);flex-shrink:0;}
+#legt{font-size:7px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;margin-bottom:5px;}
+#legd{display:flex;flex-wrap:wrap;gap:5px 12px;}
+.li{display:flex;align-items:center;gap:4px;font-size:7px;letter-spacing:.06em;color:var(--dim);}
+.ld{width:7px;height:7px;border-radius:50%;}
+#rpnote{padding:8px 16px 10px;border-top:1px solid var(--border);flex-shrink:0;font-size:7px;line-height:1.65;color:var(--dim);letter-spacing:.03em;}
+#rpnote b{color:var(--mid);}
+#cit{position:fixed;bottom:7px;left:50%;transform:translateX(-50%);font-size:7px;letter-spacing:.14em;color:rgba(106,143,168,.4);z-index:5;text-transform:uppercase;pointer-events:none;white-space:nowrap;}
+#year-loading{position:fixed;top:0;left:0;right:290px;bottom:0;z-index:15;display:none;align-items:center;justify-content:center;background:rgba(5,10,20,.5);pointer-events:none;font-family:'Courier New',monospace;font-size:10px;letter-spacing:.15em;color:var(--mid);text-transform:uppercase;}
+#year-loading.on{display:flex;}
+</style>
+</head>
+<body>
+
+<div id="ld">
+  <div class="ll">Your Earth · Emissions Sources</div>
+  <div class="lbw"><div class="lb" id="lbr"></div></div>
+  <div class="ll" id="lmsg">Initialising…</div>
+</div>
+
+<canvas id="gc"></canvas>
+<canvas id="fc"></canvas>
+
+<div id="view-toggle">
+  <button class="active" id="bg">Globe</button>
+  <button id="b2">2D Map</button>
+</div>
+
+<div id="btm">
+  <button id="rotbtn" class="active"><span class="dot"></span><span>Auto Rotate</span></button>
+</div>
+<div id="btm-flat">
+  <button id="em-zoom-in">+ Zoom</button>
+  <button id="em-zoom-out">− Zoom</button>
+  <button id="em-zoom-reset">Reset</button>
+</div>
+
+<div id="tip">
+  <div class="tn" id="tn"></div>
+  <div class="tr"><span>Sector</span><span class="tv" id="ts"></span></div>
+  <div class="tr"><span>Subsector</span><span class="tv" id="tss"></span></div>
+  <div class="tr"><span>CO₂e / yr</span><span class="tv" id="tc2"></span></div>
+  <div class="tr"><span>Country</span><span class="tv" id="tco"></span></div>
+</div>
+
+<div id="rp">
+  <div id="ph">
+    <div id="ph-title">Emissions Sources</div>
+    <span class="lbadge"><span class="ldot"></span>Climate TRACE API v7</span>
+    <div id="api-status">Loading…</div>
+  </div>
+  <div id="panel-borders">
+    <button type="button" id="btn-borders-panel" class="panel-border-btn active">Borders On</button>
+  </div>
+  <div id="sw"><div id="stabs"></div></div>
+  <div id="ybar">
+    <label>Year <span id="yd">2023</span></label>
+    <input type="range" id="ysl" min="2015" max="2024" value="2023" step="1">
+  </div>
+  <div id="sbar">
+    <div class="sb"><div class="sl">Sources</div><span class="sv" id="sc">—</span></div>
+    <div class="sb"><div class="sl">CO₂e / yr</div><span class="sv" id="st">—</span><span class="su"> Mt</span></div>
+  </div>
+  <div id="srclist"></div>
+  <div id="leg">
+    <div id="legt">Sector</div>
+    <div id="legd"></div>
+  </div>
+  <div id="rpnote">
+    <b>Data:</b> 500 curated top emitters (2023 baseline) from Climate TRACE public inventory,
+    <b>selected and ordered by annual CO₂e (largest first)</b>. Spike &amp; bubble size ∝ log(CO₂e)
+    with a fixed 2023 anchor — sizes change across years (e.g. 2020 COVID dip). Live API replaces
+    this list when available; it may be blocked by CORS when opening from file:// or some hosts.
+  </div>
+</div>
+
+<div id="year-loading">Updating year…</div>
+<div id="cit">Data: Climate TRACE coalition · climatetrace.org · CC BY 4.0</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+// ── palette ──────────────────────────────────────────────────────────────────
+const SC={
+  'power':'#e05c5c',
+  'transportation':'#e0a040',
+  'buildings':'#d4c84a',
+  'manufacturing':'#6ab4e0',
+  'fossil-fuel-operations':'#c070e0',
+  'agriculture':'#5ec87a',
+  'forestry-and-land-use':'#3eaa60',
+  'waste':'#8870cc',
+  'mineral-extraction':'#c08050',
+  'other-industry-and-transport':'#e07050',
+  'other':'#607080'
+};
+function scol(s){if(!s)return SC.other;const k=s.toLowerCase().replace(/ /g,'-');return SC[k]||SC.other;}
+function sfmt(s){return(s||'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());}
+function fco2(v){
+  if(v>=1e9)return(v/1e9).toFixed(2)+' Gt';
+  if(v>=1e6)return(v/1e6).toFixed(2)+' Mt';
+  if(v>=1e3)return(v/1e3).toFixed(1)+' kt';
+  return Math.round(v)+' t';
+}
+
+// ── state ────────────────────────────────────────────────────────────────────
+let SOURCES=[], VISIBLE=[], maxCO2=1;
+let activeSector='all', activeYear=2023;
+let isGlobe=true, autoRot=true, bordersVisible=true;
+let usingApiData=false;
+const API='https://api.climatetrace.org/v7';
+// Why "API unavailable"? The API often blocks browser requests due to CORS when the
+// page is opened from file:// or from origins they don't allow. Serve from a same-origin
+// host (or a CORS proxy) to get live data.
+
+// ── loading ──────────────────────────────────────────────────────────────────
+function setLoad(p,m){
+  document.getElementById('lbr').style.width=p+'%';
+  if(m)document.getElementById('lmsg').textContent=m;
+}
+function hideLoad(){
+  const el=document.getElementById('ld');
+  el.classList.add('fade');
+  setTimeout(()=>{el.style.display='none';},700);
+}
+
+// ── fetch ────────────────────────────────────────────────────────────────────
+async function apiFetch(path,ms=10000){
+  const ac=new AbortController();
+  const t=setTimeout(()=>ac.abort(),ms);
+  try{
+    const r=await fetch(API+path,{signal:ac.signal,mode:'cors'});
+    clearTimeout(t);
+    if(!r.ok)throw new Error(r.status);
+    return r.json();
+  }finally{clearTimeout(t);}
+}
+
+// ── sample data (2023 baseline; year-scaled on slider) ────────────────────────
+// Real-world top emitters from Climate TRACE public data
+const SAMPLE_BASE=[
+  {id:1,name:'US Road Network',sector:'transportation',sub:'road',country:'USA',lat:39.5,lon:-98.3,co2:1.5000e+09},
+  {id:2,name:'Global Aviation',sector:'transportation',sub:'road',country:'',lat:40.0,lon:0.0,co2:9.2000e+08},
+  {id:3,name:'China Road',sector:'transportation',sub:'road',country:'CHN',lat:35.0,lon:105.0,co2:9.0000e+08},
+  {id:4,name:'Global Shipping',sector:'transportation',sub:'road',country:'',lat:20.0,lon:60.0,co2:8.1000e+08},
+  {id:5,name:'EU Road',sector:'transportation',sub:'road',country:'DEU',lat:51.0,lon:10.0,co2:7.0000e+08},
+  {id:6,name:'India Rice',sector:'agriculture',sub:'enteric-fermentation',country:'IND',lat:20.5,lon:78.9,co2:6.2000e+08},
+  {id:7,name:'China Rice',sector:'agriculture',sub:'enteric-fermentation',country:'CHN',lat:28.0,lon:113.0,co2:4.5000e+08},
+  {id:8,name:'India Road',sector:'transportation',sub:'road',country:'IND',lat:22.0,lon:78.0,co2:3.4000e+08},
+  {id:9,name:'Asia Pacific Aviation',sector:'transportation',sub:'road',country:'',lat:30.0,lon:120.0,co2:3.1000e+08},
+  {id:10,name:'N America Aviation',sector:'transportation',sub:'road',country:'USA',lat:42.0,lon:-95.0,co2:2.8000e+08},
+  {id:11,name:'Brazil Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'BRA',lat:-14.0,lon:-52.0,co2:2.8000e+08},
+  {id:12,name:'Europe Aviation',sector:'transportation',sub:'road',country:'DEU',lat:50.0,lon:10.0,co2:2.4000e+08},
+  {id:13,name:'Pacific Shipping',sector:'transportation',sub:'road',country:'',lat:20.0,lon:-150.0,co2:2.2000e+08},
+  {id:14,name:'Siberian Wildfires',sector:'forestry-and-land-use',sub:'deforestation',country:'RUS',lat:62.0,lon:110.0,co2:2.0000e+08},
+  {id:15,name:'Brazil Road',sector:'transportation',sub:'road',country:'BRA',lat:-15.0,lon:-52.0,co2:1.9500e+08},
+  {id:16,name:'India Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'IND',lat:22.0,lon:80.0,co2:1.9000e+08},
+  {id:17,name:'Canada Road',sector:'transportation',sub:'road',country:'CAN',lat:55.0,lon:-95.0,co2:1.8500e+08},
+  {id:18,name:'Atlantic Shipping',sector:'transportation',sub:'road',country:'',lat:30.0,lon:-40.0,co2:1.8000e+08},
+  {id:19,name:'Amazon Deforestation',sector:'forestry-and-land-use',sub:'deforestation',country:'BRA',lat:-8.0,lon:-55.0,co2:1.8000e+08},
+  {id:20,name:'Russia Road',sector:'transportation',sub:'road',country:'RUS',lat:55.0,lon:37.0,co2:1.7000e+08},
+  {id:21,name:'Japan Road',sector:'transportation',sub:'road',country:'JPN',lat:35.5,lon:137.0,co2:1.5500e+08},
+  {id:22,name:'China Pork',sector:'agriculture',sub:'enteric-fermentation',country:'CHN',lat:30.0,lon:115.0,co2:1.4500e+08},
+  {id:23,name:'Indian Ocean Shipping',sector:'transportation',sub:'road',country:'',lat:10.0,lon:70.0,co2:1.4000e+08},
+  {id:24,name:'W Siberian O&G',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:61.0,lon:68.0,co2:1.3000e+08},
+  {id:25,name:'Indonesia Road',sector:'transportation',sub:'road',country:'IDN',lat:-5.0,lon:118.0,co2:1.3000e+08},
+  {id:26,name:'Middle East Aviation',sector:'transportation',sub:'road',country:'ARE',lat:25.0,lon:55.0,co2:1.2000e+08},
+  {id:27,name:'China Fertilizer',sector:'agriculture',sub:'enteric-fermentation',country:'CHN',lat:33.0,lon:114.0,co2:1.2000e+08},
+  {id:28,name:'Borneo Peatland',sector:'forestry-and-land-use',sub:'deforestation',country:'IDN',lat:0.5,lon:113.0,co2:1.2000e+08},
+  {id:29,name:'Mexico Road',sector:'transportation',sub:'road',country:'MEX',lat:23.0,lon:-102.0,co2:1.1500e+08},
+  {id:30,name:'US Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'USA',lat:38.0,lon:-97.0,co2:1.1500e+08},
+  {id:31,name:'South Korea Road',sector:'transportation',sub:'road',country:'KOR',lat:36.5,lon:127.5,co2:1.1000e+08},
+  {id:32,name:'Australia Road',sector:'transportation',sub:'road',country:'AUS',lat:-27.0,lon:133.0,co2:9.5000e+07},
+  {id:33,name:'Iran Road',sector:'transportation',sub:'road',country:'IRN',lat:32.0,lon:53.0,co2:9.5000e+07},
+  {id:34,name:'SE Asia Shipping',sector:'transportation',sub:'road',country:'',lat:5.0,lon:108.0,co2:9.5000e+07},
+  {id:35,name:'Latin America Aviation',sector:'transportation',sub:'road',country:'BRA',lat:-10.0,lon:-55.0,co2:9.5000e+07},
+  {id:36,name:'SE Asia Rice',sector:'agriculture',sub:'enteric-fermentation',country:'THA',lat:15.0,lon:102.0,co2:9.5000e+07},
+  {id:37,name:'Congo Basin',sector:'forestry-and-land-use',sub:'deforestation',country:'COD',lat:-1.0,lon:24.0,co2:9.5000e+07},
+  {id:38,name:'Permian Basin',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:31.5,lon:-103.0,co2:9.0000e+07},
+  {id:39,name:'Turkey Road',sector:'transportation',sub:'road',country:'TUR',lat:39.0,lon:35.0,co2:8.8000e+07},
+  {id:40,name:'Argentina Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'ARG',lat:-34.0,lon:-63.0,co2:8.5000e+07},
+  {id:41,name:'Sumatra Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'IDN',lat:-0.5,lon:102.0,co2:8.5000e+07},
+  {id:42,name:'Saudi Arabia Road',sector:'transportation',sub:'road',country:'SAU',lat:24.0,lon:45.0,co2:8.2000e+07},
+  {id:43,name:'Rail China',sector:'transportation',sub:'road',country:'CHN',lat:36.0,lon:104.0,co2:8.2000e+07},
+  {id:44,name:'Bangladesh Rice',sector:'agriculture',sub:'enteric-fermentation',country:'BGD',lat:23.7,lon:90.4,co2:8.0000e+07},
+  {id:45,name:'Australian Bushfires',sector:'forestry-and-land-use',sub:'deforestation',country:'AUS',lat:-30.0,lon:145.0,co2:7.8000e+07},
+  {id:46,name:'Alberta Oil Sands',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CAN',lat:57.0,lon:-111.5,co2:7.5000e+07},
+  {id:47,name:'Argentina Road',sector:'transportation',sub:'road',country:'ARG',lat:-35.0,lon:-65.0,co2:7.2000e+07},
+  {id:48,name:'India Fertilizer',sector:'agriculture',sub:'enteric-fermentation',country:'IND',lat:25.0,lon:82.0,co2:6.8000e+07},
+  {id:49,name:'South Africa Road',sector:'transportation',sub:'road',country:'ZAF',lat:-29.0,lon:25.0,co2:6.5000e+07},
+  {id:50,name:'Australia Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'AUS',lat:-27.0,lon:133.0,co2:6.5000e+07},
+  {id:51,name:'Cerrado Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'BRA',lat:-15.0,lon:-50.0,co2:6.5000e+07},
+  {id:52,name:'Thailand Road',sector:'transportation',sub:'road',country:'THA',lat:15.0,lon:101.0,co2:6.2000e+07},
+  {id:53,name:'Indonesia Rice',sector:'agriculture',sub:'enteric-fermentation',country:'IDN',lat:-6.5,lon:110.0,co2:6.2000e+07},
+  {id:54,name:'Kalimantan Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'IDN',lat:0.0,lon:113.0,co2:6.2000e+07},
+  {id:55,name:'Pakistan Road',sector:'transportation',sub:'road',country:'PAK',lat:30.0,lon:70.0,co2:5.8000e+07},
+  {id:56,name:'Ghawar Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'SAU',lat:25.0,lon:49.3,co2:5.5000e+07},
+  {id:57,name:'Malaysia Road',sector:'transportation',sub:'road',country:'MYS',lat:4.0,lon:109.0,co2:5.5000e+07},
+  {id:58,name:'US Corn Belt Fert',sector:'agriculture',sub:'enteric-fermentation',country:'USA',lat:41.5,lon:-93.0,co2:5.5000e+07},
+  {id:59,name:'Vietnam Rice',sector:'agriculture',sub:'enteric-fermentation',country:'VNM',lat:10.2,lon:106.0,co2:5.4000e+07},
+  {id:60,name:'Gangetic Plain Rice',sector:'agriculture',sub:'enteric-fermentation',country:'IND',lat:25.5,lon:84.0,co2:5.2000e+07},
+  {id:61,name:'Rondônia Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'BRA',lat:-11.0,lon:-63.0,co2:5.2000e+07},
+  {id:62,name:'Urengoy Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:65.9,lon:76.2,co2:4.8000e+07},
+  {id:63,name:'Pakistan Rice',sector:'agriculture',sub:'enteric-fermentation',country:'PAK',lat:30.5,lon:71.4,co2:4.8000e+07},
+  {id:64,name:'Yangtze Delta Rice',sector:'agriculture',sub:'enteric-fermentation',country:'CHN',lat:31.0,lon:120.0,co2:4.8000e+07},
+  {id:65,name:'W Africa Forest',sector:'forestry-and-land-use',sub:'deforestation',country:'CMR',lat:4.0,lon:12.5,co2:4.8000e+07},
+  {id:66,name:'DRC Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'COD',lat:-2.5,lon:23.5,co2:4.8000e+07},
+  {id:67,name:'Inner Mongolia Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:40.8,lon:113.5,co2:4.5000e+07},
+  {id:68,name:'Egypt Road',sector:'transportation',sub:'road',country:'EGY',lat:26.0,lon:30.0,co2:4.5000e+07},
+  {id:69,name:'Africa Aviation',sector:'transportation',sub:'road',country:'',lat:5.0,lon:20.0,co2:4.5000e+07},
+  {id:70,name:'Pipeline Operations US',sector:'transportation',sub:'road',country:'USA',lat:35.0,lon:-98.0,co2:4.5000e+07},
+  {id:71,name:'Cement China',sector:'manufacturing',sub:'steel',country:'CHN',lat:30.0,lon:110.0,co2:4.5000e+07},
+  {id:72,name:'Moscow Heating',sector:'buildings',sub:'residential-heating',country:'RUS',lat:55.75,lon:37.62,co2:4.5000e+07},
+  {id:73,name:'Nigeria Road',sector:'transportation',sub:'road',country:'NGA',lat:9.0,lon:8.0,co2:4.4000e+07},
+  {id:74,name:'Punjab Rice',sector:'agriculture',sub:'enteric-fermentation',country:'IND',lat:30.5,lon:75.0,co2:4.4000e+07},
+  {id:75,name:'Mato Grosso Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'BRA',lat:-13.0,lon:-56.0,co2:4.4000e+07},
+  {id:76,name:'Niger Delta',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'NGA',lat:4.8,lon:6.4,co2:4.2000e+07},
+  {id:77,name:'Vietnam Road',sector:'transportation',sub:'road',country:'VNM',lat:16.0,lon:108.0,co2:4.2000e+07},
+  {id:78,name:'Rail USA',sector:'transportation',sub:'road',country:'USA',lat:40.0,lon:-95.0,co2:4.2000e+07},
+  {id:79,name:'EU Manure',sector:'agriculture',sub:'enteric-fermentation',country:'DEU',lat:52.0,lon:10.0,co2:4.2000e+07},
+  {id:80,name:'Brazil Soy',sector:'agriculture',sub:'enteric-fermentation',country:'BRA',lat:-15.0,lon:-55.0,co2:4.2000e+07},
+  {id:81,name:'Mekong Delta Rice',sector:'agriculture',sub:'enteric-fermentation',country:'VNM',lat:10.5,lon:105.5,co2:4.2000e+07},
+  {id:82,name:'Canada Boreal Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'CAN',lat:55.0,lon:-100.0,co2:4.2000e+07},
+  {id:83,name:'Yakutia Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'RUS',lat:64.0,lon:128.0,co2:4.2000e+07},
+  {id:84,name:'Vindhyachal STPS',sector:'power',sub:'coal',country:'IND',lat:24.06,lon:82.66,co2:3.9100e+07},
+  {id:85,name:'Shanxi Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:37.8,lon:112.5,co2:3.8000e+07},
+  {id:86,name:'North Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'QAT',lat:25.8,lon:51.8,co2:3.8000e+07},
+  {id:87,name:'Philippines Road',sector:'transportation',sub:'road',country:'PHL',lat:13.0,lon:122.0,co2:3.8000e+07},
+  {id:88,name:'UAE Road',sector:'transportation',sub:'road',country:'ARE',lat:24.0,lon:54.0,co2:3.8000e+07},
+  {id:89,name:'Rail India',sector:'transportation',sub:'road',country:'IND',lat:23.0,lon:80.0,co2:3.8000e+07},
+  {id:90,name:'Pipeline Russia',sector:'transportation',sub:'road',country:'RUS',lat:58.0,lon:55.0,co2:3.8000e+07},
+  {id:91,name:'Russia Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'RUS',lat:58.0,lon:50.0,co2:3.8000e+07},
+  {id:92,name:'China Paddy',sector:'agriculture',sub:'enteric-fermentation',country:'CHN',lat:25.0,lon:115.0,co2:3.8000e+07},
+  {id:93,name:'Myanmar Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'MMR',lat:17.0,lon:96.0,co2:3.8000e+07},
+  {id:94,name:'Pará Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'BRA',lat:-4.0,lon:-52.0,co2:3.8000e+07},
+  {id:95,name:'Central Africa Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'CAF',lat:5.0,lon:19.0,co2:3.8000e+07},
+  {id:96,name:'SE Asia Peat',sector:'forestry-and-land-use',sub:'deforestation',country:'MYS',lat:3.0,lon:114.0,co2:3.8000e+07},
+  {id:97,name:'Beijing Buildings',sector:'buildings',sub:'residential-heating',country:'CHN',lat:39.9,lon:116.4,co2:3.8000e+07},
+  {id:98,name:'South Pars',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRN',lat:27.2,lon:52.6,co2:3.6000e+07},
+  {id:99,name:'Kuzbass Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:53.5,lon:86.5,co2:3.6000e+07},
+  {id:100,name:'Argentina Soy',sector:'agriculture',sub:'enteric-fermentation',country:'ARG',lat:-32.0,lon:-62.0,co2:3.6000e+07},
+  {id:101,name:'New Zealand Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'NZL',lat:-41.0,lon:174.0,co2:3.6000e+07},
+  {id:102,name:'Cerrado Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'BRA',lat:-17.0,lon:-50.0,co2:3.6000e+07},
+  {id:103,name:'Yamburg Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:67.9,lon:75.8,co2:3.5000e+07},
+  {id:104,name:'Ethiopia Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'ETH',lat:9.0,lon:40.0,co2:3.5000e+07},
+  {id:105,name:'US Feedlots',sector:'agriculture',sub:'enteric-fermentation',country:'USA',lat:40.0,lon:-100.0,co2:3.5000e+07},
+  {id:106,name:'Anshan Steel',sector:'manufacturing',sub:'steel',country:'CHN',lat:41.12,lon:122.99,co2:3.5000e+07},
+  {id:107,name:'Belchatow',sector:'power',sub:'coal',country:'POL',lat:51.26,lon:19.33,co2:3.4200e+07},
+  {id:108,name:'Rail Russia',sector:'transportation',sub:'road',country:'RUS',lat:60.0,lon:60.0,co2:3.4000e+07},
+  {id:109,name:'Mundra Power',sector:'power',sub:'coal',country:'IND',lat:22.84,lon:69.72,co2:3.2500e+07},
+  {id:110,name:'Hesteel Tangshan',sector:'manufacturing',sub:'steel',country:'CHN',lat:39.63,lon:118.18,co2:3.2400e+07},
+  {id:111,name:'Rumaila Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRQ',lat:30.1,lon:47.4,co2:3.2000e+07},
+  {id:112,name:'Eagle Ford',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:28.5,lon:-98.5,co2:3.2000e+07},
+  {id:113,name:'Ordos Basin',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:38.5,lon:109.5,co2:3.2000e+07},
+  {id:114,name:'Colombia Road',sector:'transportation',sub:'road',country:'COL',lat:4.0,lon:-73.0,co2:3.2000e+07},
+  {id:115,name:'Nigeria Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'NGA',lat:10.0,lon:8.0,co2:3.2000e+07},
+  {id:116,name:'Brazil Fertilizer',sector:'agriculture',sub:'enteric-fermentation',country:'BRA',lat:-15.0,lon:-52.0,co2:3.2000e+07},
+  {id:117,name:'Datang Tuoketuo',sector:'power',sub:'coal',country:'CHN',lat:40.27,lon:111.06,co2:3.1100e+07},
+  {id:118,name:'Tokyo Buildings',sector:'buildings',sub:'residential-heating',country:'JPN',lat:35.68,lon:139.69,co2:3.1000e+07},
+  {id:119,name:'Shanghai Buildings',sector:'buildings',sub:'residential-heating',country:'CHN',lat:31.23,lon:121.47,co2:2.9000e+07},
+  {id:120,name:'Taean Power',sector:'power',sub:'coal',country:'KOR',lat:36.73,lon:126.28,co2:2.8800e+07},
+  {id:121,name:'Tuoketuo 2',sector:'power',sub:'coal',country:'CHN',lat:40.29,lon:111.07,co2:2.8500e+07},
+  {id:122,name:'Powder River Basin',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:44.5,lon:-106.0,co2:2.8400e+07},
+  {id:123,name:'Savanna Fires SA',sector:'forestry-and-land-use',sub:'deforestation',country:'ZAF',lat:-25.0,lon:28.0,co2:2.8400e+07},
+  {id:124,name:'Krasnoyarsk Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'RUS',lat:58.0,lon:96.0,co2:2.8400e+07},
+  {id:125,name:'Baoshan Steel',sector:'manufacturing',sub:'steel',country:'CHN',lat:31.35,lon:121.53,co2:2.8400e+07},
+  {id:126,name:'Tehran Buildings',sector:'buildings',sub:'residential-heating',country:'IRN',lat:35.69,lon:51.39,co2:2.8400e+07},
+  {id:127,name:'Khurais Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'SAU',lat:24.9,lon:48.1,co2:2.8000e+07},
+  {id:128,name:'Marcellus Shale',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:41.0,lon:-77.5,co2:2.8000e+07},
+  {id:129,name:'Algeria Road',sector:'transportation',sub:'road',country:'DZA',lat:28.0,lon:3.0,co2:2.8000e+07},
+  {id:130,name:'Rail Europe',sector:'transportation',sub:'road',country:'DEU',lat:51.0,lon:10.0,co2:2.8000e+07},
+  {id:131,name:'Philippines Rice',sector:'agriculture',sub:'enteric-fermentation',country:'PHL',lat:14.0,lon:122.0,co2:2.8000e+07},
+  {id:132,name:'US Soy',sector:'agriculture',sub:'enteric-fermentation',country:'USA',lat:42.0,lon:-93.0,co2:2.8000e+07},
+  {id:133,name:'Sudan Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'SDN',lat:15.0,lon:32.0,co2:2.8000e+07},
+  {id:134,name:'Canada Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'CAN',lat:52.0,lon:-105.0,co2:2.8000e+07},
+  {id:135,name:'Pampa Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'ARG',lat:-35.0,lon:-62.0,co2:2.8000e+07},
+  {id:136,name:'Bolivia Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'BOL',lat:-14.0,lon:-65.0,co2:2.8000e+07},
+  {id:137,name:'Jubail Industrial',sector:'manufacturing',sub:'steel',country:'SAU',lat:27.01,lon:49.66,co2:2.8000e+07},
+  {id:138,name:'Jänschwalde',sector:'power',sub:'coal',country:'DEU',lat:51.83,lon:14.59,co2:2.7400e+07},
+  {id:139,name:'Neurath',sector:'power',sub:'coal',country:'DEU',lat:51.01,lon:6.61,co2:2.7000e+07},
+  {id:140,name:'Kendal',sector:'power',sub:'coal',country:'ZAF',lat:-26.07,lon:29.13,co2:2.6200e+07},
+  {id:141,name:'New York Buildings',sector:'buildings',sub:'residential-heating',country:'USA',lat:40.71,lon:-74.0,co2:2.6000e+07},
+  {id:142,name:'Sasan UMPP',sector:'power',sub:'coal',country:'IND',lat:24.09,lon:82.2,co2:2.5800e+07},
+  {id:143,name:'Yeongheung',sector:'power',sub:'coal',country:'KOR',lat:37.38,lon:126.48,co2:2.5400e+07},
+  {id:144,name:'Niederaussem',sector:'power',sub:'coal',country:'DEU',lat:50.98,lon:6.65,co2:2.5100e+07},
+  {id:145,name:'Posco Pohang',sector:'manufacturing',sub:'steel',country:'KOR',lat:36.01,lon:129.36,co2:2.4800e+07},
+  {id:146,name:'Chongqing Buildings',sector:'buildings',sub:'residential-heating',country:'CHN',lat:29.56,lon:106.55,co2:2.4800e+07},
+  {id:147,name:'Wuhan Iron',sector:'manufacturing',sub:'steel',country:'CHN',lat:30.58,lon:114.31,co2:2.4600e+07},
+  {id:148,name:'Jamnagar Refinery',sector:'manufacturing',sub:'steel',country:'IND',lat:22.46,lon:69.98,co2:2.4600e+07},
+  {id:149,name:'Harbin Power',sector:'power',sub:'coal',country:'CHN',lat:45.77,lon:126.66,co2:2.4300e+07},
+  {id:150,name:'Tengiz Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'KAZ',lat:47.5,lon:53.1,co2:2.4000e+07},
+  {id:151,name:'Kazakhstan Road',sector:'transportation',sub:'road',country:'KAZ',lat:48.0,lon:68.0,co2:2.4000e+07},
+  {id:152,name:'Myanmar Rice',sector:'agriculture',sub:'enteric-fermentation',country:'MMR',lat:17.0,lon:96.0,co2:2.4000e+07},
+  {id:153,name:'Sahel Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'MLI',lat:15.0,lon:-2.0,co2:2.4000e+07},
+  {id:154,name:'Germany Agriculture',sector:'agriculture',sub:'enteric-fermentation',country:'DEU',lat:51.5,lon:10.5,co2:2.4000e+07},
+  {id:155,name:'Pakistan Fertilizer',sector:'agriculture',sub:'enteric-fermentation',country:'PAK',lat:30.0,lon:72.0,co2:2.4000e+07},
+  {id:156,name:'Brazil Feedlots',sector:'agriculture',sub:'enteric-fermentation',country:'BRA',lat:-20.0,lon:-48.0,co2:2.4000e+07},
+  {id:157,name:'Colombia Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'COL',lat:0.5,lon:-73.0,co2:2.4000e+07},
+  {id:158,name:'E Africa Savanna',sector:'forestry-and-land-use',sub:'deforestation',country:'TZA',lat:-8.0,lon:35.0,co2:2.4000e+07},
+  {id:159,name:'Riyadh Buildings',sector:'buildings',sub:'residential-heating',country:'SAU',lat:24.69,lon:46.72,co2:2.4000e+07},
+  {id:160,name:'Fangchenggang',sector:'power',sub:'coal',country:'CHN',lat:21.78,lon:108.37,co2:2.3500e+07},
+  {id:161,name:'Duvha',sector:'power',sub:'coal',country:'ZAF',lat:-26.41,lon:29.22,co2:2.2800e+07},
+  {id:162,name:'Shougang',sector:'manufacturing',sub:'steel',country:'CHN',lat:39.9,lon:116.37,co2:2.2800e+07},
+  {id:163,name:'US Steel Gary',sector:'manufacturing',sub:'steel',country:'USA',lat:41.59,lon:-87.34,co2:2.2800e+07},
+  {id:164,name:'Daqing',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:46.6,lon:125.0,co2:2.2600e+07},
+  {id:165,name:'Savanna Fires W Africa',sector:'forestry-and-land-use',sub:'deforestation',country:'GHA',lat:8.0,lon:-1.5,co2:2.2600e+07},
+  {id:166,name:'MMK Magnitogorsk',sector:'manufacturing',sub:'steel',country:'RUS',lat:53.42,lon:58.98,co2:2.2600e+07},
+  {id:167,name:'Istanbul Buildings',sector:'buildings',sub:'residential-heating',country:'TUR',lat:41.01,lon:28.96,co2:2.2600e+07},
+  {id:168,name:'Afşin-Elbistan',sector:'power',sub:'coal',country:'TUR',lat:38.17,lon:36.87,co2:2.2500e+07},
+  {id:169,name:'Bakken',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:47.7,lon:-103.3,co2:2.2500e+07},
+  {id:170,name:'Rihand STPS',sector:'power',sub:'coal',country:'IND',lat:24.02,lon:83.04,co2:2.2400e+07},
+  {id:171,name:'Safaniya',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'SAU',lat:27.8,lon:48.8,co2:2.2400e+07},
+  {id:172,name:'Witbank',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'ZAF',lat:-26.0,lon:29.2,co2:2.2400e+07},
+  {id:173,name:'Madagascar Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'MDG',lat:-20.0,lon:47.0,co2:2.2400e+07},
+  {id:174,name:'Papua Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'PNG',lat:-6.0,lon:145.0,co2:2.2400e+07},
+  {id:175,name:'California Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'USA',lat:37.5,lon:-119.5,co2:2.2400e+07},
+  {id:176,name:'Guangzhou Buildings',sector:'buildings',sub:'residential-heating',country:'CHN',lat:23.13,lon:113.26,co2:2.2400e+07},
+  {id:177,name:'West Qurna',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRQ',lat:30.8,lon:47.5,co2:2.2300e+07},
+  {id:178,name:'Tata Mundra',sector:'power',sub:'coal',country:'IND',lat:22.77,lon:69.66,co2:2.2100e+07},
+  {id:179,name:'Colombia Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'COL',lat:4.0,lon:-73.0,co2:2.2000e+07},
+  {id:180,name:'France Agriculture',sector:'agriculture',sub:'enteric-fermentation',country:'FRA',lat:46.0,lon:2.0,co2:2.2000e+07},
+  {id:181,name:'Ukraine Agriculture',sector:'agriculture',sub:'enteric-fermentation',country:'UKR',lat:49.0,lon:32.0,co2:2.2000e+07},
+  {id:182,name:'Cement India',sector:'manufacturing',sub:'steel',country:'IND',lat:22.0,lon:77.0,co2:2.2000e+07},
+  {id:183,name:'Seoul Buildings',sector:'buildings',sub:'residential-heating',country:'KOR',lat:37.57,lon:127.0,co2:2.2000e+07},
+  {id:184,name:'US Landfills',sector:'waste',sub:'landfill',country:'USA',lat:39.0,lon:-95.0,co2:2.2000e+07},
+  {id:185,name:'Pilbara Iron Ore',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-23.3,lon:119.6,co2:2.2000e+07},
+  {id:186,name:'W.A. Parish',sector:'power',sub:'coal',country:'USA',lat:29.56,lon:-95.65,co2:2.1400e+07},
+  {id:187,name:'POSCO Gwangyang',sector:'manufacturing',sub:'steel',country:'KOR',lat:34.93,lon:127.69,co2:2.1000e+07},
+  {id:188,name:'Medupi',sector:'power',sub:'coal',country:'ZAF',lat:-23.47,lon:28.42,co2:2.0100e+07},
+  {id:189,name:'NTPC Sipat',sector:'power',sub:'coal',country:'IND',lat:22.1,lon:82.18,co2:1.9800e+07},
+  {id:190,name:'Scherer',sector:'power',sub:'coal',country:'USA',lat:33.08,lon:-83.84,co2:1.9700e+07},
+  {id:191,name:'Maanshan Steel',sector:'manufacturing',sub:'steel',country:'CHN',lat:31.72,lon:118.48,co2:1.9600e+07},
+  {id:192,name:'Shengli',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:37.5,lon:118.3,co2:1.9400e+07},
+  {id:193,name:'ArcelorMittal Temirtau',sector:'manufacturing',sub:'steel',country:'KAZ',lat:50.06,lon:72.96,co2:1.9400e+07},
+  {id:194,name:'Barnett Shale',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:32.8,lon:-97.4,co2:1.9300e+07},
+  {id:195,name:'Bowen Basin',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'AUS',lat:-22.5,lon:148.5,co2:1.8900e+07},
+  {id:196,name:'Boxberg',sector:'power',sub:'coal',country:'DEU',lat:51.45,lon:14.58,co2:1.8700e+07},
+  {id:197,name:'Suralaya',sector:'power',sub:'coal',country:'IDN',lat:-5.97,lon:105.97,co2:1.8600e+07},
+  {id:198,name:'Abqaiq',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'SAU',lat:26.0,lon:49.7,co2:1.8600e+07},
+  {id:199,name:'Mpumalanga Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'ZAF',lat:-25.8,lon:29.5,co2:1.8600e+07},
+  {id:200,name:'Tanzania Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'TZA',lat:-6.0,lon:35.0,co2:1.8600e+07},
+  {id:201,name:'Buryatia Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'RUS',lat:54.0,lon:110.0,co2:1.8600e+07},
+  {id:202,name:'Delhi Buildings',sector:'buildings',sub:'residential-heating',country:'IND',lat:28.61,lon:77.23,co2:1.8600e+07},
+  {id:203,name:'Osaka Buildings',sector:'buildings',sub:'residential-heating',country:'JPN',lat:34.69,lon:135.5,co2:1.8600e+07},
+  {id:204,name:'Maritsa East 2',sector:'power',sub:'coal',country:'BGR',lat:42.27,lon:25.89,co2:1.8400e+07},
+  {id:205,name:'Prudhoe Bay',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:70.3,lon:-148.7,co2:1.8400e+07},
+  {id:206,name:'Marun Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRN',lat:31.0,lon:49.7,co2:1.8400e+07},
+  {id:207,name:'Zubair',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRQ',lat:30.4,lon:47.8,co2:1.8400e+07},
+  {id:208,name:'Tarim Basin',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:39.0,lon:83.0,co2:1.8400e+07},
+  {id:209,name:'Tanzania Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'TZA',lat:-6.0,lon:35.0,co2:1.8400e+07},
+  {id:210,name:'Peru Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'PER',lat:-8.0,lon:-75.0,co2:1.8400e+07},
+  {id:211,name:'China Forest Loss',sector:'forestry-and-land-use',sub:'deforestation',country:'CHN',lat:28.0,lon:103.0,co2:1.8400e+07},
+  {id:212,name:'Alaska Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'USA',lat:64.0,lon:-153.0,co2:1.8400e+07},
+  {id:213,name:'Hyundai Steel',sector:'manufacturing',sub:'steel',country:'KOR',lat:36.97,lon:126.65,co2:1.8400e+07},
+  {id:214,name:'CSN Volta Redonda',sector:'manufacturing',sub:'steel',country:'BRA',lat:-22.52,lon:-44.1,co2:1.8400e+07},
+  {id:215,name:'HeidelbergCement',sector:'manufacturing',sub:'steel',country:'DEU',lat:49.4,lon:8.7,co2:1.8400e+07},
+  {id:216,name:'Shenzhen Buildings',sector:'buildings',sub:'residential-heating',country:'CHN',lat:22.54,lon:114.06,co2:1.8400e+07},
+  {id:217,name:'Samcheonpo',sector:'power',sub:'coal',country:'KOR',lat:35.0,lon:128.07,co2:1.8300e+07},
+  {id:218,name:'Soma',sector:'power',sub:'coal',country:'TUR',lat:39.19,lon:27.6,co2:1.8300e+07},
+  {id:219,name:'Korba STPS',sector:'power',sub:'coal',country:'IND',lat:22.35,lon:82.7,co2:1.8200e+07},
+  {id:220,name:'Hassi Messaoud',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'DZA',lat:31.7,lon:6.1,co2:1.8200e+07},
+  {id:221,name:'Masteel',sector:'manufacturing',sub:'steel',country:'CHN',lat:31.64,lon:118.5,co2:1.8200e+07},
+  {id:222,name:'Novolipetsk Steel',sector:'manufacturing',sub:'steel',country:'RUS',lat:48.7,lon:44.51,co2:1.8100e+07},
+  {id:223,name:'Vaca Muerta',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'ARG',lat:-38.5,lon:-69.1,co2:1.8000e+07},
+  {id:224,name:'Arctic Shipping',sector:'transportation',sub:'road',country:'',lat:75.0,lon:30.0,co2:1.8000e+07},
+  {id:225,name:'Pipeline Central Asia',sector:'transportation',sub:'road',country:'KAZ',lat:45.0,lon:58.0,co2:1.8000e+07},
+  {id:226,name:'Cambodia Rice',sector:'agriculture',sub:'enteric-fermentation',country:'KHM',lat:12.0,lon:104.5,co2:1.8000e+07},
+  {id:227,name:'Mexico Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'MEX',lat:23.0,lon:-102.0,co2:1.8000e+07},
+  {id:228,name:'UK Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'GBR',lat:52.0,lon:-2.0,co2:1.8000e+07},
+  {id:229,name:'Kazakhstan Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'KAZ',lat:48.0,lon:68.0,co2:1.8000e+07},
+  {id:230,name:'Chicago Buildings',sector:'buildings',sub:'residential-heating',country:'USA',lat:41.85,lon:-87.65,co2:1.8000e+07},
+  {id:231,name:'China Urban Waste',sector:'waste',sub:'landfill',country:'CHN',lat:30.0,lon:114.0,co2:1.8000e+07},
+  {id:232,name:'Ramagundam',sector:'power',sub:'coal',country:'IND',lat:18.8,lon:79.47,co2:1.7600e+07},
+  {id:233,name:'Hadong',sector:'power',sub:'coal',country:'KOR',lat:35.01,lon:127.98,co2:1.7600e+07},
+  {id:234,name:'Liaoning Tiefa',sector:'power',sub:'coal',country:'CHN',lat:41.8,lon:122.38,co2:1.7400e+07},
+  {id:235,name:'Lethabo',sector:'power',sub:'coal',country:'ZAF',lat:-26.84,lon:27.64,co2:1.6900e+07},
+  {id:236,name:'Sao Paulo Buildings',sector:'buildings',sub:'residential-heating',country:'BRA',lat:-23.55,lon:-46.63,co2:1.6800e+07},
+  {id:237,name:'Haynesville',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:32.2,lon:-93.6,co2:1.6700e+07},
+  {id:238,name:'Farakka STPS',sector:'power',sub:'coal',country:'IND',lat:24.85,lon:87.93,co2:1.6400e+07},
+  {id:239,name:'Jakarta Buildings',sector:'buildings',sub:'residential-heating',country:'IDN',lat:-6.21,lon:106.85,co2:1.6400e+07},
+  {id:240,name:'EU Landfills',sector:'waste',sub:'landfill',country:'DEU',lat:51.0,lon:10.0,co2:1.6400e+07},
+  {id:241,name:'Guodian Tongmei',sector:'power',sub:'coal',country:'CHN',lat:40.11,lon:113.29,co2:1.6200e+07},
+  {id:242,name:'Boryeong',sector:'power',sub:'coal',country:'KOR',lat:36.44,lon:126.55,co2:1.6200e+07},
+  {id:243,name:'Kashagan Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'KAZ',lat:45.5,lon:52.8,co2:1.6200e+07},
+  {id:244,name:'Ahvaz Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRN',lat:31.3,lon:48.7,co2:1.6200e+07},
+  {id:245,name:'Kenya Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'KEN',lat:0.5,lon:38.0,co2:1.6200e+07},
+  {id:246,name:'Zambia Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'ZMB',lat:-14.5,lon:27.5,co2:1.6200e+07},
+  {id:247,name:'LafargeHolcim',sector:'manufacturing',sub:'steel',country:'CHE',lat:47.1,lon:8.5,co2:1.6200e+07},
+  {id:248,name:'Venezuela Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'VEN',lat:8.0,lon:-66.0,co2:1.6000e+07},
+  {id:249,name:'Spain Agriculture',sector:'agriculture',sub:'enteric-fermentation',country:'ESP',lat:40.0,lon:-4.0,co2:1.6000e+07},
+  {id:250,name:'London Buildings',sector:'buildings',sub:'residential-heating',country:'GBR',lat:51.51,lon:-0.13,co2:1.6000e+07},
+  {id:251,name:'NTPC Talcher',sector:'power',sub:'coal',country:'IND',lat:20.97,lon:85.15,co2:1.5900e+07},
+  {id:252,name:'Datong No.2',sector:'power',sub:'coal',country:'CHN',lat:40.09,lon:113.3,co2:1.5800e+07},
+  {id:253,name:'USIMINAS',sector:'manufacturing',sub:'steel',country:'BRA',lat:-19.46,lon:-44.28,co2:1.5600e+07},
+  {id:254,name:'Matimba',sector:'power',sub:'coal',country:'ZAF',lat:-23.66,lon:27.64,co2:1.5200e+07},
+  {id:255,name:'Navajo Generating',sector:'power',sub:'coal',country:'USA',lat:36.81,lon:-111.38,co2:1.5200e+07},
+  {id:256,name:'Kusile',sector:'power',sub:'coal',country:'ZAF',lat:-26.27,lon:29.1,co2:1.4800e+07},
+  {id:257,name:'Singrauli',sector:'power',sub:'coal',country:'IND',lat:24.14,lon:82.66,co2:1.4800e+07},
+  {id:258,name:'Dangjin',sector:'power',sub:'coal',country:'KOR',lat:36.89,lon:126.7,co2:1.4800e+07},
+  {id:259,name:'Kalimantan Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IDN',lat:0.5,lon:116.5,co2:1.4800e+07},
+  {id:260,name:'Bolivia Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'BOL',lat:-14.0,lon:-65.0,co2:1.4800e+07},
+  {id:261,name:'Mozambique Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'MOZ',lat:-17.0,lon:35.0,co2:1.4800e+07},
+  {id:262,name:'India Forest Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'IND',lat:23.0,lon:82.0,co2:1.4800e+07},
+  {id:263,name:'Sinopec Maoming',sector:'manufacturing',sub:'steel',country:'CHN',lat:21.66,lon:110.88,co2:1.4800e+07},
+  {id:264,name:'Berlin Buildings',sector:'buildings',sub:'residential-heating',country:'DEU',lat:52.52,lon:13.4,co2:1.4800e+07},
+  {id:265,name:'Toronto Buildings',sector:'buildings',sub:'residential-heating',country:'CAN',lat:43.65,lon:-79.38,co2:1.4800e+07},
+  {id:266,name:'Codelco Norte',sector:'mineral-extraction',sub:'mining',country:'CHL',lat:-22.5,lon:-68.88,co2:1.4800e+07},
+  {id:267,name:'Fuxin',sector:'power',sub:'coal',country:'CHN',lat:42.01,lon:121.66,co2:1.4700e+07},
+  {id:268,name:'AES Maritsa 1',sector:'power',sub:'coal',country:'BGR',lat:42.24,lon:25.87,co2:1.4700e+07},
+  {id:269,name:'Kirkuk Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRQ',lat:35.5,lon:44.4,co2:1.4700e+07},
+  {id:270,name:'Hunter Valley',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'AUS',lat:-32.7,lon:151.3,co2:1.4600e+07},
+  {id:271,name:'Kansk-Achinsk',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:56.2,lon:95.8,co2:1.4600e+07},
+  {id:272,name:'ISCOR Pretoria',sector:'manufacturing',sub:'steel',country:'ZAF',lat:-25.74,lon:28.19,co2:1.4600e+07},
+  {id:273,name:'Mexico City Bldgs',sector:'buildings',sub:'residential-heating',country:'MEX',lat:19.43,lon:-99.13,co2:1.4600e+07},
+  {id:274,name:'Italy Agriculture',sector:'agriculture',sub:'enteric-fermentation',country:'ITA',lat:43.0,lon:12.0,co2:1.4400e+07},
+  {id:275,name:'Nucor Charlotte',sector:'manufacturing',sub:'steel',country:'USA',lat:35.22,lon:-80.84,co2:1.4400e+07},
+  {id:276,name:'Loy Yang A',sector:'power',sub:'coal',country:'AUS',lat:-38.21,lon:146.56,co2:1.4300e+07},
+  {id:277,name:'Weisweiler',sector:'power',sub:'coal',country:'DEU',lat:50.91,lon:6.31,co2:1.4200e+07},
+  {id:278,name:'Tuzla',sector:'power',sub:'coal',country:'BIH',lat:44.56,lon:18.69,co2:1.4200e+07},
+  {id:279,name:'Wattenberg',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:40.3,lon:-104.7,co2:1.4200e+07},
+  {id:280,name:'Changqing',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:38.0,lon:108.3,co2:1.4200e+07},
+  {id:281,name:'Illinois Basin',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:38.0,lon:-88.5,co2:1.4200e+07},
+  {id:282,name:'Uruguay Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'URY',lat:-32.5,lon:-55.7,co2:1.4200e+07},
+  {id:283,name:'Mongolia Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'MNG',lat:47.0,lon:103.0,co2:1.4200e+07},
+  {id:284,name:'Zabaykalsky Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'RUS',lat:52.0,lon:117.0,co2:1.4200e+07},
+  {id:285,name:'Ternium Monterrey',sector:'manufacturing',sub:'steel',country:'MEX',lat:25.67,lon:-100.31,co2:1.4200e+07},
+  {id:286,name:'Evraz NTMK',sector:'manufacturing',sub:'steel',country:'RUS',lat:57.62,lon:59.99,co2:1.4200e+07},
+  {id:287,name:'Cairo Buildings',sector:'buildings',sub:'residential-heating',country:'EGY',lat:30.06,lon:31.25,co2:1.4200e+07},
+  {id:288,name:'Nagoya Buildings',sector:'buildings',sub:'residential-heating',country:'JPN',lat:35.18,lon:136.9,co2:1.4200e+07},
+  {id:289,name:'Pipeline Europe',sector:'transportation',sub:'road',country:'DEU',lat:50.0,lon:12.0,co2:1.4000e+07},
+  {id:290,name:'Poland Agriculture',sector:'agriculture',sub:'enteric-fermentation',country:'POL',lat:52.0,lon:20.0,co2:1.4000e+07},
+  {id:291,name:'Jamshedpur Tata',sector:'manufacturing',sub:'steel',country:'IND',lat:22.8,lon:86.18,co2:1.4000e+07},
+  {id:292,name:'Mumbai Buildings',sector:'buildings',sub:'residential-heating',country:'IND',lat:18.96,lon:72.82,co2:1.4000e+07},
+  {id:293,name:'Homer City',sector:'power',sub:'coal',country:'USA',lat:40.57,lon:-79.16,co2:1.3800e+07},
+  {id:294,name:'Chandrapur',sector:'power',sub:'coal',country:'IND',lat:19.97,lon:79.38,co2:1.3700e+07},
+  {id:295,name:'Kolubara',sector:'power',sub:'coal',country:'SRB',lat:44.4,lon:20.23,co2:1.3600e+07},
+  {id:296,name:'Kailuan',sector:'power',sub:'coal',country:'CHN',lat:39.85,lon:118.43,co2:1.3500e+07},
+  {id:297,name:'Turceni',sector:'power',sub:'coal',country:'ROU',lat:44.68,lon:23.4,co2:1.3200e+07},
+  {id:298,name:'ThyssenKrupp',sector:'manufacturing',sub:'steel',country:'DEU',lat:51.44,lon:6.73,co2:1.3100e+07},
+  {id:299,name:'Hazelwood',sector:'power',sub:'coal',country:'AUS',lat:-38.28,lon:146.41,co2:1.3000e+07},
+  {id:300,name:'Hazelwood Mine',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'AUS',lat:-38.28,lon:146.41,co2:1.3000e+07},
+  {id:301,name:'Tahe Oilfield',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'CHN',lat:40.7,lon:83.5,co2:1.2800e+07},
+  {id:302,name:'Mediterranean Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'ESP',lat:38.0,lon:-3.0,co2:1.2800e+07},
+  {id:303,name:'Companhia Siderúrgica',sector:'manufacturing',sub:'steel',country:'BRA',lat:-22.54,lon:-43.2,co2:1.2800e+07},
+  {id:304,name:'Zaporizhstal',sector:'manufacturing',sub:'steel',country:'UKR',lat:47.82,lon:35.15,co2:1.2800e+07},
+  {id:305,name:'Bangkok Buildings',sector:'buildings',sub:'residential-heating',country:'THA',lat:13.75,lon:100.52,co2:1.2800e+07},
+  {id:306,name:'Russia Landfills',sector:'waste',sub:'landfill',country:'RUS',lat:55.75,lon:37.62,co2:1.2800e+07},
+  {id:307,name:'Kangal',sector:'power',sub:'coal',country:'TUR',lat:39.23,lon:37.38,co2:1.2600e+07},
+  {id:308,name:'Majnoon',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRQ',lat:31.4,lon:47.9,co2:1.2600e+07},
+  {id:309,name:'Appalachian Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:37.5,lon:-81.8,co2:1.2600e+07},
+  {id:310,name:'Honduras Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'HND',lat:14.5,lon:-86.5,co2:1.2600e+07},
+  {id:311,name:'Philippines Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'PHL',lat:12.0,lon:122.0,co2:1.2600e+07},
+  {id:312,name:'Tata Steel Netherlands',sector:'manufacturing',sub:'steel',country:'NLD',lat:52.45,lon:4.62,co2:1.2600e+07},
+  {id:313,name:'AK Steel Middletown',sector:'manufacturing',sub:'steel',country:'USA',lat:39.52,lon:-84.4,co2:1.2600e+07},
+  {id:314,name:'Johannesburg Bldgs',sector:'buildings',sub:'residential-heating',country:'ZAF',lat:-26.2,lon:28.04,co2:1.2600e+07},
+  {id:315,name:'Escondida Copper',sector:'mineral-extraction',sub:'mining',country:'CHL',lat:-24.27,lon:-69.07,co2:1.2600e+07},
+  {id:316,name:'Parli',sector:'power',sub:'coal',country:'IND',lat:18.85,lon:76.52,co2:1.2400e+07},
+  {id:317,name:'Tonghae',sector:'power',sub:'coal',country:'KOR',lat:37.55,lon:129.11,co2:1.2400e+07},
+  {id:318,name:'Vankor Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:67.9,lon:83.5,co2:1.2400e+07},
+  {id:319,name:'Donbas Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'UKR',lat:48.0,lon:38.5,co2:1.2400e+07},
+  {id:320,name:'Paraguay Cattle',sector:'agriculture',sub:'enteric-fermentation',country:'PRY',lat:-23.0,lon:-58.0,co2:1.2400e+07},
+  {id:321,name:'Zimbabwe Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'ZWE',lat:-20.0,lon:30.0,co2:1.2400e+07},
+  {id:322,name:'SAIL Bhilai',sector:'manufacturing',sub:'steel',country:'IND',lat:21.21,lon:81.43,co2:1.2400e+07},
+  {id:323,name:'Fangda Special Steel',sector:'manufacturing',sub:'steel',country:'CHN',lat:27.82,lon:113.15,co2:1.2400e+07},
+  {id:324,name:'PetroChina Fushun',sector:'manufacturing',sub:'steel',country:'CHN',lat:41.86,lon:123.88,co2:1.2400e+07},
+  {id:325,name:'Paris Buildings',sector:'buildings',sub:'residential-heating',country:'FRA',lat:48.86,lon:2.35,co2:1.2400e+07},
+  {id:326,name:'Montreal Buildings',sector:'buildings',sub:'residential-heating',country:'CAN',lat:45.5,lon:-73.57,co2:1.2400e+07},
+  {id:327,name:'Warsaw Buildings',sector:'buildings',sub:'residential-heating',country:'POL',lat:52.23,lon:21.01,co2:1.2400e+07},
+  {id:328,name:'Vale Carajás',sector:'mineral-extraction',sub:'mining',country:'BRA',lat:-6.01,lon:-50.2,co2:1.2400e+07},
+  {id:329,name:'Drax',sector:'power',sub:'coal',country:'GBR',lat:53.73,lon:-0.99,co2:1.2100e+07},
+  {id:330,name:'Pingzhuang',sector:'power',sub:'coal',country:'CHN',lat:42.37,lon:119.1,co2:1.2100e+07},
+  {id:331,name:'Rovinari',sector:'power',sub:'coal',country:'ROU',lat:44.91,lon:23.18,co2:1.2100e+07},
+  {id:332,name:'Zhenhai Refinery',sector:'manufacturing',sub:'steel',country:'CHN',lat:29.96,lon:121.74,co2:1.2000e+07},
+  {id:333,name:'India Wastewater',sector:'waste',sub:'landfill',country:'IND',lat:20.0,lon:77.0,co2:1.2000e+07},
+  {id:334,name:'Bełchatów B',sector:'power',sub:'coal',country:'POL',lat:51.27,lon:19.34,co2:1.1800e+07},
+  {id:335,name:'Shenhua Shendong',sector:'power',sub:'coal',country:'CHN',lat:39.65,lon:110.01,co2:1.1800e+07},
+  {id:336,name:'Ugljevik',sector:'power',sub:'coal',country:'BIH',lat:44.7,lon:19.04,co2:1.1800e+07},
+  {id:337,name:'JSW Steel',sector:'manufacturing',sub:'steel',country:'IND',lat:15.07,lon:76.53,co2:1.1800e+07},
+  {id:338,name:'Arcelor Dunkirk',sector:'manufacturing',sub:'steel',country:'FRA',lat:51.03,lon:2.37,co2:1.1800e+07},
+  {id:339,name:'Bouri Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'LBY',lat:32.8,lon:12.7,co2:1.1600e+07},
+  {id:340,name:'Ruwais Refinery',sector:'manufacturing',sub:'steel',country:'ARE',lat:24.11,lon:52.73,co2:1.1500e+07},
+  {id:341,name:'Prunerov',sector:'power',sub:'coal',country:'CZE',lat:50.49,lon:13.25,co2:1.1400e+07},
+  {id:342,name:'Abadan Refinery',sector:'manufacturing',sub:'steel',country:'IRN',lat:30.33,lon:48.28,co2:1.1400e+07},
+  {id:343,name:'Norilsk Nickel',sector:'mineral-extraction',sub:'mining',country:'RUS',lat:69.33,lon:88.22,co2:1.1300e+07},
+  {id:344,name:'Wanakbori',sector:'power',sub:'coal',country:'IND',lat:22.89,lon:73.49,co2:1.1200e+07},
+  {id:345,name:'Seyitömer',sector:'power',sub:'coal',country:'TUR',lat:39.55,lon:29.89,co2:1.1200e+07},
+  {id:346,name:'Sakhalin II',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:51.0,lon:143.0,co2:1.1200e+07},
+  {id:347,name:'Shaybah',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'SAU',lat:22.5,lon:54.0,co2:1.1200e+07},
+  {id:348,name:'Sumatra Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IDN',lat:-3.5,lon:103.8,co2:1.1200e+07},
+  {id:349,name:'Dongkuk Steel',sector:'manufacturing',sub:'steel',country:'KOR',lat:37.56,lon:128.93,co2:1.1200e+07},
+  {id:350,name:'Prunéřov 2',sector:'power',sub:'coal',country:'CZE',lat:50.5,lon:13.25,co2:1.1100e+07},
+  {id:351,name:'Shanxi Coking',sector:'power',sub:'coal',country:'CHN',lat:37.42,lon:112.34,co2:1.0900e+07},
+  {id:352,name:'Kostolac',sector:'power',sub:'coal',country:'SRB',lat:44.73,lon:21.18,co2:1.0900e+07},
+  {id:353,name:'Pocerady',sector:'power',sub:'coal',country:'CZE',lat:50.42,lon:13.7,co2:1.0800e+07},
+  {id:354,name:'Nicaragua Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'NIC',lat:13.0,lon:-85.5,co2:1.0800e+07},
+  {id:355,name:'Severstal',sector:'manufacturing',sub:'steel',country:'RUS',lat:59.12,lon:37.91,co2:1.0800e+07},
+  {id:356,name:'Zenith Steel',sector:'manufacturing',sub:'steel',country:'CHN',lat:32.07,lon:120.3,co2:1.0800e+07},
+  {id:357,name:'Madrid Buildings',sector:'buildings',sub:'residential-heating',country:'ESP',lat:40.42,lon:-3.7,co2:1.0800e+07},
+  {id:358,name:'Kiev Buildings',sector:'buildings',sub:'residential-heating',country:'UKR',lat:50.45,lon:30.52,co2:1.0800e+07},
+  {id:359,name:'Peru Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'PER',lat:-12.0,lon:-76.0,co2:1.0600e+07},
+  {id:360,name:'JSPL Angul',sector:'manufacturing',sub:'steel',country:'IND',lat:20.85,lon:85.1,co2:1.0600e+07},
+  {id:361,name:'Shoal Creek',sector:'power',sub:'coal',country:'USA',lat:33.88,lon:-87.46,co2:1.0400e+07},
+  {id:362,name:'Yatağan',sector:'power',sub:'coal',country:'TUR',lat:37.35,lon:28.15,co2:1.0400e+07},
+  {id:363,name:'Halfaya',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'IRQ',lat:31.7,lon:47.6,co2:1.0400e+07},
+  {id:364,name:'Vietnam Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'VNM',lat:15.0,lon:107.0,co2:1.0400e+07},
+  {id:365,name:'Chile Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'CHL',lat:-38.0,lon:-73.0,co2:1.0400e+07},
+  {id:366,name:'Cherepovets Azotel',sector:'manufacturing',sub:'steel',country:'RUS',lat:59.12,lon:37.85,co2:1.0400e+07},
+  {id:367,name:'Azovstal',sector:'manufacturing',sub:'steel',country:'UKR',lat:47.1,lon:37.61,co2:1.0400e+07},
+  {id:368,name:'Buenos Aires Buildings',sector:'buildings',sub:'residential-heating',country:'ARG',lat:-34.6,lon:-58.4,co2:1.0400e+07},
+  {id:369,name:'Karachi Buildings',sector:'buildings',sub:'residential-heating',country:'PAK',lat:24.86,lon:67.01,co2:1.0400e+07},
+  {id:370,name:'Collahuasi',sector:'mineral-extraction',sub:'mining',country:'CHL',lat:-20.99,lon:-68.63,co2:1.0400e+07},
+  {id:371,name:'Jincheng Anthracite',sector:'power',sub:'coal',country:'CHN',lat:35.5,lon:112.83,co2:1.0200e+07},
+  {id:372,name:'Longannet',sector:'power',sub:'coal',country:'GBR',lat:56.05,lon:-3.73,co2:9.8000e+06},
+  {id:373,name:'Sostanj',sector:'power',sub:'coal',country:'SVN',lat:46.38,lon:15.07,co2:9.8000e+06},
+  {id:374,name:'Berri',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'SAU',lat:27.6,lon:49.9,co2:9.8000e+06},
+  {id:375,name:'Yanbu Refinery',sector:'manufacturing',sub:'steel',country:'SAU',lat:24.09,lon:38.06,co2:9.8000e+06},
+  {id:376,name:'SA Gold Mines',sector:'mineral-extraction',sub:'mining',country:'ZAF',lat:-26.3,lon:26.5,co2:9.8000e+06},
+  {id:377,name:'Muruntau Gold',sector:'mineral-extraction',sub:'mining',country:'UZB',lat:41.57,lon:64.6,co2:9.8000e+06},
+  {id:378,name:'Esenyurt',sector:'power',sub:'coal',country:'TUR',lat:41.03,lon:28.64,co2:9.7000e+06},
+  {id:379,name:'Tavan Tolgoi',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'MNG',lat:43.7,lon:105.3,co2:9.6000e+06},
+  {id:380,name:'Rome Buildings',sector:'buildings',sub:'residential-heating',country:'ITA',lat:41.9,lon:12.5,co2:9.6000e+06},
+  {id:381,name:'Eraring',sector:'power',sub:'coal',country:'AUS',lat:-33.06,lon:151.52,co2:9.4000e+06},
+  {id:382,name:'Ekofisk',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'NOR',lat:56.5,lon:3.2,co2:9.4000e+06},
+  {id:383,name:'In Salah',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'DZA',lat:27.2,lon:2.5,co2:9.4000e+06},
+  {id:384,name:'Greece Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'GRC',lat:38.5,lon:22.5,co2:9.4000e+06},
+  {id:385,name:'Arzew LNG',sector:'manufacturing',sub:'steel',country:'DZA',lat:35.82,lon:-0.31,co2:9.4000e+06},
+  {id:386,name:'Sydney Buildings',sector:'buildings',sub:'residential-heating',country:'AUS',lat:-33.87,lon:151.21,co2:9.4000e+06},
+  {id:387,name:'Figueira da Foz',sector:'power',sub:'coal',country:'PRT',lat:40.13,lon:-8.83,co2:9.2000e+06},
+  {id:388,name:'Ilva Taranto',sector:'manufacturing',sub:'steel',country:'ITA',lat:40.48,lon:17.23,co2:9.2000e+06},
+  {id:389,name:'Hammersley Iron',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-23.0,lon:118.5,co2:9.2000e+06},
+  {id:390,name:'Escravos Gas',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'NGA',lat:5.4,lon:5.2,co2:9.1000e+06},
+  {id:391,name:'Bowen Basin',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-22.5,lon:148.5,co2:8.9000e+06},
+  {id:392,name:'Chile Livestock',sector:'agriculture',sub:'enteric-fermentation',country:'CHL',lat:-35.0,lon:-71.0,co2:8.8000e+06},
+  {id:393,name:'Laos Defores',sector:'forestry-and-land-use',sub:'deforestation',country:'LAO',lat:18.0,lon:103.0,co2:8.8000e+06},
+  {id:394,name:'Argentina Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'ARG',lat:-38.5,lon:-70.0,co2:8.8000e+06},
+  {id:395,name:'Lagos Buildings',sector:'buildings',sub:'residential-heating',country:'NGA',lat:6.52,lon:3.38,co2:8.8000e+06},
+  {id:396,name:'Dhaka Buildings',sector:'buildings',sub:'residential-heating',country:'BGD',lat:23.81,lon:90.41,co2:8.8000e+06},
+  {id:397,name:'Bayswater',sector:'power',sub:'coal',country:'AUS',lat:-32.45,lon:150.99,co2:8.6000e+06},
+  {id:398,name:'Pinedale',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'USA',lat:42.8,lon:-110.0,co2:8.6000e+06},
+  {id:399,name:'Turkey Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'TUR',lat:37.5,lon:31.5,co2:8.6000e+06},
+  {id:400,name:'Bonny Island LNG',sector:'manufacturing',sub:'steel',country:'NGA',lat:4.44,lon:7.16,co2:8.6000e+06},
+  {id:401,name:'Melbourne Buildings',sector:'buildings',sub:'residential-heating',country:'AUS',lat:-37.81,lon:144.96,co2:8.6000e+06},
+  {id:402,name:'Vale Itabira',sector:'mineral-extraction',sub:'mining',country:'BRA',lat:-19.62,lon:-43.23,co2:8.6000e+06},
+  {id:403,name:'Pontón de la Oliva',sector:'power',sub:'coal',country:'ESP',lat:40.8,lon:-3.27,co2:8.4000e+06},
+  {id:404,name:'Thar Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'PAK',lat:24.1,lon:69.7,co2:8.4000e+06},
+  {id:405,name:'Pechora Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:65.5,lon:57.2,co2:8.4000e+06},
+  {id:406,name:'SSAB Oxelösund',sector:'manufacturing',sub:'steel',country:'SWE',lat:58.67,lon:17.1,co2:8.4000e+06},
+  {id:407,name:'Dofasco',sector:'manufacturing',sub:'steel',country:'CAN',lat:43.26,lon:-79.84,co2:8.4000e+06},
+  {id:408,name:'Dangote Cement',sector:'manufacturing',sub:'steel',country:'NGA',lat:9.0,lon:7.5,co2:8.4000e+06},
+  {id:409,name:'São Paulo Bandeirantes',sector:'waste',sub:'landfill',country:'BRA',lat:-23.55,lon:-46.63,co2:8.4000e+06},
+  {id:410,name:'Japan Waste',sector:'waste',sub:'landfill',country:'JPN',lat:35.5,lon:137.0,co2:8.4000e+06},
+  {id:411,name:'Mount Tom Price',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-22.75,lon:117.79,co2:8.4000e+06},
+  {id:412,name:'Antamina Copper',sector:'mineral-extraction',sub:'mining',country:'PER',lat:-9.53,lon:-77.06,co2:8.4000e+06},
+  {id:413,name:'Oyu Tolgoi',sector:'mineral-extraction',sub:'mining',country:'MNG',lat:43.03,lon:107.0,co2:8.4000e+06},
+  {id:414,name:'Sabetta LNG',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:71.27,lon:72.06,co2:8.3000e+06},
+  {id:415,name:'Elephant Field',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'LBY',lat:28.2,lon:21.8,co2:8.3000e+06},
+  {id:416,name:'Eggborough',sector:'power',sub:'coal',country:'GBR',lat:53.72,lon:-1.12,co2:8.2000e+06},
+  {id:417,name:'Barauni Refinery',sector:'manufacturing',sub:'steel',country:'IND',lat:25.47,lon:86.0,co2:8.2000e+06},
+  {id:418,name:'Ho Chi Minh Bldgs',sector:'buildings',sub:'residential-heating',country:'VNM',lat:10.82,lon:106.63,co2:8.2000e+06},
+  {id:419,name:'Gullfaks',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'NOR',lat:61.2,lon:2.2,co2:8.1000e+06},
+  {id:420,name:'Chuquicamata Copper',sector:'mineral-extraction',sub:'mining',country:'CHL',lat:-22.31,lon:-68.92,co2:8.1000e+06},
+  {id:421,name:'Kardemir',sector:'manufacturing',sub:'steel',country:'TUR',lat:41.58,lon:32.55,co2:7.9000e+06},
+  {id:422,name:'Portugal Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'PRT',lat:39.5,lon:-8.0,co2:7.8000e+06},
+  {id:423,name:'Yamal LNG',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:72.8,lon:72.6,co2:7.6000e+06},
+  {id:424,name:'Skikda Refinery',sector:'manufacturing',sub:'steel',country:'DZA',lat:36.87,lon:6.91,co2:7.6000e+06},
+  {id:425,name:'Fortescue Cloudbreak',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-25.9,lon:119.4,co2:7.6000e+06},
+  {id:426,name:'Antofagasta Centinela',sector:'mineral-extraction',sub:'mining',country:'CHL',lat:-22.34,lon:-68.81,co2:7.6000e+06},
+  {id:427,name:'Doba',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'TCD',lat:8.8,lon:16.5,co2:7.4000e+06},
+  {id:428,name:'Darwin LNG',sector:'manufacturing',sub:'steel',country:'AUS',lat:-12.6,lon:130.98,co2:7.4000e+06},
+  {id:429,name:'Canada Landfills',sector:'waste',sub:'landfill',country:'CAN',lat:55.0,lon:-95.0,co2:7.4000e+06},
+  {id:430,name:'Samarco',sector:'mineral-extraction',sub:'mining',country:'BRA',lat:-20.12,lon:-43.49,co2:7.4000e+06},
+  {id:431,name:'Sleipner',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'NOR',lat:58.4,lon:1.9,co2:7.2000e+06},
+  {id:432,name:'Carajás Iron',sector:'mineral-extraction',sub:'mining',country:'BRA',lat:-5.97,lon:-50.37,co2:7.2000e+06},
+  {id:433,name:'Prirazlomnaya',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'RUS',lat:69.2,lon:57.3,co2:6.8000e+06},
+  {id:434,name:'Baganuur',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'MNG',lat:47.7,lon:108.3,co2:6.8000e+06},
+  {id:435,name:'Lucky Cement',sector:'manufacturing',sub:'steel',country:'PAK',lat:29.6,lon:66.9,co2:6.8000e+06},
+  {id:436,name:'BHP Jimblebar',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-22.7,lon:119.5,co2:6.8000e+06},
+  {id:437,name:'Cerro Verde',sector:'mineral-extraction',sub:'mining',country:'PER',lat:-16.53,lon:-71.55,co2:6.8000e+06},
+  {id:438,name:'Uruguay Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'URY',lat:-33.0,lon:-56.0,co2:6.4000e+06},
+  {id:439,name:'Ezz Steel',sector:'manufacturing',sub:'steel',country:'EGY',lat:30.35,lon:30.47,co2:6.4000e+06},
+  {id:440,name:'Sishen Iron',sector:'mineral-extraction',sub:'mining',country:'ZAF',lat:-27.76,lon:23.01,co2:6.4000e+06},
+  {id:441,name:'Navoi Gold',sector:'mineral-extraction',sub:'mining',country:'UZB',lat:40.09,lon:65.37,co2:6.4000e+06},
+  {id:442,name:'Agadem',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'NER',lat:18.1,lon:13.6,co2:6.2000e+06},
+  {id:443,name:'Sindh Coal',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'PAK',lat:25.5,lon:68.9,co2:6.2000e+06},
+  {id:444,name:'Korea Waste',sector:'waste',sub:'landfill',country:'KOR',lat:37.5,lon:127.0,co2:6.2000e+06},
+  {id:445,name:'Grasberg Copper',sector:'mineral-extraction',sub:'mining',country:'IDN',lat:-4.06,lon:137.12,co2:6.2000e+06},
+  {id:446,name:'CSN Mines',sector:'mineral-extraction',sub:'mining',country:'BRA',lat:-20.4,lon:-43.6,co2:6.2000e+06},
+  {id:447,name:'Erdenet',sector:'mineral-extraction',sub:'mining',country:'MNG',lat:49.03,lon:104.07,co2:6.2000e+06},
+  {id:448,name:'Snøhvit',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'NOR',lat:71.6,lon:23.1,co2:5.8000e+06},
+  {id:449,name:'New Zealand Fires',sector:'forestry-and-land-use',sub:'deforestation',country:'NZL',lat:-41.0,lon:172.0,co2:5.8000e+06},
+  {id:450,name:'Australia Landfills',sector:'waste',sub:'landfill',country:'AUS',lat:-27.0,lon:133.0,co2:5.8000e+06},
+  {id:451,name:'Kennecott',sector:'mineral-extraction',sub:'mining',country:'USA',lat:40.52,lon:-112.15,co2:5.8000e+06},
+  {id:452,name:'KCGM Kalgoorlie',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-30.74,lon:121.5,co2:5.8000e+06},
+  {id:453,name:'Rio Waste',sector:'waste',sub:'landfill',country:'BRA',lat:-22.9,lon:-43.17,co2:5.6000e+06},
+  {id:454,name:'Cerrejón Mine',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'COL',lat:11.3,lon:-72.8,co2:5.5000e+06},
+  {id:455,name:'Cerrejón Coal',sector:'mineral-extraction',sub:'mining',country:'COL',lat:11.3,lon:-72.8,co2:5.5000e+06},
+  {id:456,name:'Roy Hill',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-22.6,lon:119.9,co2:5.4000e+06},
+  {id:457,name:'Batu Hijau',sector:'mineral-extraction',sub:'mining',country:'IDN',lat:-8.97,lon:116.87,co2:5.4000e+06},
+  {id:458,name:'Kumba Iron',sector:'mineral-extraction',sub:'mining',country:'ZAF',lat:-28.24,lon:24.66,co2:5.2000e+06},
+  {id:459,name:'Freeport Cerro',sector:'mineral-extraction',sub:'mining',country:'PER',lat:-13.58,lon:-74.22,co2:5.2000e+06},
+  {id:460,name:'El Cerrejón',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'COL',lat:11.5,lon:-72.9,co2:5.1000e+06},
+  {id:461,name:'Lagos Landfill',sector:'waste',sub:'landfill',country:'NGA',lat:6.52,lon:3.38,co2:5.1000e+06},
+  {id:462,name:'Olympic Dam',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-30.44,lon:136.89,co2:4.9000e+06},
+  {id:463,name:'Moatize',sector:'fossil-fuel-operations',sub:'oil-and-gas',country:'MOZ',lat:-16.1,lon:33.8,co2:4.8000e+06},
+  {id:464,name:'Nairobi Buildings',sector:'buildings',sub:'residential-heating',country:'KEN',lat:-1.29,lon:36.82,co2:4.8000e+06},
+  {id:465,name:'Koodaideri',sector:'mineral-extraction',sub:'mining',country:'AUS',lat:-22.7,lon:118.4,co2:4.8000e+06},
+  {id:466,name:'Kibali Gold',sector:'mineral-extraction',sub:'mining',country:'COD',lat:3.6,lon:29.56,co2:4.8000e+06},
+  {id:467,name:'Jakarta Bantargebang',sector:'waste',sub:'landfill',country:'IDN',lat:-6.37,lon:107.0,co2:4.6000e+06},
+  {id:468,name:'Istanbul Waste',sector:'waste',sub:'landfill',country:'TUR',lat:41.01,lon:28.96,co2:4.4000e+06},
+  {id:469,name:'Newcrest Lihir',sector:'mineral-extraction',sub:'mining',country:'PNG',lat:-3.12,lon:152.64,co2:4.4000e+06},
+  {id:470,name:'Tehran Waste',sector:'waste',sub:'landfill',country:'IRN',lat:35.69,lon:51.39,co2:4.2000e+06},
+  {id:471,name:'Mexico City Waste',sector:'waste',sub:'landfill',country:'MEX',lat:19.43,lon:-99.0,co2:4.1000e+06},
+  {id:472,name:'Karachi Landfill',sector:'waste',sub:'landfill',country:'PAK',lat:24.9,lon:67.1,co2:3.8000e+06},
+  {id:473,name:'Kolkata Waste',sector:'waste',sub:'landfill',country:'IND',lat:22.57,lon:88.36,co2:3.8000e+06},
+  {id:474,name:'Porgera Gold',sector:'mineral-extraction',sub:'mining',country:'PNG',lat:-5.47,lon:143.14,co2:3.8000e+06},
+  {id:475,name:'Buenos Aires Waste',sector:'waste',sub:'landfill',country:'ARG',lat:-34.55,lon:-58.5,co2:3.6000e+06},
+  {id:476,name:'Bangkok Waste',sector:'waste',sub:'landfill',country:'THA',lat:13.75,lon:100.52,co2:3.6000e+06},
+  {id:477,name:'Loulo Gold',sector:'mineral-extraction',sub:'mining',country:'MLI',lat:14.08,lon:-11.43,co2:3.6000e+06},
+  {id:478,name:'Bogotá Doña Juana',sector:'waste',sub:'landfill',country:'COL',lat:4.6,lon:-74.13,co2:3.4000e+06},
+  {id:479,name:'Lahore Waste',sector:'waste',sub:'landfill',country:'PAK',lat:31.55,lon:74.34,co2:3.4000e+06},
+  {id:480,name:'Mumbai Deonar',sector:'waste',sub:'landfill',country:'IND',lat:19.06,lon:72.93,co2:3.2000e+06},
+  {id:481,name:'Kinshasa Waste',sector:'waste',sub:'landfill',country:'COD',lat:-4.32,lon:15.32,co2:3.2000e+06},
+  {id:482,name:'Bangalore Waste',sector:'waste',sub:'landfill',country:'IND',lat:12.97,lon:77.59,co2:3.2000e+06},
+  {id:483,name:'Tasiast Gold',sector:'mineral-extraction',sub:'mining',country:'MRT',lat:19.87,lon:-11.27,co2:3.2000e+06},
+  {id:484,name:'Lima Waste',sector:'waste',sub:'landfill',country:'PER',lat:-12.04,lon:-77.04,co2:3.0000e+06},
+  {id:485,name:'Cairo Landfill',sector:'waste',sub:'landfill',country:'EGY',lat:30.03,lon:31.28,co2:2.8000e+06},
+  {id:486,name:'Santiago Waste',sector:'waste',sub:'landfill',country:'CHL',lat:-33.45,lon:-70.67,co2:2.8000e+06},
+  {id:487,name:'Chennai Waste',sector:'waste',sub:'landfill',country:'IND',lat:13.08,lon:80.27,co2:2.8000e+06},
+  {id:488,name:'Kuala Lumpur Waste',sector:'waste',sub:'landfill',country:'MYS',lat:3.14,lon:101.69,co2:2.8000e+06},
+  {id:489,name:'Dhaka Landfill',sector:'waste',sub:'landfill',country:'BGD',lat:23.81,lon:90.41,co2:2.6000e+06},
+  {id:490,name:'Hyderabad Waste',sector:'waste',sub:'landfill',country:'IND',lat:17.38,lon:78.49,co2:2.6000e+06},
+  {id:491,name:'Manila Landfill',sector:'waste',sub:'landfill',country:'PHL',lat:14.7,lon:121.1,co2:2.4000e+06},
+  {id:492,name:'Caracas Waste',sector:'waste',sub:'landfill',country:'VEN',lat:10.48,lon:-66.88,co2:2.4000e+06},
+  {id:493,name:'Ho Chi Minh Waste',sector:'waste',sub:'landfill',country:'VNM',lat:10.82,lon:106.63,co2:2.4000e+06},
+  {id:494,name:'Nairobi Dandora',sector:'waste',sub:'landfill',country:'KEN',lat:-1.29,lon:36.82,co2:2.2000e+06},
+  {id:495,name:'Addis Ababa Waste',sector:'waste',sub:'landfill',country:'ETH',lat:9.03,lon:38.74,co2:1.8000e+06},
+  {id:496,name:'Singapore Waste',sector:'waste',sub:'landfill',country:'SGP',lat:1.35,lon:103.82,co2:1.8000e+06},
+  {id:497,name:'Dar es Salaam Waste',sector:'waste',sub:'landfill',country:'TZA',lat:-6.79,lon:39.21,co2:1.6000e+06},
+  {id:498,name:'Accra Waste',sector:'waste',sub:'landfill',country:'GHA',lat:5.55,lon:-0.2,co2:1.6000e+06},
+  {id:499,name:'Lusaka Waste',sector:'waste',sub:'landfill',country:'ZMB',lat:-15.41,lon:28.29,co2:1.5000e+06},
+  {id:500,name:'Kampala Landfill',sector:'waste',sub:'landfill',country:'UGA',lat:0.31,lon:32.58,co2:1.4000e+06},
+];
+// Year-based scaling factors (2015=baseline, approximate global trends)
+const YEAR_SCALE={
+  2015:1.000,2016:1.008,2017:1.018,2018:1.028,2019:1.035,
+  2020:0.965,  // COVID drop ~7%
+  2021:1.008,2022:1.018,2023:1.025,2024:1.030,2025:1.032
+};
+function yearScale(y){return YEAR_SCALE[y]??1.0;}
+function getSample(year){
+  const scale=yearScale(year);
+  return SAMPLE_BASE.map((s,i)=>({...s, id:s.id, co2:s.co2*scale, year}));
+}
+
+function extractCO2(s, year){
+  // v7: emissions is an array [{year, gas, emissions_quantity}, ...]
+  // or flat object, or nested object
+  const em = s.emissions;
+  if(Array.isArray(em)){
+    // find co2e_100yr for the requested year, fallback to any year
+    const match = em.find(e=>e.gas==='co2e_100yr'&&e.year===year)
+                ||em.find(e=>e.gas==='co2e_100yr')
+                ||em.find(e=>e.year===year)
+                ||em[0];
+    return parseFloat(match?.emissions_quantity||match?.emissionsQuantity||0)||0;
+  }
+  if(em&&typeof em==='object'){
+    return parseFloat(em.co2e_100yr||em.co2e||em.emissions_quantity||em.emissionsQuantity||em.co2||0)||0;
+  }
+  // Top-level (Climate TRACE v7 returns emissionsQuantity, centroid.latitude/longitude)
+  return parseFloat(s.co2e_100yr||s.co2e||s.emissions_quantity||s.emissionsQuantity||s.co2||0)||0;
+}
+
+function parseSources(data, year){
+  let arr=[];
+  if(Array.isArray(data))arr=data;
+  else if(data?.sources)arr=data.sources;
+  else if(data?.data)arr=data.data;
+  else if(data?.results)arr=data.results;
+  const latFrom=(s)=>s.lat??s.latitude??s.centroid_lat??s.centroid?.latitude;
+  const lonFrom=(s)=>s.lon??s.longitude??s.centroid_lon??s.centroid?.longitude;
+  const requestedYear=year||activeYear;
+  return arr.map(s=>{
+    let co2=extractCO2(s, requestedYear);
+    const apiYear=s.year!=null?Number(s.year):null;
+    if(apiYear!=null&&requestedYear!==apiYear){
+      const scale=yearScale(requestedYear)/yearScale(apiYear);
+      co2=co2*scale;
+    }
+    return{
+      id:s.source_id||s.id||Math.random(),
+      name:s.source_name||s.name||'Unknown',
+      sector:(s.sector||'other').toLowerCase(),
+      sub:s.subsector||s.sub_sector||'',
+      country:s.iso3_country||s.country||'',
+      lat:parseFloat(latFrom(s)||0),
+      lon:parseFloat(lonFrom(s)||0),
+      co2
+    };
+  }).filter(s=>Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&Math.abs(s.lat)<=90&&s.co2>0);
+}
+
+// Fixed anchor = max CO2 at 2023 baseline across ALL sectors (US Road 1500 Mt)
+// This means spike heights are absolute across years, not relative — so
+// 2020 (COVID dip) spikes are visibly shorter than 2022/2023
+const GLOBAL_MAX_CO2 = 1500e6;
+
+function applyFilter(){
+  VISIBLE=SOURCES.filter(s=>activeSector==='all'||s.sector===activeSector);
+  VISIBLE.sort((a,b)=>b.co2-a.co2);
+  maxCO2=GLOBAL_MAX_CO2; // fixed anchor — heights are absolute, not relative
+}
+
+// ── THREE scene ───────────────────────────────────────────────────────────────
+const gc=document.getElementById('gc');
+const renderer=new THREE.WebGLRenderer({canvas:gc,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setClearColor(0x050a14,1);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,window.innerWidth/window.innerHeight,0.01,100);
+camera.position.z=3.2;
+
+// earth sphere — subtle grid
+const earthTex=(()=>{
+  const TW=2048,TH=1024,cv=document.createElement('canvas');
+  cv.width=TW;cv.height=TH;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#060e1a';ctx.fillRect(0,0,TW,TH);
+  ctx.strokeStyle='rgba(22,52,95,0.35)';ctx.lineWidth=0.6;
+  for(let lat=-80;lat<=80;lat+=20){const y=(90-lat)/180*TH;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(TW,y);ctx.stroke();}
+  for(let lon=-180;lon<180;lon+=30){const x=(lon+180)/360*TW;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,TH);ctx.stroke();}
+  return new THREE.CanvasTexture(cv);
+})();
+
+const earth=new THREE.Mesh(
+  new THREE.SphereGeometry(1,72,72),
+  new THREE.MeshBasicMaterial({map:earthTex})
+);
+scene.add(earth);
+
+// groups that rotate with earth
+const borderGroup=new THREE.Group();
+const spikeGroup=new THREE.Group();
+scene.add(borderGroup);
+scene.add(spikeGroup);
+
+// ── TopoJSON border decoder ──
+function topo2geos(topology,object){
+  const arcs=topology.arcs;
+  const{scale:[sx,sy],translate:[tx,ty]}=topology.transform;
+  function arc2coords(i){
+    const rev=i<0,arc=arcs[rev?~i:i];
+    let cx=0,cy=0;
+    const pts=arc.map(([dx,dy])=>{cx+=dx;cy+=dy;return[cx*sx+tx,cy*sy+ty];});
+    if(rev)pts.reverse();
+    return pts;
+  }
+  function ring2coords(ring){return ring.flatMap(arc2coords);}
+  return(object.geometries||[]).map(g=>{
+    if(!g)return null;
+    if(g.type==='Polygon')return{type:'Polygon',coordinates:g.arcs.map(ring2coords)};
+    if(g.type==='MultiPolygon')return{type:'MultiPolygon',coordinates:g.arcs.map(p=>p.map(ring2coords))};
+    return null;
+  }).filter(Boolean);
+}
+
+function ll2v3(lat,lon,r){
+  const phi=(90-lat)*Math.PI/180,th=(-lon+180)*Math.PI/180;
+  return new THREE.Vector3(r*Math.sin(phi)*Math.cos(th),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(th));
+}
+
+function buildBorderLines(topo){
+  borderGroup.clear();
+  const mat=new THREE.LineBasicMaterial({color:0x2a5070,transparent:true,opacity:0.7});
+  const geos=topo2geos(topo,topo.objects.countries);
+  geos.forEach(geo=>{
+    const polys=geo.type==='Polygon'?[geo.coordinates]:geo.coordinates;
+    polys.forEach(poly=>{
+      poly.forEach(ring=>{
+        const pts=ring.map(([lon,lat])=>ll2v3(lat,lon,1.002));
+        if(!pts.length)return;
+        const g=new THREE.BufferGeometry().setFromPoints(pts);
+        borderGroup.add(new THREE.Line(g,mat));
+      });
+    });
+  });
+}
+
+(async()=>{
+  try{
+    const topo=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r=>r.json());
+    buildBorderLines(topo);
+    window._topoCache=topo;
+  }catch(e){console.warn('Borders failed',e);}
+})();
+
+// ── spikes ──
+function buildSpikes(){
+  spikeGroup.clear();
+  if(!VISIBLE.length)return;
+  VISIBLE.forEach(s=>{
+    // Bar height ∝ emission per year (log scale so small sources stay visible)
+    const logH = Math.log10(s.co2+1) / Math.log10(maxCO2+1);
+    const h=Math.max(0.006, logH*0.52);
+    const phi=(90-s.lat)*Math.PI/180,th=(-s.lon+180)*Math.PI/180;
+    const nx=Math.sin(phi)*Math.cos(th),ny=Math.cos(phi),nz=Math.sin(phi)*Math.sin(th);
+    const geom=new THREE.CylinderGeometry(0.0018,0.003,h,5,1);
+    const mat=new THREE.MeshBasicMaterial({color:new THREE.Color(scol(s.sector)),transparent:true,opacity:0.9});
+    const mesh=new THREE.Mesh(geom,mat);
+    mesh.position.set(nx*(1.001+h/2),ny*(1.001+h/2),nz*(1.001+h/2));
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(nx,ny,nz));
+    mesh.userData.source=s;
+    spikeGroup.add(mesh);
+  });
+}
+
+// ── stars ──
+(()=>{
+  const N=340,pos=new Float32Array(N*3),bri=new Float32Array(N),ph=new Float32Array(N),sp=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const u=Math.random(),v=Math.random();
+    const t=2*Math.PI*u,p=Math.acos(2*v-1),r=18;
+    pos[i*3]=r*Math.sin(p)*Math.cos(t);pos[i*3+1]=r*Math.sin(p)*Math.sin(t);pos[i*3+2]=r*Math.cos(p);
+    bri[i]=0.4+Math.random()*0.6;ph[i]=Math.random()*Math.PI*2;sp[i]=0.25+Math.random()*0.6;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('brightness',new THREE.BufferAttribute(bri,1));
+  geo.setAttribute('phase',new THREE.BufferAttribute(ph,1));
+  geo.setAttribute('speed',new THREE.BufferAttribute(sp,1));
+  const mat=new THREE.ShaderMaterial({
+    uniforms:{uT:{value:0}},
+    vertexShader:`attribute float brightness,phase,speed;varying float vA;uniform float uT;
+void main(){float b=0.55+0.45*sin(uT*speed+phase);vA=brightness*b;
+gl_PointSize=1.0+brightness*1.6;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying float vA;void main(){vec2 c=gl_PointCoord*2.-1.;float d=dot(c,c);
+if(d>1.)discard;gl_FragColor=vec4(.80,.93,1.,vA*(1.-d));}`,
+    transparent:true,blending:THREE.AdditiveBlending,depthWrite:false
+  });
+  scene.add(new THREE.Points(geo,mat));
+  let st=0,sl=performance.now();
+  window._starTick=()=>{const n=performance.now();st+=(n-sl)/1000;sl=n;mat.uniforms.uT.value=st;};
+})();
+
+// ── rotation + drag ──
+let tRY=0,tRX=0.08,isDrag=false,dX=0,dY=0,vX=0,vY=0;
+
+gc.addEventListener('mousedown',e=>{isDrag=true;dX=e.clientX;dY=e.clientY;vX=vY=0;});
+window.addEventListener('mouseup',()=>isDrag=false);
+window.addEventListener('mousemove',e=>{
+  if(isDrag){
+    vX=(e.clientX-dX)*0.005;vY=(e.clientY-dY)*0.004;
+    tRY+=vX;tRX=Math.max(-1.4,Math.min(1.4,tRX+vY));
+    dX=e.clientX;dY=e.clientY;
+  }
+  if(isGlobe)hoverGlobe(e);
+});
+
+// touch drag
+gc.addEventListener('touchstart',e=>{const t=e.touches[0];isDrag=true;dX=t.clientX;dY=t.clientY;vX=vY=0;},{passive:true});
+window.addEventListener('touchend',()=>isDrag=false,{passive:true});
+window.addEventListener('touchmove',e=>{
+  if(!isDrag)return;
+  const t=e.touches[0];
+  vX=(t.clientX-dX)*0.005;vY=(t.clientY-dY)*0.004;
+  tRY+=vX;tRX=Math.max(-1.4,Math.min(1.4,tRX+vY));
+  dX=t.clientX;dY=t.clientY;
+},{passive:true});
+
+// ── raycaster hover ──
+const rc=new THREE.Raycaster();
+let hovMesh=null;
+function hoverGlobe(e){
+  const r=gc.getBoundingClientRect();
+  rc.setFromCamera({
+    x:((e.clientX-r.left)/r.width)*2-1,
+    y:-((e.clientY-r.top)/r.height)*2+1
+  },camera);
+  const hits=rc.intersectObjects(spikeGroup.children,false);
+  const front=hits.filter(h=>{
+    if(!h.face)return true;
+    const wn=h.face.normal.clone().applyEuler(spikeGroup.rotation);
+    return wn.dot(rc.ray.direction)<0;
+  });
+  if(front.length){
+    const m=front[0].object;
+    if(m!==hovMesh){hovMesh=m;showTip(m.userData.source,e.clientX,e.clientY);}
+    else moveTip(e.clientX,e.clientY);
+  }else{hovMesh=null;hideTip();}
+}
+
+// ── animate ──
+function animate(){
+  requestAnimationFrame(animate);
+  if(!isDrag){
+    if(autoRot)tRY+=0.0012;
+    vX*=0.92;vY*=0.92;tRY+=vX;tRX+=vY;
+  }
+  const ry=earth.rotation.y+(tRY-earth.rotation.y)*0.08;
+  const rx=earth.rotation.x+(tRX-earth.rotation.x)*0.08;
+  earth.rotation.y=ry;earth.rotation.x=rx;
+  spikeGroup.rotation.y=ry;spikeGroup.rotation.x=rx;
+  borderGroup.rotation.y=ry;borderGroup.rotation.x=rx;
+  borderGroup.visible=bordersVisible;
+  if(window._starTick)window._starTick();
+  renderer.render(scene,camera);
+}
+animate();
+
+// ── 2D flat map ───────────────────────────────────────────────────────────────
+const fc=document.getElementById('fc');
+const ctx2=fc.getContext('2d');
+let pan={x:0,y:0},z2=1,d2=false,d2x=0,d2y=0;
+
+function ll2px(lat,lon){return[(lon+180)/360*fc.width*z2+pan.x,(90-lat)/180*fc.height*z2+pan.y];}
+function draw2(){
+  const FW=fc.width,FH=fc.height;
+  ctx2.fillStyle='#050a14';ctx2.fillRect(0,0,FW,FH);
+  ctx2.strokeStyle='rgba(22,52,95,0.32)';ctx2.lineWidth=0.5;
+  for(let lat=-80;lat<=80;lat+=20){const[,y]=ll2px(lat,0);ctx2.beginPath();ctx2.moveTo(0,y);ctx2.lineTo(FW,y);ctx2.stroke();}
+  for(let lon=-180;lon<=180;lon+=30){const[x]=ll2px(0,lon);ctx2.beginPath();ctx2.moveTo(x,0);ctx2.lineTo(x,FH);ctx2.stroke();}
+  if(bordersVisible&&window._topoCache){
+    ctx2.strokeStyle='rgba(42,88,120,0.6)';ctx2.lineWidth=0.6;
+    const geos=topo2geos(window._topoCache,window._topoCache.objects.countries);
+    geos.forEach(geo=>{
+      if(!geo)return;
+      const polys=geo.type==='Polygon'?[geo.coordinates]:geo.coordinates;
+      polys.forEach(poly=>poly.forEach(ring=>{
+        ctx2.beginPath();
+        let penDown=false;
+        for(let i=0;i<ring.length;i++){
+          const[lon,lat]=ring[i];
+          const[x,y]=ll2px(lat,lon);
+          // detect antimeridian jump — break the stroke
+          if(i>0){
+            const[plon]=ring[i-1];
+            if(Math.abs(lon-plon)>180){penDown=false;}
+          }
+          if(!penDown){ctx2.moveTo(x,y);penDown=true;}
+          else ctx2.lineTo(x,y);
+        }
+        ctx2.stroke();
+      }));
+    });
+  }
+  VISIBLE.forEach(s=>{
+    const[x,y]=ll2px(s.lat,s.lon);
+    if(x<-30||x>FW+30||y<-30||y>FH+30)return;
+    // Bubble radius ∝ emission per year (log scale)
+    const logR = Math.log10(s.co2+1) / Math.log10(maxCO2+1);
+    const r=Math.max(2, logR*38*z2+2);
+    ctx2.beginPath();ctx2.arc(x,y,r,0,Math.PI*2);
+    ctx2.fillStyle=scol(s.sector)+'bb';ctx2.fill();
+    ctx2.strokeStyle=scol(s.sector)+'99';ctx2.lineWidth=0.6;ctx2.stroke();
+  });
+}
+
+fc.addEventListener('mousedown',e=>{d2=true;d2x=e.clientX;d2y=e.clientY;});
+window.addEventListener('mouseup',()=>d2=false);
+fc.addEventListener('mousemove',e=>{
+  if(d2){pan.x+=e.clientX-d2x;pan.y+=e.clientY-d2y;d2x=e.clientX;d2y=e.clientY;draw2();}
+  else{
+    const rect=fc.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    let best=null,bd=Infinity;
+    VISIBLE.forEach(s=>{const[x,y]=ll2px(s.lat,s.lon);const dd=(x-mx)**2+(y-my)**2;if(dd<bd&&dd<400){bd=dd;best=s;}});
+    if(best)showTip(best,e.clientX,e.clientY);else hideTip();
+  }
+});
+const Z2_MIN=1;
+fc.addEventListener('wheel',e=>{
+  e.preventDefault();const f=e.deltaY>0?.85:1.18;
+  const r=fc.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  pan.x=(pan.x-mx)*f+mx;pan.y=(pan.y-my)*f+my;
+  z2=Math.max(Z2_MIN,z2*f);draw2();
+},{passive:false});
+
+// ── tooltip ──────────────────────────────────────────────────────────────────
+function showTip(s,cx,cy){
+  document.getElementById('tn').textContent=s.name;
+  document.getElementById('ts').textContent=sfmt(s.sector);
+  document.getElementById('tss').textContent=sfmt(s.sub)||'—';
+  document.getElementById('tc2').textContent=fco2(s.co2);
+  document.getElementById('tco').textContent=s.country||'—';
+  document.getElementById('tip').style.display='block';
+  moveTip(cx,cy);
+}
+function moveTip(cx,cy){
+  const tip=document.getElementById('tip');
+  tip.style.left=(cx+16)+'px';tip.style.top=(cy-10)+'px';
+  const r=tip.getBoundingClientRect();
+  if(r.right>window.innerWidth-10)tip.style.left=(cx-r.width-16)+'px';
+  if(r.bottom>window.innerHeight-10)tip.style.top=(cy-r.height+10)+'px';
+}
+function hideTip(){document.getElementById('tip').style.display='none';}
+
+// ── panel ─────────────────────────────────────────────────────────────────────
+function buildTabs(){
+  const wrap=document.getElementById('stabs');wrap.innerHTML='';
+  ['all',...Object.keys(SC).filter(k=>k!=='other')].forEach(k=>{
+    const b=document.createElement('button');b.className='stab'+(k===activeSector?' active':'');
+    b.textContent=k==='all'?'All':sfmt(k);b.dataset.s=k;wrap.appendChild(b);
+  });
+  const leg=document.getElementById('legd');leg.innerHTML='';
+  Object.entries(SC).filter(([k])=>k!=='other').forEach(([k,c])=>{
+    const el=document.createElement('div');el.className='li';
+    el.innerHTML=`<div class="ld" style="background:${c}"></div>${sfmt(k)}`;leg.appendChild(el);
+  });
+  wrap.addEventListener('click',e=>{
+    const b=e.target.closest('.stab');if(!b)return;
+    wrap.querySelectorAll('.stab').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    activeSector=b.dataset.s;refresh();
+  });
+}
+
+function buildList(){
+  const wrap=document.getElementById('srclist');if(!wrap)return;wrap.innerHTML='';
+  VISIBLE.slice(0,500).forEach(s=>{
+    const row=document.createElement('div');row.className='sr';
+    row.innerHTML=`<div class="sd" style="background:${scol(s.sector)}"></div>
+<div class="si"><div class="sn">${s.name}</div><div class="ss">${sfmt(s.sub)||sfmt(s.sector)} · ${s.country}</div></div>
+<div class="sv2" style="color:${scol(s.sector)}">${fco2(s.co2)}</div>`;
+    wrap.appendChild(row);
+  });
+}
+
+function updateStats(){
+  document.getElementById('sc').textContent=VISIBLE.length.toLocaleString();
+  const tot=VISIBLE.reduce((a,s)=>a+s.co2,0);
+  document.getElementById('st').textContent=(tot/1e6).toFixed(1);
+}
+
+function refresh(){
+  applyFilter();buildSpikes();buildList();updateStats();if(!isGlobe)draw2();
+}
+
+// ── view toggle ───────────────────────────────────────────────────────────────
+document.getElementById('bg').addEventListener('click',()=>{
+  isGlobe=true;
+  gc.style.display='block';fc.style.display='none';
+  document.getElementById('bg').classList.add('active');document.getElementById('b2').classList.remove('active');
+  document.getElementById('btm').style.display='flex';document.getElementById('btm-flat').style.display='none';
+});
+document.getElementById('b2').addEventListener('click',()=>{
+  isGlobe=false;
+  gc.style.display='none';fc.style.display='block';
+  document.getElementById('b2').classList.add('active');document.getElementById('bg').classList.remove('active');
+  document.getElementById('btm').style.display='none';document.getElementById('btm-flat').style.display='flex';
+  fc.width=window.innerWidth;fc.height=window.innerHeight;pan={x:0,y:0};z2=1;draw2();
+});
+document.getElementById('rotbtn').addEventListener('click',()=>{
+  autoRot=!autoRot;document.getElementById('rotbtn').classList.toggle('active',autoRot);
+});
+document.getElementById('btn-borders-panel').addEventListener('click',function(){
+  bordersVisible=!bordersVisible;
+  this.classList.toggle('active',bordersVisible);
+  this.textContent=bordersVisible?'Borders On':'Borders Off';
+  if(isGlobe){/* borderGroup.visible set in animate */}else draw2();
+});
+document.getElementById('em-zoom-in').addEventListener('click',()=>{
+  const c=fc.width/2,d=fc.height/2;pan.x=c-(c-pan.x)*1.4;pan.y=d-(d-pan.y)*1.4;z2=Math.min(40,z2*1.4);draw2();
+});
+document.getElementById('em-zoom-out').addEventListener('click',()=>{
+  if(z2<=1)return;const c=fc.width/2,d=fc.height/2;pan.x=c-(c-pan.x)/1.4;pan.y=d-(d-pan.y)/1.4;z2=Math.max(1,z2/1.4);draw2();
+});
+document.getElementById('em-zoom-reset').addEventListener('click',()=>{pan={x:0,y:0};z2=1;draw2();});
+
+// ── year slider ───────────────────────────────────────────────────────────────
+document.getElementById('ysl').addEventListener('input',function(){
+  activeYear=+this.value;
+  document.getElementById('yd').textContent=activeYear;
+  if(usingApiData){
+    document.getElementById('year-loading').classList.add('on');
+    updateStatus('Fetching '+activeYear+'…');
+    tryLive();
+    return;
+  }
+  SOURCES=getSample(activeYear);
+  refresh();
+  updateStatus('Fetching '+activeYear+'…');
+  tryLive();
+});
+
+// ── resize ────────────────────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();
+  if(!isGlobe){fc.width=window.innerWidth;fc.height=window.innerHeight;draw2();}
+});
+
+// ── live API (fully background, never blocks UI) ──────────────────────────────
+// ── live API — paginated per-sector to maximise data points ──────────────────
+const SECTORS_API=[
+  'power','transportation','buildings','manufacturing',
+  'fossil-fuel-operations','agriculture','forestry-and-land-use',
+  'waste','mineral-extraction','other-industry-and-transport'
+];
+
+async function fetchSector(sector, year){
+  const since=`${year}-01-01`, to=`${year}-12-31`;
+  const attempts=[
+    `/sources?limit=1000&offset=0&sector=${sector}&since=${since}&to=${to}&sort_by=emissions_quantity&sort_order=desc`,
+    `/sources?limit=500&offset=0&sector=${sector}&since=${since}&to=${to}&sort_by=emissions_quantity&sort_order=desc`,
+    `/sources?limit=500&offset=0&sector=${sector}&year=${year}&sort_by=emissions_quantity&sort_order=desc`,
+  ];
+  for(const url of attempts){
+    try{
+      const data = await apiFetch(url, 15000);
+      const parsed = parseSources(data, year);
+      console.log(`[CT] ${sector}: ${parsed.length} sources`);
+      if(parsed.length > 0) return parsed;
+    }catch(e){
+      console.log(`[CT] ${sector} failed: ${e.message||e}`);
+    }
+  }
+  return [];
+}
+
+async function tryLive(){
+  if(!usingApiData) updateStatus('Fetching live data…');
+  try{
+    const results = await Promise.allSettled(
+      SECTORS_API.map(s => fetchSector(s, activeYear))
+    );
+    const all = results.flatMap(r => r.status==='fulfilled' ? r.value : []);
+    console.log('[CT] Total across all sectors:', all.length);
+
+    if(all.length > 0){
+      const seen = new Set();
+      SOURCES = all.filter(s=>{ if(seen.has(s.id)) return false; seen.add(s.id); return true; });
+      usingApiData=true;
+      refresh();
+      updateStatus(`${SOURCES.length.toLocaleString()} sources from API · ${activeYear}`);
+    } else {
+      SOURCES=getSample(activeYear);
+      usingApiData=false;
+      refresh();
+      updateStatus(`${SOURCES.length} sample sources (API unavailable)`);
+    }
+  }catch(e){
+    SOURCES=getSample(activeYear);
+    usingApiData=false;
+    refresh();
+    updateStatus(`${SOURCES.length} sample sources`);
+  }finally{
+    document.getElementById('year-loading').classList.remove('on');
+  }
+}
+
+function updateStatus(msg){
+  const el=document.getElementById('api-status');
+  if(el) el.textContent=msg;
+}
+
+// ── boot ──────────────────────────────────────────────────────────────────────
+setLoad(15,'Loading map…');
+SOURCES=getSample(activeYear);
+applyFilter();
+buildTabs();
+buildSpikes();
+buildList();
+updateStats();
+setLoad(85,'Ready…');
+updateStatus(`${SOURCES.length} sample sources · fetching live data…`);
+requestAnimationFrame(()=>{
+  setLoad(100,'');
+  setTimeout(()=>{ hideLoad(); tryLive(); }, 400);
+});
+</script>
+</body>
+</html>

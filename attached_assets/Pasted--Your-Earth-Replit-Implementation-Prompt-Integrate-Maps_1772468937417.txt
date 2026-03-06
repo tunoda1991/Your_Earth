@@ -1,0 +1,672 @@
+# Your Earth — Replit Implementation Prompt
+## Integrate Maps & Feed into React Platform with Full Backend
+
+---
+
+## CONTEXT & GOAL
+
+You are working on **Your Earth**, a React + TypeScript + Vite climate engagement platform using Tailwind CSS, shadcn/ui, Framer Motion, and a Supabase backend (Edge Functions via `make-server` pattern). The codebase is already deployed on Replit with all auth, community, discussion, events, notifications, and user APIs wired up.
+
+We have **three standalone HTML files** (built separately) that need to be integrated into the React app as first-class pages:
+
+| File | Current state | Target location |
+|------|--------------|-----------------|
+| `globe_map.html` | Standalone — 3D WebGL global infrastructure map (power plants, renewable facilities, industrial sites). Uses Leaflet + Three.js + WRI Global Power Plant data. Terminal-adjacent dark theme. | **Learn → Infrastructure Map** |
+| `disasters.html` | Standalone — 152 global climate disaster events, 3D/2D Cesium globe + filter panel, terminal aesthetic (Courier New, `#050a14` bg). Has search, type filter bar, hover cards. | **Learn → Disaster Map** |
+| `feed.html` | Standalone — Community activity feed, dark glassmorphism theme (`#0f172a` bg, Inter font, animated orbs). 7-category filter chips, compose modal, post detail modal, communities widget, like/repost/bookmark interactions. | **Community → Feed** |
+
+**Design law:** Do NOT alter the visual design or internal UX of any of the three HTML files. Only the navigation header in each file should be updated so it mirrors the React app's nav exactly. Everything else inside these pages is untouched.
+
+---
+
+## PART 1 — UPDATE THE THREE HTML FILES' NAVIGATION BARS
+
+Each HTML file has its own hand-coded navigation bar. Replace each nav bar with one that matches the React Navigation.tsx component structure and links correctly into the React app routing. Because these HTML files are served as static assets within the Replit project (in `/public`), links from them back into the React SPA should use the `index.html` entry point with a hash or query param that triggers the correct React page.
+
+### Navigation linking strategy
+Use a URL scheme: `index.html?page=<pageName>` where `<pageName>` matches the React `currentPage` state string. On app load in `App.tsx`, read `?page=` from `window.location.search` and set it as the initial page (falling back to `localStorage.getItem('lastPage')` then `'home'`).
+
+### Nav items to include in all three HTML files
+
+The nav must contain these exact items, styled to match the existing nav bar of that HTML file (don't impose the React Tailwind classes onto raw HTML — keep the existing CSS class system of each file and just update the link targets):
+
+**Logo:** `Your Earth` → links to `index.html`
+
+**Learn (dropdown):**
+- Climate Education → `index.html?page=learn-education`
+- Carbon Calculator → `index.html?page=learn-calculator`
+- Climate Data Dashboard → `index.html?page=climate-data-dashboard`
+- Corporate Monitor → `index.html?page=learn-corporate`
+- Organization Bank → `index.html?page=learn-databank`
+- **Infrastructure Map** → `globe_map.html` *(mark as active when on globe_map.html)*
+- **Disaster Map** → `disasters.html` *(mark as active when on disasters.html)*
+
+**Community (dropdown):**
+- **Feed** → `feed.html` *(mark as active when on feed.html)*
+- Energy → `index.html?page=community-energy`
+- Food → `index.html?page=community-food`
+- Mobility → `index.html?page=community-mobility`
+- Technology → `index.html?page=community-technology`
+- Policy → `index.html?page=community-policy`
+- Nature → `index.html?page=community-nature`
+
+**Take Action (dropdown):**
+- Campaigns & Actions → `index.html?page=campaigns-actions`
+- Events & Gatherings → `index.html?page=events`
+- Climate Jobs → `index.html?page=jobs`
+
+Each HTML file already has its own nav CSS. Preserve that CSS — only update the anchor `href` values and the active state class on the correct item. For `disasters.html` the nav uses `ye-nav-link` / `ye-nav-link active`. For `feed.html` it uses `nav-link` / `nav-link active`. For `globe_map.html` inspect and match its existing pattern.
+
+---
+
+## PART 2 — UPDATE REACT APP ROUTING (App.tsx)
+
+### 2a. Read `?page=` query param on initial load
+
+In `App.tsx`, update the `useState` initializer for `currentPage`:
+
+```typescript
+const [currentPage, setCurrentPage] = useState(() => {
+  // Check for ?page= query param (from HTML standalone files linking back in)
+  const params = new URLSearchParams(window.location.search);
+  const pageParam = params.get('page');
+  if (pageParam) {
+    // Clean the URL so back-nav works cleanly
+    window.history.replaceState({}, '', window.location.pathname);
+    return pageParam;
+  }
+  return localStorage.getItem('lastPage') || 'home';
+});
+```
+
+No other changes to App.tsx routing are needed — the existing `renderPage()` switch already handles all the `learn-*` and `community-*` page strings.
+
+### 2b. Add two new route cases (optional iframe embeds — see Part 3)
+
+If you implement the iframe embed approach (see Part 3 option B), add:
+
+```typescript
+case 'learn-infra-map':
+  return <InfraMapPage onNavigate={handleNavigate} />;
+case 'learn-disaster-map':
+  return <DisasterMapPage onNavigate={handleNavigate} />;
+case 'community-feed':
+  return <CommunityFeedPage onNavigate={handleNavigate} user={user} />;
+```
+
+---
+
+## PART 3 — REACT PAGE WRAPPERS (choose one approach)
+
+There are two valid approaches. **Use Approach B (thin iframe wrappers)** — it requires zero refactoring of the HTML files and gives pixel-perfect rendering:
+
+### Approach B — Iframe Wrappers (recommended)
+
+Create three new React page components that render an `<iframe>` with the corresponding HTML file. The iframe takes full viewport height minus the React navigation bar (64px / 80px depending on scroll state).
+
+#### `src/components/pages/InfraMapPage.tsx`
+
+```tsx
+import { useEffect } from "react";
+
+interface Props {
+  onNavigate?: (page: string) => void;
+}
+
+export function InfraMapPage({ onNavigate }: Props) {
+  useEffect(() => {
+    document.title = "Infrastructure Map — Your Earth";
+  }, []);
+
+  return (
+    <div style={{ height: "calc(100vh - 64px)", marginTop: "64px" }}>
+      <iframe
+        src="/globe_map.html"
+        title="Global Infrastructure Map"
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          display: "block",
+        }}
+        allow="fullscreen"
+      />
+    </div>
+  );
+}
+```
+
+#### `src/components/pages/DisasterMapPage.tsx`
+
+```tsx
+import { useEffect } from "react";
+
+interface Props {
+  onNavigate?: (page: string) => void;
+}
+
+export function DisasterMapPage({ onNavigate }: Props) {
+  useEffect(() => {
+    document.title = "Disaster Map — Your Earth";
+  }, []);
+
+  return (
+    <div style={{ height: "calc(100vh - 64px)", marginTop: "64px" }}>
+      <iframe
+        src="/disasters.html"
+        title="Global Disaster Map"
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          display: "block",
+        }}
+        allow="fullscreen"
+      />
+    </div>
+  );
+}
+```
+
+#### `src/components/pages/CommunityFeedPage.tsx`
+
+```tsx
+import { useEffect } from "react";
+
+interface Props {
+  onNavigate?: (page: string) => void;
+  user?: any;
+}
+
+export function CommunityFeedPage({ onNavigate, user }: Props) {
+  useEffect(() => {
+    document.title = "Community Feed — Your Earth";
+  }, []);
+
+  return (
+    <div style={{ height: "calc(100vh - 64px)", marginTop: "64px" }}>
+      <iframe
+        src="/feed.html"
+        title="Community Feed"
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          display: "block",
+        }}
+        allow="fullscreen"
+      />
+    </div>
+  );
+}
+```
+
+Place the three HTML files (`globe_map.html`, `disasters.html`, `feed.html`) in the `/public` folder of the Replit project so Vite serves them as static assets.
+
+---
+
+## PART 4 — UPDATE Navigation.tsx
+
+Add the two new Learn items and the Feed item to the dropdown category arrays. Keep all existing items exactly as-is; only insert the new entries at the correct positions.
+
+### In `learnCategories` array — add after the existing 5 items:
+
+```typescript
+{
+  icon: Globe,   // import Globe from lucide-react
+  title: "Infrastructure Map",
+  description: "Global power plants, renewables & industrial sites",
+  page: "learn-infra-map",
+  color: "text-teal-500",
+  bgColor: "bg-teal-500/10",
+  borderColor: "border-teal-500/20"
+},
+{
+  icon: AlertTriangle,  // import AlertTriangle from lucide-react (already imported in LearnPage, add to Nav)
+  title: "Disaster Map",
+  description: "152 global climate disasters & extreme events",
+  page: "learn-disaster-map",
+  color: "text-orange-400",
+  bgColor: "bg-orange-400/10",
+  borderColor: "border-orange-400/20"
+},
+```
+
+### In `communityCategories` array — add as the FIRST item:
+
+```typescript
+{
+  icon: MessageCircle,  // import MessageCircle from lucide-react
+  title: "Feed",
+  description: "Live climate community activity & discussions",
+  page: "community-feed",
+  color: "text-green-500",
+  bgColor: "bg-green-500/10",
+  borderColor: "border-green-500/20"
+},
+```
+
+### In the Learn mega-menu dropdown (desktop), update `grid-cols-2` to `grid-cols-3` since there are now 7 items:
+
+```tsx
+<div className="grid grid-cols-3 gap-4 max-w-6xl mx-auto">
+```
+
+### Add the missing icon imports at top of Navigation.tsx:
+
+```typescript
+import { ..., Globe, AlertTriangle, MessageCircle } from "lucide-react";
+```
+
+---
+
+## PART 5 — UPDATE LearnPage.tsx
+
+Add the two new map modules to the `learningModules` array in `LearnPage.tsx`. Insert them after the `Organization Bank` entry:
+
+```typescript
+{
+  title: "Infrastructure Map",
+  description: "Explore global energy infrastructure — power plants, renewable facilities, and industrial sites — across 164 countries. Capacity-based sizing, 8 facility sub-types, live data from WRI Global Power Plant Database.",
+  icon: Globe,
+  slug: "infra-map",
+  features: [
+    "164 countries covered",
+    "8 facility sub-types",
+    "Capacity-based dot sizing",
+    "3D globe + 2D Mercator views"
+  ],
+  stats: {
+    facilities: "35,000+",
+    countries: "164",
+    view: "3D / 2D"
+  },
+  color: "teal",
+  hasSubcategories: false
+},
+{
+  title: "Disaster Map",
+  description: "Interactive 3D globe of 152 global climate disaster events — floods, wildfires, hurricanes, heatwaves and more. Filter by type, search by location, view photographic records with Supabase-backed media.",
+  icon: AlertTriangle,
+  slug: "disaster-map",
+  features: [
+    "152 documented disaster events",
+    "10 disaster type categories",
+    "Photo records per event",
+    "Terminal-style data aesthetic"
+  ],
+  stats: {
+    events: "152",
+    types: "10",
+    view: "3D globe"
+  },
+  color: "orange",
+  hasSubcategories: false
+},
+```
+
+Add the button `onClick` handlers for these new slugs inside the `LearnPage` card render loop (where `onNavigate` is called):
+
+```typescript
+// Inside the map over learningModules, where onClick is set for the "Explore" button:
+onClick={() => onNavigate && onNavigate(`learn-${module.slug}`)}
+// This already works since slugs are 'infra-map' and 'disaster-map',
+// producing page names 'learn-infra-map' and 'learn-disaster-map'
+```
+
+Add necessary icon imports to `LearnPage.tsx`:
+```typescript
+import { ..., Globe, AlertTriangle } from "lucide-react";
+```
+
+---
+
+## PART 6 — UPDATE CommunityPage.tsx
+
+Add a **Feed** module card as the first item in `communityModules`:
+
+```typescript
+{
+  title: "Community Feed",
+  slug: "feed",
+  icon: MessageCircle,
+  description: "The real-time pulse of the Your Earth community. Browse posts, discussions, and updates across all 7 climate categories. Like, repost, comment, and share what matters to you.",
+  color: "green",
+  stats: {
+    Posts: "8.4K",
+    Members: "47K+"
+  },
+  features: [
+    "Cross-category activity stream",
+    "Like, repost & bookmark posts",
+    "Community compose & discussions",
+    "Live disaster & climate event alerts"
+  ]
+},
+```
+
+The existing `onClick` handler already calls `onNavigate(\`community-${module.slug}\`)`, which will produce `community-feed` — the new route we added in App.tsx.
+
+Add icon import:
+```typescript
+import { ..., MessageCircle } from "lucide-react";
+```
+
+---
+
+## PART 7 — BACKEND WIRING FOR feed.html COMMUNICATION
+
+The `feed.html` page currently uses embedded/mock data. Now that it lives under the Community module, wire it to the real backend so posts, communities, discussions, and interactions persist in Supabase.
+
+### 7a. Expose Supabase config to standalone HTML
+
+The HTML file cannot use the TypeScript `supabase/client.ts`. Instead, inject the Supabase project URL and anon key as global JS variables by adding a thin `<script>` block at the bottom of `feed.html`, just before `</body>`:
+
+```html
+<script>
+// ── SUPABASE CONFIG (injected) ──
+window.YE_SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co";
+window.YE_API_BASE     = "https://YOUR_PROJECT_ID.supabase.co/functions/v1/make-server-73b87161";
+window.YE_ANON_KEY     = "YOUR_PUBLIC_ANON_KEY";
+
+// Get auth token from React app's localStorage (shared same-origin)
+window.YE_AUTH_TOKEN   = localStorage.getItem('auth_token') || window.YE_ANON_KEY;
+</script>
+```
+
+Replace `YOUR_PROJECT_ID` and `YOUR_PUBLIC_ANON_KEY` with the values from `src/utils/supabase/info.ts` (these are public/safe to include).
+
+### 7b. Create a shared `yeApi()` helper inside feed.html
+
+At the top of the existing `<script>` block in `feed.html`, add this helper:
+
+```javascript
+async function yeApi(endpoint, options = {}) {
+  const token = localStorage.getItem('auth_token') || window.YE_ANON_KEY;
+  const res = await fetch(window.YE_API_BASE + endpoint, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `API error ${res.status}`);
+  }
+  return res.json();
+}
+```
+
+### 7c. Load real communities on init
+
+Replace the hardcoded communities data in `feed.html` with a live fetch in the `init()` function:
+
+```javascript
+// In init(), after DOM is ready:
+async function loadCommunities() {
+  try {
+    const data = await yeApi('/communities');
+    const communities = data.communities || data || [];
+    // Update the communities widget in the right sidebar
+    renderCommunitiesWidget(communities.slice(0, 5));
+  } catch (e) {
+    console.warn('Could not load communities:', e.message);
+    // Falls back gracefully to embedded mock data
+  }
+}
+loadCommunities();
+```
+
+### 7d. Load real discussions/posts on init
+
+Replace the hardcoded `POSTS` array rendering with a hybrid approach — fetch real discussions from backend, fall back to the embedded disaster-posts if the fetch fails or returns empty:
+
+```javascript
+async function loadPosts() {
+  try {
+    const data = await yeApi('/discussions');
+    const discussions = data.discussions || data || [];
+    if (discussions.length > 0) {
+      // Normalize backend discussion format to feed post format
+      const normalized = discussions.map(d => ({
+        id: d.id,
+        author: d.author_name || 'Community Member',
+        avatar: d.author_avatar || null,
+        channel: d.community_name || 'General',
+        category: d.category || 'technology',
+        time: timeAgo(new Date(d.created_at)),
+        title: d.title,
+        body: d.content,
+        image: null,
+        likes: d.likes_count || 0,
+        reposts: d.reposts_count || 0,
+        comments: d.comments_count || 0,
+        views: d.views_count || Math.floor(Math.random() * 900 + 100),
+        tags: d.tags || [],
+      }));
+      POSTS.unshift(...normalized);
+    }
+  } catch (e) {
+    console.warn('Could not load discussions:', e.message);
+  }
+  renderFeed();
+}
+```
+
+### 7e. Persist new posts via submitPost()
+
+Update the existing `submitPost()` function in `feed.html` to call the backend API when a user submits a new post:
+
+```javascript
+async function submitPost() {
+  const textarea = document.querySelector('#compose-textarea');
+  const content = textarea ? textarea.value.trim() : '';
+  if (!content) return;
+  
+  // Optimistic UI: add to top of POSTS immediately
+  const newPost = {
+    id: 'local-' + Date.now(),
+    author: 'Sho T.',
+    avatar: null,
+    channel: 'Your Feed',
+    category: activeCategory !== 'all' ? activeCategory : 'technology',
+    time: 'just now',
+    title: content.slice(0, 80),
+    body: content,
+    image: null,
+    likes: 0, reposts: 0, comments: 0, views: 0,
+    tags: [],
+  };
+  POSTS.unshift(newPost);
+  closeCompose();
+  renderFeed();
+  showToast('Post shared with your community!', 'success');
+
+  // Background: persist to backend
+  try {
+    await yeApi('/discussions', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: content.slice(0, 80),
+        content: content,
+        category: newPost.category,
+      })
+    });
+  } catch (e) {
+    console.warn('Could not save post:', e.message);
+    // Post already shown optimistically; silent failure is acceptable
+  }
+}
+```
+
+### 7f. Wire like interactions (best-effort persistence)
+
+In the existing `toggleLike()` function, add a non-blocking background call to record the like:
+
+```javascript
+// After updating local like state and re-rendering:
+const isNowLiked = likedPosts.has(postId);
+yeApi(`/discussions/${postId}/like`, {
+  method: isNowLiked ? 'POST' : 'DELETE'
+}).catch(() => {}); // silent — optimistic UI is source of truth
+```
+
+### 7g. Load notifications count from backend
+
+At bottom of `init()`, fetch the real notification count:
+
+```javascript
+async function loadNotificationCount() {
+  try {
+    const data = await yeApi('/notifications');
+    const unread = (data.notifications || data || []).filter(n => !n.read_at).length;
+    const badge = document.querySelector('.notif-count');
+    if (badge && unread > 0) badge.textContent = unread > 9 ? '9+' : String(unread);
+  } catch (e) { /* silent */ }
+}
+loadNotificationCount();
+```
+
+---
+
+## PART 8 — BACKEND: NEW SUPABASE EDGE FUNCTION ROUTES
+
+The existing `make-server` Edge Function needs 3 new route handlers to support map-related data if needed in the future, and one updated route to support feed-post likes. Add these handlers to the appropriate router file in `supabase/functions/make-server/`:
+
+### 8a. POST `/discussions/:id/like`
+
+```typescript
+// Like a discussion post
+if (req.method === 'POST' && path.match(/^\/discussions\/[^\/]+\/like$/)) {
+  const discussionId = path.split('/')[2];
+  const { data: existing } = await supabase
+    .from('discussion_likes')
+    .select('id')
+    .eq('discussion_id', discussionId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!existing) {
+    await supabase.from('discussion_likes').insert({
+      discussion_id: discussionId,
+      user_id: user.id
+    });
+    // Increment like count
+    await supabase.rpc('increment_likes', { discussion_id: discussionId });
+  }
+  return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+}
+```
+
+### 8b. DELETE `/discussions/:id/like`
+
+```typescript
+if (req.method === 'DELETE' && path.match(/^\/discussions\/[^\/]+\/like$/)) {
+  const discussionId = path.split('/')[2];
+  await supabase
+    .from('discussion_likes')
+    .delete()
+    .eq('discussion_id', discussionId)
+    .eq('user_id', user.id);
+
+  await supabase.rpc('decrement_likes', { discussion_id: discussionId });
+  return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+}
+```
+
+### 8c. Supabase SQL — create `discussion_likes` table and RPC functions
+
+Run this migration in the Supabase SQL editor:
+
+```sql
+-- Discussion likes table
+CREATE TABLE IF NOT EXISTS discussion_likes (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  discussion_id UUID NOT NULL REFERENCES discussions(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(discussion_id, user_id)
+);
+
+-- Add likes_count column to discussions if missing
+ALTER TABLE discussions ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0;
+ALTER TABLE discussions ADD COLUMN IF NOT EXISTS reposts_count INT DEFAULT 0;
+ALTER TABLE discussions ADD COLUMN IF NOT EXISTS views_count INT DEFAULT 0;
+ALTER TABLE discussions ADD COLUMN IF NOT EXISTS comments_count INT DEFAULT 0;
+
+-- Atomic increment/decrement RPCs
+CREATE OR REPLACE FUNCTION increment_likes(discussion_id UUID)
+RETURNS void LANGUAGE sql AS $$
+  UPDATE discussions SET likes_count = likes_count + 1 WHERE id = discussion_id;
+$$;
+
+CREATE OR REPLACE FUNCTION decrement_likes(discussion_id UUID)
+RETURNS void LANGUAGE sql AS $$
+  UPDATE discussions SET likes_count = GREATEST(0, likes_count - 1) WHERE id = discussion_id;
+$$;
+
+-- RLS
+ALTER TABLE discussion_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own likes" ON discussion_likes
+  FOR ALL USING (auth.uid() = user_id);
+```
+
+---
+
+## PART 9 — MOBILE NAVIGATION (in HTML files)
+
+Each HTML file has a mobile nav or hamburger menu. Update those mobile menus with the same new items added in Part 1:
+
+- In the **Learn** mobile section: add "Infrastructure Map" → `globe_map.html` and "Disaster Map" → `disasters.html`
+- In the **Community** mobile section: add "Feed" → `feed.html` as the first item
+
+Match the exact HTML/CSS pattern already used for mobile nav items in each file.
+
+---
+
+## PART 10 — VITE CONFIG: SERVE HTML FILES AS STATIC ASSETS
+
+Ensure `vite.config.ts` is configured to allow the HTML files to be served from `/public`:
+
+```typescript
+// vite.config.ts — no special changes needed if files are in /public
+// Vite automatically serves /public contents at root
+// Confirm publicDir is not overridden:
+export default defineConfig({
+  // ...existing config...
+  publicDir: 'public',  // This is the default; make explicit
+});
+```
+
+Copy `globe_map.html`, `disasters.html`, and `feed.html` into the `public/` directory of the project root.
+
+---
+
+## SUMMARY OF ALL FILE CHANGES
+
+| File | Change |
+|------|--------|
+| `public/globe_map.html` | Update nav: add Learn→Infra Map (active), Learn→Disaster Map, Community→Feed; fix all href links |
+| `public/disasters.html` | Update nav: add Learn→Infra Map, Learn→Disaster Map (active), Community→Feed; fix all href links |
+| `public/feed.html` | Update nav: add Learn→Infra Map, Learn→Disaster Map, Community→Feed (active); add Supabase config script; wire `yeApi()` helper; connect `loadPosts()`, `loadCommunities()`, `submitPost()`, `toggleLike()`, `loadNotificationCount()` to backend |
+| `src/App.tsx` | Read `?page=` query param on init; add 3 new `case` statements for `learn-infra-map`, `learn-disaster-map`, `community-feed` |
+| `src/components/Navigation.tsx` | Add InfraMap + DisasterMap to `learnCategories`; add Feed to start of `communityCategories`; update Learn dropdown grid to `grid-cols-3`; add icon imports |
+| `src/components/pages/LearnPage.tsx` | Add InfraMap + DisasterMap to `learningModules`; add icon imports |
+| `src/components/pages/CommunityPage.tsx` | Add Feed as first item in `communityModules`; add icon import |
+| `src/components/pages/InfraMapPage.tsx` | **New file** — iframe wrapper for `globe_map.html` |
+| `src/components/pages/DisasterMapPage.tsx` | **New file** — iframe wrapper for `disasters.html` |
+| `src/components/pages/CommunityFeedPage.tsx` | **New file** — iframe wrapper for `feed.html` |
+| `supabase/functions/make-server/index.ts` | Add POST + DELETE `/discussions/:id/like` route handlers |
+| Supabase SQL | Create `discussion_likes` table, add count columns to `discussions`, create RPC functions |
+
+---
+
+## DESIGN RULES — DO NOT VIOLATE
+
+1. **Never change the visual design, layout, color palette, or UX inside any of the three HTML files.** Only the navigation bar HTML is permitted to change in those files.
+2. **The three HTML files' internal nav aesthetics must stay native to that file** — `disasters.html` keeps its `Courier New` / `#050a14` nav style; `feed.html` keeps its glassmorphism Inter nav style; `globe_map.html` keeps its existing nav style. Only link targets and item content change.
+3. **The React components `InfraMapPage`, `DisasterMapPage`, and `CommunityFeedPage` must be zero-chrome wrappers.** No headers, breadcrumbs, or React UI outside the iframe. The iframe itself provides the full page experience.
+4. **Backend calls from feed.html are best-effort / optimistic.** The page must work perfectly even without internet or when unauthenticated. All errors must be swallowed silently or logged as `console.warn`.
+5. **The `?page=` query-param routing must not break existing `localStorage` page restoration.** Priority order: `?page=` param → `localStorage.lastPage` → `'home'`.

@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Disaster Record — Your Earth</title>
+<style>
+:root {
+  --bg:       #050a14;
+  --panel:    rgba(6,13,26,0.94);
+  --border:   #1a2f45;
+  --dim:      #3a5a7a;
+  --mid:      #6a8fa8;
+  --text:     #a0c4d8;
+  --accent:   #7ab3cc;
+
+  /* disaster type colours */
+  --heat:      #ff6b35;
+  --wildfire:  #ff9500;
+  --flood:     #38bdf8;
+  --hurricane: #a78bfa;
+  --storm:     #60a5fa;
+  --drought:   #d4a853;
+  --other:     #94a3b8;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ── CANVAS ── */
+#canvas-3d { display:block; position:absolute; inset:0; }
+#canvas-2d { display:block; position:absolute; inset:0; cursor:grab; }
+#canvas-2d:active { cursor:grabbing; }
+.view-hidden { opacity:0; pointer-events:none; }
+
+/* ── HEADER ── */
+#header {
+  position:fixed; top:0; left:0; right:220px;
+  padding:18px 22px 0; pointer-events:none; z-index:10;
+}
+#header h1 {
+  font-size:11px; letter-spacing:.35em; text-transform:uppercase;
+  color:var(--accent); font-weight:400; font-family:'Courier New', monospace;
+}
+#header p {
+  font-size:9px; letter-spacing:.18em; color:var(--dim); margin-top:3px;
+}
+
+/* ── VIEW TOGGLE (top-left, same as other maps) ── */
+#view-toggle {
+  position:fixed; top:12px; left:12px; z-index:20;
+  display:flex; border:1px solid var(--border); overflow:hidden;
+  backdrop-filter:blur(8px);
+}
+#view-toggle button {
+  padding:6px 13px; background:var(--panel); color:var(--dim);
+  font-family:'Courier New', monospace; font-size:9px;
+  letter-spacing:.18em; text-transform:uppercase; border:none;
+  cursor:pointer; transition:all .2s;
+}
+#view-toggle button.active { background:rgba(122,179,204,.12); color:var(--accent); }
+#view-toggle button:hover:not(.active) { color:var(--text); }
+
+/* ── ROTATE / 2D CONTROLS ── */
+#rotate-btn {
+  position:fixed; bottom:18px; left:22px;
+  padding:7px 14px; border:1px solid var(--border);
+  font-family:'Courier New', monospace; font-size:9px;
+  letter-spacing:.2em; color:var(--mid); background:var(--panel);
+  cursor:pointer; text-transform:uppercase; transition:all .2s;
+  backdrop-filter:blur(8px); display:flex; align-items:center; gap:7px; z-index:10;
+}
+#rotate-btn:hover { border-color:var(--accent); color:var(--accent); }
+#rotate-btn.active { border-color:#4a9a7a; color:#4a9a7a; }
+#rotate-btn .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+#map-controls {
+  position:fixed; bottom:18px; left:22px;
+  display:none; flex-direction:column; gap:4px; z-index:20;
+}
+#map-controls.visible { display:flex; }
+#map-controls button {
+  padding:5px 14px; border:1px solid var(--border); background:var(--panel);
+  color:var(--mid); font-family:'Courier New', monospace; font-size:9px;
+  letter-spacing:.15em; cursor:pointer; text-transform:uppercase;
+  transition:all .2s; backdrop-filter:blur(8px);
+}
+#map-controls button:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ── HINT ── */
+#hint {
+  position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+  font-size:9px; color:var(--dim); letter-spacing:.15em; pointer-events:none;
+}
+
+/* ── SIDE PANEL ── */
+#panel {
+  position:fixed; top:0; right:0; bottom:0; width:220px;
+  background:var(--panel); border-left:1px solid var(--border);
+  backdrop-filter:blur(12px); display:flex; flex-direction:column; z-index:10;
+}
+#panel-head {
+  padding:18px 16px 12px; border-bottom:1px solid var(--border);
+  flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
+}
+#panel-head h2 {
+  font-size:9px; letter-spacing:.28em; color:var(--dim);
+  text-transform:uppercase; font-weight:400;
+}
+#toggle-all {
+  font-size:8px; letter-spacing:.12em; color:var(--dim);
+  background:none; border:1px solid var(--border);
+  font-family:'Courier New', monospace; padding:3px 8px;
+  cursor:pointer; transition:all .2s; text-transform:uppercase;
+}
+#toggle-all:hover { border-color:var(--accent); color:var(--accent); }
+
+#panel-scroll {
+  overflow-y:auto; flex:1; padding:4px 0 16px;
+}
+#panel-scroll::-webkit-scrollbar { width:3px; }
+#panel-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* ── PANEL SECTIONS ── */
+.sec-wrap { border-top:1px solid var(--border); margin-top:4px; }
+.sec-wrap:first-child { border-top:none; margin-top:0; }
+.sec { display:flex; align-items:center; justify-content:space-between; padding:10px 16px 5px; cursor:pointer; user-select:none; }
+.sec-label { font-size:8px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase; }
+.sec-tog { font-size:9px; color:var(--dim); transition:color .15s; padding:0 2px; }
+.sec-wrap:hover .sec-tog { color:var(--accent); }
+.sec-wrap.collapsed .row { display:none; }
+.sec-wrap.sec-off .sec-label { opacity:.4; }
+
+.row {
+  display:flex; align-items:center; gap:8px; padding:5px 16px;
+  cursor:pointer; transition:background .15s;
+}
+.row:hover { background:rgba(255,255,255,.025); }
+.row.off .sw  { opacity:.22; }
+.row.off .rl  { color:var(--dim); }
+.row.off .rc  { opacity:.25; }
+
+.sw { flex-shrink:0; }
+.sw.dot  { width:8px; height:8px; border-radius:50%; }
+.sw.line { width:16px; height:3px; border-radius:1.5px; }
+.rl { font-size:10px; color:var(--mid); letter-spacing:.03em; flex:1; line-height:1.3; }
+.rc { font-size:9px; color:var(--dim); flex-shrink:0; }
+
+.tog {
+  flex-shrink:0; width:24px; height:12px; background:var(--border);
+  border-radius:6px; position:relative; transition:background .2s;
+}
+.tog::after {
+  content:''; position:absolute; top:2px; left:2px;
+  width:8px; height:8px; border-radius:50%; background:var(--dim);
+  transition:transform .2s, background .2s;
+}
+.row:not(.off) .tog { background:rgba(122,179,204,.3); }
+.row:not(.off) .tog::after { transform:translateX(12px); background:var(--accent); }
+
+/* ── DISASTER CARD (hover popup) ── */
+#card {
+  position:fixed; pointer-events:none;
+  background:rgba(4,9,20,.97);
+  border:1px solid var(--border);
+  width:220px;
+  display:none;
+  z-index:60;
+  backdrop-filter:blur(12px);
+  transition: opacity .15s;
+}
+#card .card-img {
+  width:100%; height:130px;
+  object-fit:cover; display:block;
+  background:var(--border);
+  position:relative;
+}
+#card .card-img-placeholder {
+  width:100%; height:130px;
+  background:linear-gradient(135deg,#0a1828,#0f2035);
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; color:var(--dim);
+}
+#card .card-body { padding:10px 12px 12px; }
+#card .card-type {
+  font-size:7.5px; letter-spacing:.22em; text-transform:uppercase;
+  margin-bottom:5px; display:flex; align-items:center; gap:5px;
+}
+#card .card-type-dot {
+  width:5px; height:5px; border-radius:50%; flex-shrink:0;
+}
+#card .card-location {
+  font-size:11px; color:#d8eef8; margin-bottom:4px;
+  font-family:'Courier New',monospace; font-weight:700; letter-spacing:.04em;
+  line-height:1.3;
+}
+#card .card-date {
+  font-size:9px; color:var(--dim); letter-spacing:.1em;
+}
+#card .card-img-wrap { position:relative; overflow:hidden; }
+#card .card-loading {
+  position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; background:#050a14; font-size:8px;
+  letter-spacing:.2em; color:var(--dim);
+}
+
+/* ── LOADING SCREEN ── */
+#loading {
+  position:fixed; inset:0; background:var(--bg);
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:10px; z-index:100;
+}
+#loading p {
+  font-size:9px; letter-spacing:.3em; color:var(--dim); text-transform:uppercase;
+}
+.bar-wrap { width:160px; height:2px; background:var(--border); border-radius:1px; }
+.bar { height:100%; width:0%; background:var(--accent); border-radius:1px; transition:width .3s; }
+
+/* ── STAT BAR ── */
+#stat-bar {
+  position:fixed; top:52px; left:22px;
+  display:flex; gap:14px; pointer-events:none; z-index:10;
+}
+.stat-chip {
+  font-size:8px; letter-spacing:.15em; color:var(--dim);
+  border:1px solid var(--border); padding:3px 8px;
+  background:rgba(6,13,26,.8); backdrop-filter:blur(6px);
+}
+.stat-chip span { color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- Canvases -->
+<canvas id="canvas-3d"></canvas>
+<canvas id="canvas-2d" class="view-hidden"></canvas>
+
+<!-- Header -->
+<div id="header">
+  <h1>Global Disaster Record</h1>
+  <p><span id="ev-count"></span> Events · Heat · Wildfire · Flood · Drought · Pollution · Sea Level Rise · Pests · More</p>
+</div>
+
+<!-- Stat bar -->
+<div id="stat-bar">
+  <div class="stat-chip">EVENTS <span id="stat-total">178</span></div>
+  <div class="stat-chip">VISIBLE <span id="stat-visible">178</span></div>
+</div>
+
+<!-- View toggle (top-left, same as electricity map) -->
+<div id="view-toggle">
+  <button id="view-btn-globe" class="active">Globe</button>
+  <button id="view-btn-flat">2D Map</button>
+</div>
+
+<!-- 3D controls -->
+<button id="rotate-btn"><span class="dot"></span><span id="rotate-label">AUTO ROTATE</span></button>
+
+<!-- 2D controls -->
+<div id="map-controls">
+  <button id="zoom-in">+ Zoom</button>
+  <button id="zoom-out">− Zoom</button>
+  <button id="reset-v">Reset</button>
+</div>
+
+<div id="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
+
+<!-- Side Panel -->
+<div id="panel">
+  <div id="panel-head"><h2>Filter</h2><button id="toggle-all">All Off</button></div>
+  <div id="panel-scroll"></div>
+</div>
+
+<!-- Disaster card popup -->
+<div id="card">
+  <div class="card-img-wrap">
+    <div class="card-loading" id="card-loading">LOADING</div>
+    <img class="card-img" id="card-img" alt="" style="display:none">
+    <div class="card-img-placeholder" id="card-placeholder"></div>
+  </div>
+  <div class="card-body">
+    <div class="card-type"><div class="card-type-dot" id="card-dot"></div><span id="card-type-label"></span></div>
+    <div class="card-location" id="card-location"></div>
+    <div class="card-date" id="card-date"></div>
+  </div>
+</div>
+
+<!-- Loading screen -->
+<div id="loading">
+  <p id="load-msg">Initialising</p>
+  <div class="bar-wrap"><div class="bar" id="load-bar"></div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+const SUPABASE_BASE = 'https://pgqisbbixphfzgvzdmfa.supabase.co/storage/v1/object/public';
+
+const DISASTERS = [{"id": "d1", "date": "05/01/2020", "location": "Canberra, Australia", "type": "heat", "lat": -26.0569, "lon": 133.5078, "photo": "disasters/cards/d1.jpg", "photoPath": "disasters/cards/d1.jpg"}, {"id": "d2", "date": "02/06/2019", "location": "Amritsar, India", "type": "heat", "lat": 21.079, "lon": 79.6002, "photo": "disasters/cards/d2.jpg", "photoPath": "disasters/cards/d2.jpg"}, {"id": "d3", "date": "02/06/2019", "location": "Lahore, Pakistan", "type": "heat", "lat": 30.0505, "lon": 69.6812, "photo": "disasters/cards/d3.jpg", "photoPath": "disasters/cards/d3.jpg"}, {"id": "d4", "date": "25/07/2019", "location": "Temperatures in Europe", "type": "heat", "lat": 49.7035, "lon": 10.2553, "photo": "disasters/cards/d4.jpg", "photoPath": "disasters/cards/d4.jpg"}, {"id": "d5", "date": "14/07/2018", "location": "Tokyo, Japan", "type": "heat", "lat": 35.2153, "lon": 139.3789, "photo": "disasters/cards/d5.jpg", "photoPath": "disasters/cards/d5.jpg"}, {"id": "d6", "date": "06/04/2020", "location": "Navrongo, Ghana", "type": "heat", "lat": 9.2332, "lon": -2.3824, "photo": "disasters/cards/d6.jpg", "photoPath": "disasters/cards/d6.jpg"}, {"id": "d7", "date": "05/07/2018", "location": "Ouargla, Algeria", "type": "heat", "lat": 26.7116, "lon": 2.936, "photo": "disasters/cards/d7.jpg", "photoPath": "disasters/cards/d7.jpg"}, {"id": "d8", "date": "08/06/2019", "location": "Kuwait City, Kuwait", "type": "heat", "lat": 29.5474, "lon": 47.3812, "photo": "disasters/cards/d8.jpg", "photoPath": "disasters/cards/d8.jpg"}, {"id": "d9", "date": "02/06/2017", "location": "Quetta, Pakistan", "type": "heat", "lat": 29.872, "lon": 68.1189, "photo": "disasters/cards/d9.jpg", "photoPath": "disasters/cards/d9.jpg"}, {"id": "d10", "date": "27/08/2017", "location": "Houston, Texas", "type": "flood", "lat": 33.2759, "lon": -98.4701, "photo": "disasters/cards/d10.jpg", "photoPath": "disasters/cards/d10.jpg"}, {"id": "d11", "date": "26/05/2020", "location": "Miami, Florida", "type": "flood", "lat": 28.7226, "lon": -81.3035, "photo": "disasters/cards/d11.jpg", "photoPath": "disasters/cards/d11.jpg"}, {"id": "d12", "date": "21/05/2020", "location": "Satkhira, Bangladesh", "type": "flood", "lat": 23.1627, "lon": 89.2695, "photo": "disasters/cards/d12.jpg", "photoPath": "disasters/cards/d12.jpg"}, {"id": "d13", "date": "19/05/2020", "location": "Cyclone Evacuation Camp, Orissa, India", "type": "flood", "lat": 20.3191, "lon": 78.2614, "photo": "disasters/cards/d13.jpg", "photoPath": "disasters/cards/d13.jpg"}, {"id": "d14", "date": "14/05/2020", "location": "Catbalogan City, Philippines", "type": "flood", "lat": 14.0281, "lon": 121.8522, "photo": "disasters/cards/d14.jpg", "photoPath": "disasters/cards/d14.jpg"}, {"id": "d15", "date": "12/10/2019", "location": "Tokyo, Japan", "type": "flood", "lat": 35.2153, "lon": 139.3789, "photo": "disasters/cards/d15.jpg", "photoPath": "disasters/cards/d15.jpg"}, {"id": "d16", "date": "11/10/2018", "location": "Mexico Beach, Florida", "type": "flood", "lat": 28.6529, "lon": -81.2872, "photo": "disasters/cards/d16.jpg", "photoPath": "disasters/cards/d16.jpg"}, {"id": "d17", "date": "04/09/2019", "location": "Marsh Harbour, Bahamas", "type": "flood", "lat": 25.5535, "lon": -77.3832, "photo": "disasters/cards/d17.jpg", "photoPath": "disasters/cards/d17.jpg"}, {"id": "d18", "date": "05/09/2019", "location": "Abaco Island, Bahamas", "type": "flood", "lat": 26.4393, "lon": -77.7401, "photo": "disasters/cards/d18.jpg", "photoPath": "disasters/cards/d18.jpg"}, {"id": "d19", "date": "24/09/2017", "location": "Corozal, Puerto Rico", "type": "flood", "lat": 16.9388, "lon": -67.0079, "photo": "disasters/cards/d19.jpg", "photoPath": "disasters/cards/d19.jpg"}, {"id": "d20", "date": "29/10/2012", "location": "Manhattan, New York", "type": "flood", "lat": 42.1423, "lon": -74.106, "photo": "disasters/cards/d20.jpg", "photoPath": "disasters/cards/d20.jpg"}, {"id": "d21", "date": "19/03/2019", "location": "Buzi, Mozambique", "type": "flood", "lat": -19.0846, "lon": 36.9644, "photo": "disasters/cards/d21.jpg", "photoPath": "disasters/cards/d21.jpg"}, {"id": "d22", "date": "21/02/2017", "location": "San Jose, California", "type": "flood", "lat": 38.1386, "lon": -118.4427, "photo": "disasters/cards/d22.jpg", "photoPath": "disasters/cards/d22.jpg"}, {"id": "d23", "date": "18/07/2016", "location": "Phoenix, Arizona", "type": "flood", "lat": 33.5281, "lon": -110.7105, "photo": "disasters/cards/d23.jpg", "photoPath": "disasters/cards/d23.jpg"}, {"id": "d24", "date": "27/05/2018", "location": "Ellicott City, Maryland", "type": "flood", "lat": 39.0067, "lon": -76.2126, "photo": "disasters/cards/d24.jpg", "photoPath": "disasters/cards/d24.jpg"}, {"id": "d25", "date": "17/04/2020", "location": "Red River (North Dakota/Minnesota, USA)", "type": "flood", "lat": 40.5008, "lon": -99.294, "photo": "disasters/cards/d25.jpg", "photoPath": "disasters/cards/d25.jpg"}, {"id": "d26", "date": "15/02/2020", "location": "Savannah, Tennessee", "type": "flood", "lat": 36.3514, "lon": -85.3437, "photo": "disasters/cards/d26.jpg", "photoPath": "disasters/cards/d26.jpg"}, {"id": "d27", "date": "16/02/2020", "location": "Jackson, Mississippi", "type": "flood", "lat": 31.949, "lon": -89.6463, "photo": "disasters/cards/d27.jpg", "photoPath": "disasters/cards/d27.jpg"}, {"id": "d28", "date": "08/07/2019", "location": "Washington, D.C.", "type": "flood", "lat": 39.0894, "lon": -77.2149, "photo": "disasters/cards/d28.jpg", "photoPath": "disasters/cards/d28.jpg"}, {"id": "d29", "date": "20/06/2019", "location": "Westville, New Jersey", "type": "flood", "lat": 39.6607, "lon": -74.3566, "photo": "disasters/cards/d29.jpg", "photoPath": "disasters/cards/d29.jpg"}, {"id": "d30", "date": "10/07/2019", "location": "New Orleans, Louisiana", "type": "flood", "lat": 32.1629, "lon": -92.3692, "photo": "disasters/cards/d30.jpg", "photoPath": "disasters/cards/d30.jpg"}, {"id": "d31", "date": "18/03/2019", "location": "Pacific Junction, Iowa, USA", "type": "flood", "lat": 39.3534, "lon": -98.6111, "photo": "disasters/cards/d31.jpg", "photoPath": "disasters/cards/d31.jpg"}, {"id": "d32", "date": "19/03/2019", "location": "Bellevue, Nebraska", "type": "flood", "lat": 41.5321, "lon": -100.6025, "photo": "disasters/cards/d32.jpg", "photoPath": "disasters/cards/d32.jpg"}, {"id": "d33", "date": "05/05/2019", "location": "Orchard, Nebraska", "type": "flood", "lat": 42.7577, "lon": -100.6208, "photo": "disasters/cards/d33.jpg", "photoPath": "disasters/cards/d33.jpg"}, {"id": "d34", "date": "06/07/2020", "location": "Wuhan, China", "type": "flood", "lat": 36.2711, "lon": 104.0338, "photo": "disasters/cards/d34.jpg", "photoPath": "disasters/cards/d34.jpg"}, {"id": "d35", "date": "24/06/2020", "location": "Lu'an, Anhui Province, China", "type": "flood", "lat": 35.2282, "lon": 102.8675, "photo": "disasters/cards/d35.jpg", "photoPath": "disasters/cards/d35.jpg"}, {"id": "d36", "date": "08/06/2020", "location": "Qingyuan, Guangdong Province, China", "type": "flood", "lat": 34.5483, "lon": 104.403, "photo": "disasters/cards/d36.jpg", "photoPath": "disasters/cards/d36.jpg"}, {"id": "d37", "date": "05/07/2020", "location": "Kuma Town, Japan", "type": "flood", "lat": 34.7018, "lon": 137.0671, "photo": "disasters/cards/d37.jpg", "photoPath": "disasters/cards/d37.jpg"}, {"id": "d38", "date": "30/06/2019", "location": "Mashiki, Japan", "type": "flood", "lat": 35.87, "lon": 138.1013, "photo": "disasters/cards/d38.jpg", "photoPath": "disasters/cards/d38.jpg"}, {"id": "d39", "date": "21/05/2020", "location": "Beni, DR Congo", "type": "flood", "lat": -3.1589, "lon": 22.4081, "photo": "disasters/cards/d39.jpg", "photoPath": "disasters/cards/d39.jpg"}, {"id": "d40", "date": "29/04/2020", "location": "Nakuru, Kenya", "type": "flood", "lat": 0.3574, "lon": 38.4752, "photo": "disasters/cards/d40.jpg", "photoPath": "disasters/cards/d40.jpg"}, {"id": "d41", "date": "26/08/2019", "location": "Wad Ramli, Sudan", "type": "flood", "lat": 13.0719, "lon": 30.5373, "photo": "disasters/cards/d41.jpg", "photoPath": "disasters/cards/d41.jpg"}, {"id": "d42", "date": "07/03/2019", "location": "Southern Malawi", "type": "flood", "lat": -14.9523, "lon": 34.5991, "photo": "disasters/cards/d42.jpg", "photoPath": "disasters/cards/d42.jpg"}, {"id": "d43", "date": "29/01/2020", "location": "Belo Horizonte, Brazil", "type": "flood", "lat": -14.9455, "lon": -52.9203, "photo": "disasters/cards/d43.jpg", "photoPath": "disasters/cards/d43.jpg"}, {"id": "d44", "date": "08/01/2019", "location": "Norberto de la Riestra, Argentina", "type": "flood", "lat": -39.4616, "lon": -62.3569, "photo": "disasters/cards/d44.jpg", "photoPath": "disasters/cards/d44.jpg"}, {"id": "d45", "date": "26/10/2017", "location": "Cordoba, Argentina", "type": "flood", "lat": -37.1644, "lon": -62.9299, "photo": "disasters/cards/d45.jpg", "photoPath": "disasters/cards/d45.jpg"}, {"id": "d46", "date": "30/06/2019", "location": "Guadalajara, Mexico", "type": "flood", "lat": 24.3609, "lon": -103.4062, "photo": "disasters/cards/d46.jpg", "photoPath": "disasters/cards/d46.jpg"}, {"id": "d47", "date": "13/06/2020", "location": "Calgary, Alberta, Canada", "type": "flood", "lat": 55.9879, "lon": -106.4228, "photo": "disasters/cards/d47.jpg", "photoPath": "disasters/cards/d47.jpg"}, {"id": "d48", "date": "25/05/2019", "location": "Asuncion, Paraguay", "type": "flood", "lat": -22.9764, "lon": -57.4395, "photo": "disasters/cards/d48.jpg", "photoPath": "disasters/cards/d48.jpg"}, {"id": "d49", "date": "21/03/2019", "location": "Golestan Province, Iran", "type": "flood", "lat": 31.5247, "lon": 52.4452, "photo": "disasters/cards/d49.jpg", "photoPath": "disasters/cards/d49.jpg"}, {"id": "d50", "date": "03/06/2020", "location": "Alta, Norway", "type": "flood", "lat": 61.5595, "lon": 8.5753, "photo": "disasters/cards/d50.jpg", "photoPath": "disasters/cards/d50.jpg"}, {"id": "d51", "date": "25/06/2020", "location": "Chernivtsi Region, Ukraine", "type": "flood", "lat": 48.8893, "lon": 32.0369, "photo": "disasters/cards/d51.jpg", "photoPath": "disasters/cards/d51.jpg"}, {"id": "d52", "date": "01/07/2019", "location": "Irkutsk Region, Siberia, Russia", "type": "flood", "lat": 61.7293, "lon": 105.7083, "photo": "disasters/cards/d52.jpg", "photoPath": "disasters/cards/d52.jpg"}, {"id": "d53", "date": "13/09/2019", "location": "Almoradi, Spain", "type": "flood", "lat": 40.3132, "lon": -4.8078, "photo": "disasters/cards/d53.jpg", "photoPath": "disasters/cards/d53.jpg"}, {"id": "d54", "date": "21/02/2020", "location": "Gloucestershire, England", "type": "flood", "lat": 52.6224, "lon": -0.3346, "photo": "disasters/cards/d54.jpg", "photoPath": "disasters/cards/d54.jpg"}, {"id": "d55", "date": "11/02/2020", "location": "York, England", "type": "flood", "lat": 52.6584, "lon": 0.0927, "photo": "disasters/cards/d55.jpg", "photoPath": "disasters/cards/d55.jpg"}, {"id": "d56", "date": "28/12/2015", "location": "York, England", "type": "flood", "lat": 52.6584, "lon": 0.0927, "photo": "disasters/cards/d56.jpg", "photoPath": "disasters/cards/d56.jpg"}, {"id": "d57", "date": "19/05/2020", "location": "Sanford Dam, Sanford, Michigan", "type": "flood", "lat": 43.4411, "lon": -86.5, "photo": "disasters/cards/d57.jpg", "photoPath": "disasters/cards/d57.jpg"}, {"id": "d58", "date": "20/05/2020", "location": "Sanford, Michigan", "type": "flood", "lat": 44.7407, "lon": -85.5896, "photo": "disasters/cards/d58.jpg", "photoPath": "disasters/cards/d58.jpg"}, {"id": "d59", "date": "21/05/2020", "location": "Sanford, Michigan", "type": "flood", "lat": 44.7407, "lon": -85.5896, "photo": "disasters/cards/d59.jpg", "photoPath": "disasters/cards/d59.jpg"}, {"id": "d60", "date": "20/05/2020", "location": "Midland, Michigan", "type": "flood", "lat": 44.1066, "lon": -86.3686, "photo": "disasters/cards/d60.jpg", "photoPath": "disasters/cards/d60.jpg"}, {"id": "d61", "date": "20/05/2020", "location": "Dow Chemical Company, Midland, Michigan", "type": "flood", "lat": 43.5069, "lon": -86.3568, "photo": "disasters/cards/d61.jpg", "photoPath": "disasters/cards/d61.jpg"}, {"id": "d62", "date": "01/09/2017", "location": "Port Arthur, Texas", "type": "flood", "lat": 30.5284, "lon": -99.4682, "photo": "disasters/cards/d62.jpg", "photoPath": "disasters/cards/d62.jpg"}, {"id": "d63", "date": "31/08/2017", "location": "Motiva Oil Refinery, Port Arthur, Texas", "type": "flood", "lat": 31.4624, "lon": -100.7227, "photo": "disasters/cards/d63.jpg", "photoPath": "disasters/cards/d63.jpg"}, {"id": "d64", "date": "29/04/2020", "location": "Nakuru, Kenya", "type": "heat", "lat": 0.3574, "lon": 38.4752, "photo": "disasters/cards/d64.jpg", "photoPath": "disasters/cards/d64.jpg"}, {"id": "d65", "date": "2009", "location": "Melbourne, Australia", "type": "heat", "lat": -24.4728, "lon": 132.4742, "photo": "disasters/cards/d65.jpg", "photoPath": "disasters/cards/d65.jpg"}, {"id": "d66", "date": "02/08/2019", "location": "Kitakyushu City, Japan", "type": "heat", "lat": 36.6197, "lon": 138.1111, "photo": "disasters/cards/d66.jpg", "photoPath": "disasters/cards/d66.jpg"}, {"id": "d67", "date": "18/09/2019", "location": "High-Speed Rail Line, Germany", "type": "heat", "lat": 52.037, "lon": 9.9606, "photo": "disasters/cards/d67.jpg", "photoPath": "disasters/cards/d67.jpg"}, {"id": "d68", "date": "10/06/2020", "location": "Ambarnaya River, Russian Arctic", "type": "heat", "lat": 62.0952, "lon": 103.8979, "photo": "disasters/cards/d68.jpg", "photoPath": "disasters/cards/d68.jpg"}, {"id": "d69", "date": "19/06/2020", "location": "Tucson, Arizona", "type": "wildfire", "lat": 33.7685, "lon": -111.4153, "photo": "disasters/cards/d69.jpg", "photoPath": "disasters/cards/d69.jpg"}, {"id": "d70", "date": "06/05/2020", "location": "Santa Rosa County, Florida", "type": "wildfire", "lat": 28.4934, "lon": -80.7202, "photo": "disasters/cards/d70.jpg", "photoPath": "disasters/cards/d70.jpg"}, {"id": "d71", "date": "24/10/2019", "location": "Kincade Fire, Jimtown, California", "type": "wildfire", "lat": 35.3918, "lon": -119.1397, "photo": "disasters/cards/d71.jpg", "photoPath": "disasters/cards/d71.jpg"}, {"id": "d72", "date": "24/10/2019", "location": "Tick Fire, North of Los Angeles, California", "type": "wildfire", "lat": 35.396, "lon": -118.57, "photo": "disasters/cards/d72.jpg", "photoPath": "disasters/cards/d72.jpg"}, {"id": "d73", "date": "30/10/2019", "location": "Reagan Presidential Library, Simi Valley, California", "type": "wildfire", "lat": 36.1733, "lon": -120.5185, "photo": "disasters/cards/d73.jpg", "photoPath": "disasters/cards/d73.jpg"}, {"id": "d74", "date": "08/11/2018", "location": "Paradise, California", "type": "wildfire", "lat": 35.4356, "lon": -118.867, "photo": "disasters/cards/d74.jpg", "photoPath": "disasters/cards/d74.jpg"}, {"id": "d75", "date": "31/07/2018", "location": "Lakeport, California", "type": "wildfire", "lat": 36.3448, "lon": -120.848, "photo": "disasters/cards/d75.jpg", "photoPath": "disasters/cards/d75.jpg"}, {"id": "d76", "date": "04/09/2017", "location": "North Bonneville, Washington", "type": "wildfire", "lat": 48.2543, "lon": -121.6946, "photo": "disasters/cards/d76.jpg", "photoPath": "disasters/cards/d76.jpg"}, {"id": "d77", "date": "31/12/2019", "location": "Lake Conjola, NSW, Australia", "type": "wildfire", "lat": -24.9087, "lon": 133.0913, "photo": "disasters/cards/d77.jpg", "photoPath": "disasters/cards/d77.jpg"}, {"id": "d78", "date": "03/11/2019", "location": "Port Macquarie Koala Hospital, Australia", "type": "wildfire", "lat": -26.0357, "lon": 134.7983, "photo": "disasters/cards/d78.jpg", "photoPath": "disasters/cards/d78.jpg"}, {"id": "d79", "date": "04/01/2020", "location": "Southeastern Australia", "type": "wildfire", "lat": -24.2303, "lon": 133.8297, "photo": "disasters/cards/d79.jpg", "photoPath": "disasters/cards/d79.jpg"}, {"id": "d80", "date": "23/04/2020", "location": "Kemerovo, Siberia, Russia", "type": "wildfire", "lat": 61.9551, "lon": 105.6041, "photo": "disasters/cards/d80.jpg", "photoPath": "disasters/cards/d80.jpg"}, {"id": "d81", "date": "02/06/2020", "location": "Yakutsk, Siberia, Russia", "type": "wildfire", "lat": 61.0697, "lon": 104.9182, "photo": "disasters/cards/d81.jpg", "photoPath": "disasters/cards/d81.jpg"}, {"id": "d82", "date": "05/04/2019", "location": "Sokcho, South Korea", "type": "wildfire", "lat": 37.2088, "lon": 127.8871, "photo": "disasters/cards/d82.jpg", "photoPath": "disasters/cards/d82.jpg"}, {"id": "d83", "date": "10/07/2019", "location": "Southwestern Greenland", "type": "wildfire", "lat": 71.3377, "lon": -41.4295, "photo": "disasters/cards/d83.jpg", "photoPath": "disasters/cards/d83.jpg"}, {"id": "d84", "date": "22/11/2018", "location": "Imja Glacier, Nepal", "type": "other", "lat": 29.6915, "lon": 85.5107, "photo": "disasters/cards/d84.jpg", "photoPath": "disasters/cards/d84.jpg"}, {"id": "d85", "date": "03/06/2020", "location": "Krakow am See, Poland", "type": "drought", "lat": 52.4928, "lon": 17.7358, "photo": "disasters/cards/d85.jpg", "photoPath": "disasters/cards/d85.jpg"}, {"id": "d86", "date": "03/06/2020", "location": "Simferopol, Crimea", "type": "drought", "lat": 44.8009, "lon": 34.2034, "photo": "disasters/cards/d86.jpg", "photoPath": "disasters/cards/d86.jpg"}, {"id": "d87", "date": "24/07/2019", "location": "Loire River, Montjean-sur-Loire, France", "type": "drought", "lat": 44.9282, "lon": 2.7074, "photo": "disasters/cards/d87.jpg", "photoPath": "disasters/cards/d87.jpg"}, {"id": "d88", "date": "10/11/2019", "location": "Gan River, Nanchang, China", "type": "drought", "lat": 35.6944, "lon": 105.6054, "photo": "disasters/cards/d88.jpg", "photoPath": "disasters/cards/d88.jpg"}, {"id": "d89", "date": "21/05/2019", "location": "Chembarambakkam Lake, Chennai, India", "type": "drought", "lat": 21.1394, "lon": 78.9846, "photo": "disasters/cards/d89.jpg", "photoPath": "disasters/cards/d89.jpg"}, {"id": "d90", "date": "2018", "location": "Cape Town, South Africa", "type": "drought", "lat": -31.9357, "lon": 23.0607, "photo": "disasters/cards/d90.jpg", "photoPath": "disasters/cards/d90.jpg"}, {"id": "d91", "date": "28/01/2020", "location": "Buhera, Zimbabwe", "type": "drought", "lat": -19.4714, "lon": 29.5047, "photo": "disasters/cards/d91.jpg", "photoPath": "disasters/cards/d91.jpg"}, {"id": "d92", "date": "20/02/2020", "location": "Food Distribution, Mudzi, Zimbabwe", "type": "drought", "lat": -20.086, "lon": 30.0905, "photo": "disasters/cards/d92.jpg", "photoPath": "disasters/cards/d92.jpg"}, {"id": "d93", "date": "12/05/2020", "location": "Auckland, New Zealand", "type": "drought", "lat": -40.0384, "lon": 173.7127, "photo": "disasters/cards/d93.jpg", "photoPath": "disasters/cards/d93.jpg"}, {"id": "d94", "date": "04/10/2019", "location": "Boggabri, Australia", "type": "drought", "lat": -25.013, "lon": 134.7834, "photo": "disasters/cards/d94.jpg", "photoPath": "disasters/cards/d94.jpg"}, {"id": "d95", "date": "01/05/2020", "location": "Tolarno Station, NSW, Australia", "type": "drought", "lat": -25.6536, "lon": 133.2337, "photo": "disasters/cards/d95.jpg", "photoPath": "disasters/cards/d95.jpg"}, {"id": "d96", "date": "20/09/2015", "location": "Tovarnik, Croatia", "type": "other", "lat": 45.5631, "lon": 15.901, "photo": "disasters/cards/d96.jpg", "photoPath": "disasters/cards/d96.jpg"}, {"id": "d97", "date": "05/11/2018", "location": "Cordoba, Mexico", "type": "other", "lat": 22.959, "lon": -103.1064, "photo": "disasters/cards/d97.jpg", "photoPath": "disasters/cards/d97.jpg"}, {"id": "d98", "date": "01/08/2018", "location": "Jiquilisco, El Salvador", "type": "drought", "lat": 13.8282, "lon": -88.3026, "photo": "disasters/cards/d98.jpg", "photoPath": "disasters/cards/d98.jpg"}, {"id": "d99", "date": "29/12/2019", "location": "Moscow, Russia", "type": "heat", "lat": 55.572, "lon": 37.5165, "photo": "disasters/cards/d99.jpg", "photoPath": "disasters/cards/d99.jpg"}, {"id": "d100", "date": "26/02/2018", "location": "Rome, Italy", "type": "other", "lat": 42.7811, "lon": 11.097, "photo": "disasters/cards/d100.jpg", "photoPath": "disasters/cards/d100.jpg"}, {"id": "d101", "date": "29/01/2019", "location": "Chicago, Illinois", "type": "other", "lat": 40.5195, "lon": -89.7444, "photo": "disasters/cards/d101.jpg", "photoPath": "disasters/cards/d101.jpg"}, {"id": "d102", "date": "01/07/2016", "location": "Yamal Peninsula, Siberia, Russia", "type": "other", "lat": 62.2907, "lon": 105.048, "photo": "disasters/cards/d102.jpg", "photoPath": "disasters/cards/d102.jpg"}, {"id": "d103", "date": "1985", "location": "Yamal Peninsula, Siberia, Russia", "type": "other", "lat": 62.2907, "lon": 105.048, "photo": "disasters/cards/d103.jpg", "photoPath": "disasters/cards/d103.jpg"}, {"id": "d104", "date": "17/09/2019", "location": "Kivalina, Alaska", "type": "heat", "lat": 63.2048, "lon": -149.0327, "photo": "disasters/cards/d104.jpg", "photoPath": "disasters/cards/d104.jpg"}, {"id": "d105", "date": "Summer 2013", "location": "Unnamed Glacier, Southwest Greenland", "type": "heat", "lat": 71.2289, "lon": -42.0283, "photo": "disasters/cards/d105.jpg", "photoPath": "disasters/cards/d105.jpg"}, {"id": "d106", "date": "13/06/2019", "location": "Northwest Greenland", "type": "heat", "lat": 72.3806, "lon": -42.8289, "photo": "disasters/cards/d106.jpg", "photoPath": "disasters/cards/d106.jpg"}, {"id": "d107", "date": "01/01/2019", "location": "Ice Sheet, Kangerlussuaq, Greenland", "type": "heat", "lat": 70.7714, "lon": -42.755, "photo": "disasters/cards/d107.jpg", "photoPath": "disasters/cards/d107.jpg"}, {"id": "d108", "date": "09/02/2020", "location": "Seymour Island, Antarctica", "type": "heat", "lat": -64.4909, "lon": -57.0207, "photo": "disasters/cards/d108.jpg", "photoPath": "disasters/cards/d108.jpg"}, {"id": "d109", "date": "", "location": "Thwaites Glacier, West Antarctica", "type": "heat", "lat": -75.1513, "lon": -109.7965, "photo": "disasters/cards/d109.jpg", "photoPath": "disasters/cards/d109.jpg"}, {"id": "d110", "date": "14/11/2016", "location": "Miami Beach, Florida", "type": "sea level rise", "lat": 27.1115, "lon": -82.826, "photo": "disasters/cards/d110.jpg", "photoPath": "disasters/cards/d110.jpg"}, {"id": "d111", "date": "28/09/2019", "location": "Miami Beach, Florida, USA", "type": "sea level rise", "lat": 38.0616, "lon": -99.3048, "photo": "disasters/cards/d111.jpg", "photoPath": "disasters/cards/d111.jpg"}, {"id": "d112", "date": "06/09/2019", "location": "Norfolk, Virginia", "type": "sea level rise", "lat": 38.7454, "lon": -77.5192, "photo": "disasters/cards/d112.jpg", "photoPath": "disasters/cards/d112.jpg"}, {"id": "d113", "date": "05/06/2018", "location": "National Mall, Washington, D.C.", "type": "sea level rise", "lat": 38.9843, "lon": -76.9447, "photo": "disasters/cards/d113.jpg", "photoPath": "disasters/cards/d113.jpg"}, {"id": "d114", "date": "15/11/2019", "location": "Venice, Italy", "type": "sea level rise", "lat": 41.2134, "lon": 11.6838, "photo": "disasters/cards/d114.jpg", "photoPath": "disasters/cards/d114.jpg"}, {"id": "d115", "date": "13/11/2019", "location": "Veneto Regional Council Chamber", "type": "sea level rise", "lat": -1.4278, "lon": -0.0361, "photo": "disasters/cards/d115.jpg", "photoPath": "disasters/cards/d115.jpg"}, {"id": "d116", "date": "2007", "location": "Flooding in Bangladesh", "type": "sea level rise", "lat": 22.9492, "lon": 89.4599, "photo": "disasters/cards/d116.jpg", "photoPath": "disasters/cards/d116.jpg"}, {"id": "d117", "date": "2009", "location": "Rosetta, Egypt", "type": "sea level rise", "lat": 27.7234, "lon": 30.0506, "photo": "disasters/cards/d117.jpg", "photoPath": "disasters/cards/d117.jpg"}, {"id": "d118", "date": "25/01/2020", "location": "Mekong Delta, Thailand", "type": "sea level rise", "lat": 16.0674, "lon": 100.8888, "photo": "disasters/cards/d118.jpg", "photoPath": "disasters/cards/d118.jpg"}, {"id": "d119", "date": "30/03/2016", "location": "Bac Lieu Province, Mekong Delta, Vietnam", "type": "sea level rise", "lat": 14.3605, "lon": 106.8929, "photo": "disasters/cards/d119.jpg", "photoPath": "disasters/cards/d119.jpg"}, {"id": "d120", "date": "03/06/2020", "location": "Ghentbrugge, Belgium", "type": "drought", "lat": 50.565, "lon": 3.7491, "photo": "disasters/cards/d120.jpg", "photoPath": "disasters/cards/d120.jpg"}, {"id": "d121", "date": "23/09/2019", "location": "Dry Riverbed, Putaendo, Chile", "type": "drought", "lat": -34.3321, "lon": -71.2975, "photo": "disasters/cards/d121.jpg", "photoPath": "disasters/cards/d121.jpg"}, {"id": "d122", "date": "06/06/2020", "location": "Rajasthan, India", "type": "pests", "lat": 19.8303, "lon": 80.0475, "photo": "disasters/cards/d122.jpg", "photoPath": "disasters/cards/d122.jpg"}, {"id": "d123", "date": "21/05/2020", "location": "Samburu County, Kenya", "type": "pests", "lat": -0.0428, "lon": 37.7586, "photo": "disasters/cards/d123.jpg", "photoPath": "disasters/cards/d123.jpg"}, {"id": "d124", "date": "23/10/2018", "location": "Los Angeles, California", "type": "pollution", "lat": 37.4363, "lon": -119.6792, "photo": "disasters/cards/d124.jpg", "photoPath": "disasters/cards/d124.jpg"}, {"id": "d125", "date": "15/04/2020", "location": "Changchun, Jilin Province, China", "type": "pollution", "lat": 34.9724, "lon": 105.2737, "photo": "disasters/cards/d125.jpg", "photoPath": "disasters/cards/d125.jpg"}, {"id": "d126", "date": "1918", "location": "St. Louis, Missouri", "type": "pollution", "lat": 38.7694, "lon": -90.3779, "photo": "disasters/cards/d126.jpg", "photoPath": "disasters/cards/d126.jpg"}, {"id": "d127", "date": "08/04/2020", "location": "Navajo Nation, Shiprock, New Mexico", "type": "pollution", "lat": 35.7362, "lon": -107.2605, "photo": "disasters/cards/d127.jpg", "photoPath": "disasters/cards/d127.jpg"}, {"id": "d128", "date": "", "location": "Cancer Alley (Baton Rouge, Louisiana, USA)", "type": "pollution", "lat": 39.937, "lon": -99.8077, "photo": "disasters/cards/d128.jpg", "photoPath": "disasters/cards/d128.jpg"}, {"id": "d129", "date": "08/09/2018", "location": "Eastern Houston, Texas", "type": "pollution", "lat": 32.7658, "lon": -100.5123, "photo": "disasters/cards/d129.jpg", "photoPath": "disasters/cards/d129.jpg"}, {"id": "d130", "date": "30/01/2019", "location": "Bangkok, Thailand", "type": "pollution", "lat": 15.5823, "lon": 101.6441, "photo": "disasters/cards/d130.jpg", "photoPath": "disasters/cards/d130.jpg"}, {"id": "d131", "date": "24/02/2017", "location": "Warsaw, Poland", "type": "pollution", "lat": 52.9777, "lon": 19.0892, "photo": "disasters/cards/d131.jpg", "photoPath": "disasters/cards/d131.jpg"}, {"id": "d132", "date": "05/01/2016", "location": "New Delhi, India", "type": "pollution", "lat": 20.489, "lon": 77.8253, "photo": "disasters/cards/d132.jpg", "photoPath": "disasters/cards/d132.jpg"}, {"id": "d133", "date": "19/12/2016", "location": "Linzhou, Henan Province, China", "type": "pollution", "lat": 35.6435, "lon": 105.678, "photo": "disasters/cards/d133.jpg", "photoPath": "disasters/cards/d133.jpg"}, {"id": "d134", "date": "2015", "location": "Yichuan, China", "type": "pollution", "lat": 35.4202, "lon": 105.0349, "photo": "disasters/cards/d134.jpg", "photoPath": "disasters/cards/d134.jpg"}, {"id": "d135", "date": "", "location": "Beijing, China", "type": "pollution", "lat": 36.436, "lon": 104.7785, "photo": "disasters/cards/d135.jpg", "photoPath": "disasters/cards/d135.jpg"}, {"id": "d136", "date": "2011", "location": "Guizhou Province, China", "type": "pollution", "lat": 26.6628, "lon": 107.628, "photo": "disasters/cards/d136.jpg", "photoPath": "disasters/cards/d136.jpg"}, {"id": "d137", "date": "19/02/2019", "location": "Union Hill, Virginia", "type": "other", "lat": 36.4478, "lon": -77.7393, "photo": "disasters/cards/d137.jpg", "photoPath": "disasters/cards/d137.jpg"}, {"id": "d138", "date": "2014", "location": "Jalalabad, Afghanistan", "type": "other", "lat": 33.7398, "lon": 67.1969, "photo": "disasters/cards/d138.jpg", "photoPath": "disasters/cards/d138.jpg"}, {"id": "d139", "date": "12/09/2019", "location": "Independence Heights Neighborhood, Houston", "type": "other", "lat": 29.8004, "lon": -94.8846, "photo": "disasters/cards/d139.jpg", "photoPath": "disasters/cards/d139.jpg"}, {"id": "d140", "date": "08/04/2019", "location": "Durham, North Carolina", "type": "other", "lat": 36.2365, "lon": -78.9745, "photo": "disasters/cards/d140.jpg", "photoPath": "disasters/cards/d140.jpg"}, {"id": "d141", "date": "28/04/2020", "location": "Yunnan Province, China", "type": "other", "lat": 36.2937, "lon": 102.8897, "photo": "disasters/cards/d141.jpg", "photoPath": "disasters/cards/d141.jpg"}, {"id": "d142", "date": "29/09/2019", "location": "South Kalimantan, Indonesia", "type": "other", "lat": 0.5025, "lon": 113.9434, "photo": "disasters/cards/d142.jpg", "photoPath": "disasters/cards/d142.jpg"}, {"id": "d143", "date": "01/07/2018", "location": "Sanibel Island, Florida", "type": "other", "lat": 27.3624, "lon": -80.346, "photo": "disasters/cards/d143.jpg", "photoPath": "disasters/cards/d143.jpg"}, {"id": "d144", "date": "01/03/2020", "location": "Great Barrier Reef, Australia", "type": "other", "lat": -24.9323, "lon": 135.2189, "photo": "disasters/cards/d144.jpg", "photoPath": "disasters/cards/d144.jpg"}, {"id": "d145", "date": "2016", "location": "Bleached Coral, Great Barrier Reef", "type": "other", "lat": -17.8723, "lon": 147.2137, "photo": "disasters/cards/d145.jpg", "photoPath": "disasters/cards/d145.jpg"}, {"id": "d146", "date": "15/08/2019", "location": "Active Fires in South America", "type": "wildfire", "lat": -15.537, "lon": -60.4926, "photo": "disasters/cards/d146.jpg", "photoPath": "disasters/cards/d146.jpg"}, {"id": "d147", "date": "27/08/2019", "location": "Altamira, Para State, Brazil", "type": "wildfire", "lat": -13.2535, "lon": -51.9995, "photo": "disasters/cards/d147.jpg", "photoPath": "disasters/cards/d147.jpg"}, {"id": "d148", "date": "06/10/2019", "location": "Riau, Indonesia", "type": "wildfire", "lat": -1.5823, "lon": 114.2897, "photo": "disasters/cards/d148.jpg", "photoPath": "disasters/cards/d148.jpg"}, {"id": "d149", "date": "24/09/2019", "location": "Peatland Fire, Riau Province, Indonesia", "type": "wildfire", "lat": -1.7651, "lon": 113.1145, "photo": "disasters/cards/d149.jpg", "photoPath": "disasters/cards/d149.jpg"}, {"id": "d150", "date": "09/10/2019", "location": "Edwards, Colorado", "type": "heat", "lat": 39.3262, "lon": -105.8736, "photo": "disasters/cards/d150.jpg", "photoPath": "disasters/cards/d150.jpg"}, {"id": "d151", "date": "28/07/2019", "location": "Addis Ababa, Ethiopia", "type": "other", "lat": 9.3354, "lon": 39.177, "photo": "disasters/cards/d151.jpg", "photoPath": "disasters/cards/d151.jpg"}, {"id": "d152", "date": "28/02/2020", "location": "Kintia Park Nature Reserve, Ecuador", "type": "other", "lat": -0.2702, "lon": -78.6079, "photo": "disasters/cards/d152.jpg", "photoPath": "disasters/cards/d152.jpg"}, {"id": "d153", "date": "04-Aug-25", "location": "Sao Paulo State, Brazil", "type": "wildfire", "lat": -15.019, "lon": -52.0673, "photo": "disasters/cards/d153.jpg", "photoPath": "disasters/cards/d153.jpg"}, {"id": "d154", "date": "12-Apr-25", "location": "West Flanders, Belgium", "type": "flood", "lat": 50.8422, "lon": 4.8691, "photo": "disasters/cards/d154.jpg", "photoPath": "disasters/cards/d154.jpg"}, {"id": "d155", "date": "24-Jun-23", "location": "Sacedon, Spain", "type": "wildfire", "lat": 39.9786, "lon": -3.6024, "photo": "disasters/cards/d155.jpg", "photoPath": "disasters/cards/d155.jpg"}, {"id": "d156", "date": "11-Sep-25", "location": "Brattleboro, Vermont", "type": "flood", "lat": 44.1993, "lon": -73.0244, "photo": "disasters/cards/d156.jpg", "photoPath": "disasters/cards/d156.jpg"}, {"id": "d157", "date": "08-Sep-25", "location": "Qaldoun Al Marah, Syria", "type": "other", "lat": 35.1852, "lon": 38.6935, "photo": "disasters/cards/d157.jpg", "photoPath": "disasters/cards/d157.jpg"}, {"id": "d158", "date": "18-Sep-24", "location": "Sao Paulo State, Brazil", "type": "wildfire", "lat": -14.09, "lon": -51.3062, "photo": "disasters/cards/d158.jpg", "photoPath": "disasters/cards/d158.jpg"}, {"id": "d159", "date": "22-Aug-25", "location": "Pickett Fire Near Vineyards, Pope Valley, California", "type": "wildfire", "lat": 37.1839, "lon": -119.9699, "photo": "disasters/cards/d159.jpg", "photoPath": "disasters/cards/d159.jpg"}, {"id": "d160", "date": "05-Aug-25", "location": "Southern France", "type": "wildfire", "lat": 43.5949, "lon": 4.3302, "photo": "disasters/cards/d160.jpg", "photoPath": "disasters/cards/d160.jpg"}, {"id": "d161", "date": "02-Jul-25", "location": "Salzlandkreis, Germany", "type": "flood", "lat": 51.5893, "lon": 10.8821, "photo": "disasters/cards/d161.jpg", "photoPath": "disasters/cards/d161.jpg"}, {"id": "d162", "date": "07-Jul-25", "location": "Central North Carolina, U.S.", "type": "flood", "lat": 36.4551, "lon": -79.3962, "photo": "disasters/cards/d162.jpg", "photoPath": "disasters/cards/d162.jpg"}, {"id": "d163", "date": "05-Apr-25", "location": "Jackson County, Arkansas", "type": "storm", "lat": 35.6241, "lon": -91.0339, "photo": "disasters/cards/d163.jpg", "photoPath": "disasters/cards/d163.jpg"}, {"id": "d164", "date": "10-Oct-25", "location": "Rain-Damaged Corn, Shandong Province, China", "type": "flood", "lat": 36.5, "lon": 117.5, "photo": "disasters/cards/d164.jpg", "photoPath": "disasters/cards/d164.jpg"}, {"id": "d165", "date": "29-Jul-25", "location": "Flooded Orchard, Miyun, Beijing, China", "type": "flood", "lat": 40.3769, "lon": 116.8431, "photo": "disasters/cards/d165.jpg", "photoPath": "disasters/cards/d165.jpg"}, {"id": "d166", "date": "01-Aug-25", "location": "Flood-damaged Crops, Miyun District, Beijing, China", "type": "flood", "lat": 40.3769, "lon": 116.8431, "photo": "disasters/cards/d166.jpg", "photoPath": "disasters/cards/d166.jpg"}, {"id": "d167", "date": "18-Sep-25", "location": "Assam, India", "type": "flood", "lat": 26.2006, "lon": 92.9376, "photo": "disasters/cards/d167.jpg", "photoPath": "disasters/cards/d167.jpg"}, {"id": "d168", "date": "04-Feb-25", "location": "Cardwell, Queensland, Australia", "type": "flood", "lat": -25.2895, "lon": 133.3169, "photo": "disasters/cards/d168.jpg", "photoPath": "disasters/cards/d168.jpg"}, {"id": "d169", "date": "07-Jul-23", "location": "Everson, Washington", "type": "flood", "lat": 47.669, "lon": -120.6928, "photo": "disasters/cards/d169.jpg", "photoPath": "disasters/cards/d169.jpg"}, {"id": "d170", "date": "25-Jan-20", "location": "Mekong Delta, Thailand", "type": "drought", "lat": 15.9753, "lon": 100.9385, "photo": "disasters/cards/d170.jpg", "photoPath": "disasters/cards/d170.jpg"}, {"id": "d171", "date": "16-Sep-21", "location": "Fertilizer Manufacturing Complex, Ince, England", "type": "pollution", "lat": 52.91, "lon": -1.0717, "photo": "disasters/cards/d171.jpg", "photoPath": "disasters/cards/d171.jpg"}, {"id": "d172", "date": "13-Aug-25", "location": "Telford, United Kingdom", "type": "flood", "lat": 52.6752, "lon": -2.4452, "photo": "disasters/cards/d172.jpg", "photoPath": "disasters/cards/d172.jpg"}, {"id": "d173", "date": "29-Jul-25", "location": "Jaszszentlaszlo, Hungary", "type": "drought", "lat": 46.3694, "lon": 19.5483, "photo": "disasters/cards/d173.jpg", "photoPath": "disasters/cards/d173.jpg"}, {"id": "d174", "date": "27-May-25", "location": "Flin Flon, Manitoba, Canada", "type": "wildfire", "lat": 55.4874, "lon": -106.7914, "photo": "disasters/cards/d174.jpg", "photoPath": "disasters/cards/d174.jpg"}, {"id": "d175", "date": "20-Sep-25", "location": "Panton, Galicia, Spain", "type": "wildfire", "lat": 42.45, "lon": -7.82, "photo": "disasters/cards/d175.jpg", "photoPath": "disasters/cards/d175.jpg"}, {"id": "d176", "date": "23-Jul-25", "location": "Karabuk District, Turkey", "type": "wildfire", "lat": 39.2589, "lon": 35.4358, "photo": "disasters/cards/d176.jpg", "photoPath": "disasters/cards/d176.jpg"}, {"id": "d177", "date": "05-Jul-25", "location": "Camp Mystic, Hunt, Texas, U.S.", "type": "flood", "lat": 30.0627, "lon": -99.3397, "photo": "disasters/cards/d177.jpg", "photoPath": "disasters/cards/d177.jpg"}, {"id": "d178", "date": "16-Aug-25", "location": "Mingora, Pakistan", "type": "flood", "lat": 34.7718, "lon": 72.3601, "photo": "disasters/cards/d178.jpg", "photoPath": "disasters/cards/d178.jpg"}];
+
+// --- UI count wiring (auto-update) ---
+try{
+  const el = document.getElementById('ev-count');
+  if(el) el.textContent = String((typeof DISASTERS!=='undefined' && Array.isArray(DISASTERS)) ? DISASTERS.length : '');
+}catch(e){}
+
+
+// Set header count
+try{document.getElementById('ev-count').textContent = DISASTERS.length;}catch(e){}
+const TYPE_CFG = {
+  heat:          { label:'Heat Wave',    color:[255,107,53],  hex:'#ff6b35' },
+  wildfire:      { label:'Wildfire',     color:[255,149,0],   hex:'#ff9500' },
+  flood:         { label:'Flood',        color:[56,189,248],  hex:'#38bdf8' },
+  hurricane:     { label:'Hurricane',    color:[167,139,250], hex:'#a78bfa' },
+  storm:         { label:'Storm',        color:[96,165,250],  hex:'#60a5fa' },
+  drought:       { label:'Drought',      color:[212,168,83],  hex:'#d4a853' },
+  pollution:     { label:'Pollution',    color:[180,90,220],  hex:'#b45adc' },
+  'sea level rise': { label:'Sea Level Rise', color:[0,210,190],   hex:'#00d2be' },
+  pests:         { label:'Pests',        color:[130,200,80],  hex:'#82c850' },
+  other:         { label:'Other',        color:[148,163,184], hex:'#94a3b8' },
+};
+
+const vis = {};
+Object.keys(TYPE_CFG).forEach(k => vis[k] = true);
+let allOn = true;
+
+// ═══════════════════════════════════════════════
+// VIEW STATE
+// ═══════════════════════════════════════════════
+let is3D = true;
+const canvas3 = document.getElementById('canvas-3d');
+const canvas2 = document.getElementById('canvas-2d');
+
+// ═══════════════════════════════════════════════
+// WEBGL (3D GLOBE)
+// ═══════════════════════════════════════════════
+const gl = canvas3.getContext('webgl', {antialias:true, alpha:false});
+gl.getExtension('OES_element_index_uint');
+
+function resize3() {
+  canvas3.width  = window.innerWidth;
+  canvas3.height = window.innerHeight;
+  gl.viewport(0,0,canvas3.width,canvas3.height);
+}
+resize3();
+window.addEventListener('resize', () => { resize3(); resize2(); if(is3D) draw3(); else draw2(); });
+
+function mkShader(t,s){const sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);return sh;}
+function mkProg(vs,fs){const p=gl.createProgram();gl.attachShader(p,mkShader(gl.VERTEX_SHADER,vs));gl.attachShader(p,mkShader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);return p;}
+function mkVBO(d){const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,d,gl.STATIC_DRAW);return b;}
+function mkIBO(d){const b=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,b);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(d),gl.STATIC_DRAW);return b;}
+
+const globeProg = mkProg(
+  `attribute vec3 aPos;uniform mat4 uMVP;varying vec3 vN;
+   void main(){vN=aPos;gl_Position=uMVP*vec4(aPos,1.);}`,
+  `precision mediump float;varying vec3 vN;
+   void main(){
+     vec3 n=normalize(vN);
+     float d=max(dot(n,normalize(vec3(1.2,1.6,.8))),0.);
+     vec3 c=vec3(.018,.068,.148)+d*vec3(.025,.07,.14);
+     float gLa=pow(abs(cos(asin(clamp(n.y,-1.,1.))*6.)),26.);
+     float gLo=pow(abs(cos(atan(n.z,n.x)*6.)),26.);
+     c=mix(c,c+vec3(.025,.05,.09),max(gLa,gLo)*.55);
+     gl_FragColor=vec4(c,1.);}`
+);
+const ptProg = mkProg(
+  `attribute vec3 aPos;attribute vec3 aCol;attribute float aSz;
+   uniform mat4 uMVP;uniform vec3 uEye;
+   varying vec3 vCol;varying float vVis;
+   void main(){
+     vCol=aCol;vVis=dot(normalize(aPos),normalize(uEye));
+     gl_Position=uMVP*vec4(aPos,1.);
+     gl_PointSize=vVis>.05?aSz:0.;}`,
+  `precision mediump float;varying vec3 vCol;varying float vVis;
+   void main(){
+     if(vVis<.05)discard;
+     vec2 c=gl_PointCoord-.5;if(dot(c,c)>.25)discard;
+     // Soft ring: bright centre, glowing rim
+     float r=sqrt(dot(c,c));
+     float core=1.-smoothstep(.0,.12,r);
+     float ring=smoothstep(.12,.22,r)*(1.-smoothstep(.22,.25,r));
+     float a=(core*.9+ring*.5)*min(vVis*3.,1.);
+     gl_FragColor=vec4(vCol,a);}`
+);
+const lineProg = mkProg(
+  `attribute vec3 aPos;uniform mat4 uMVP;uniform vec3 uEye;uniform vec3 uCol;
+   varying vec3 vC;varying float vF;
+   void main(){vC=uCol;vF=dot(normalize(aPos),normalize(uEye));gl_Position=uMVP*vec4(aPos,1.);}`,
+  `precision mediump float;varying vec3 vC;varying float vF;uniform float uA;
+   void main(){if(vF<.06)discard;gl_FragColor=vec4(vC,smoothstep(.06,.28,vF)*uA);}`
+);
+
+// Math helpers
+const m4=()=>new Float32Array(16);
+function mul4(o,a,b){for(let i=0;i<4;i++)for(let j=0;j<4;j++){o[j*4+i]=0;for(let k=0;k<4;k++)o[j*4+i]+=a[k*4+i]*b[j*4+k];}return o;}
+function persp(m,fov,asp,n,f){m.fill(0);const t=1/Math.tan(fov/2);m[0]=t/asp;m[5]=t;m[10]=(f+n)/(n-f);m[11]=-1;m[14]=2*f*n/(n-f);return m;}
+function lookAt(m,e,c,u){const z=n3(sub3(e,c)),x=n3(cross3(u,z)),y=cross3(z,x);m[0]=x[0];m[4]=x[1];m[8]=x[2];m[12]=-dot3(x,e);m[1]=y[0];m[5]=y[1];m[9]=y[2];m[13]=-dot3(y,e);m[2]=z[0];m[6]=z[1];m[10]=z[2];m[14]=-dot3(z,e);m[3]=m[7]=m[11]=0;m[15]=1;return m;}
+const sub3=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const dot3=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const n3=a=>{const l=Math.sqrt(dot3(a,a));return[a[0]/l,a[1]/l,a[2]/l];};
+function ll2xyz(lat,lon,r){const ph=(90-lat)*Math.PI/180,th=(lon+180)*Math.PI/180;return[-r*Math.sin(ph)*Math.cos(th),r*Math.cos(ph),r*Math.sin(ph)*Math.sin(th)];}
+function projPt(pt,VP){const[x,y,z]=pt,cx=VP[0]*x+VP[4]*y+VP[8]*z+VP[12],cy=VP[1]*x+VP[5]*y+VP[9]*z+VP[13],cw=VP[3]*x+VP[7]*y+VP[11]*z+VP[15];if(Math.abs(cw)<.0001)return null;return[(cx/cw*.5+.5)*canvas3.width,(1-(cy/cw*.5+.5))*canvas3.height];}
+
+// Sphere
+function buildSphere(R,la,lo){const v=[],idx=[];for(let i=0;i<=la;i++){const t=i/la*Math.PI;for(let j=0;j<=lo;j++){const p=j/lo*2*Math.PI;v.push(R*Math.sin(t)*Math.cos(p),R*Math.cos(t),R*Math.sin(t)*Math.sin(p));}}for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=i*(lo+1)+j,b=a+lo+1;idx.push(a,b,a+1,b,b+1,a+1);}return{v:new Float32Array(v),idx:new Uint16Array(idx)};}
+const sph=buildSphere(1,64,96);
+const globeVBO=mkVBO(sph.v);
+const globeIBO=(()=>{const b=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,b);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,sph.idx,gl.STATIC_DRAW);return b;})();
+// ── Star field ──────────────────────────────────────────────────────────────
+const STAR_N=340;
+const _sPos=new Float32Array(STAR_N*3);
+const _sPacked=new Float32Array(STAR_N*2); // [phase, speed] per star
+const _sBri=new Float32Array(STAR_N);
+for(let i=0;i<STAR_N;i++){
+  const u=Math.random()*2-1,th=Math.random()*Math.PI*2,r=Math.sqrt(Math.max(0,1-u*u));
+  _sPos[i*3]=r*Math.cos(th)*4.8;_sPos[i*3+1]=u*4.8;_sPos[i*3+2]=r*Math.sin(th)*4.8;
+  _sBri[i]=0.25+Math.random()*0.75;
+  _sPacked[i*2]=Math.random()*Math.PI*2;   // phase
+  _sPacked[i*2+1]=0.25+Math.random()*0.6;  // speed
+}
+const starVBO=mkVBO(_sPos);
+const starBriVBO=mkVBO(_sBri);
+const starPackVBO=mkVBO(_sPacked);
+const starProg=mkProg(
+  `attribute vec3 aPos;attribute float aBri;attribute vec2 aPS;uniform mat4 uMVP;uniform float uT;varying float vA;void main(){float blink=0.55+0.45*sin(uT*aPS[1]+aPS[0]);vA=aBri*blink;gl_Position=uMVP*vec4(aPos,1.);gl_PointSize=1.0+aBri*1.6;}`,
+  `precision mediump float;varying float vA;void main(){float d=length(gl_PointCoord-.5)*2.;if(d>1.)discard;gl_FragColor=vec4(.80,.93,1.,vA*(1.-d*.4));}`
+);
+let _starT=0,_starLast=performance.now();
+function drawStars(VP){
+  const now=performance.now();_starT+=(now-_starLast)/1000;_starLast=now;
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+  gl.useProgram(starProg);
+  gl.uniformMatrix4fv(gl.getUniformLocation(starProg,'uMVP'),false,VP);
+  gl.uniform1f(gl.getUniformLocation(starProg,'uT'),_starT);
+  const pa=gl.getAttribLocation(starProg,'aPos'),ba=gl.getAttribLocation(starProg,'aBri'),psa=gl.getAttribLocation(starProg,'aPS');
+  gl.bindBuffer(gl.ARRAY_BUFFER,starVBO);gl.enableVertexAttribArray(pa);gl.vertexAttribPointer(pa,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,starBriVBO);gl.enableVertexAttribArray(ba);gl.vertexAttribPointer(ba,1,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,starPackVBO);gl.enableVertexAttribArray(psa);gl.vertexAttribPointer(psa,2,gl.FLOAT,false,0,0);
+  gl.drawArrays(gl.POINTS,0,STAR_N);
+}
+// ────────────────────────────────────────────────────────────────────────────
+
+
+// Camera
+let rX=0.3, rY=0, camD=2.7, drag3=false, lx3=0, ly3=0, autoRot=true;
+function eyePos(){const cx=Math.cos(rX),sx=Math.sin(rX),cy=Math.cos(rY),sy=Math.sin(rY);return[-camD*cx*sy,camD*sx,camD*cx*cy];}
+function getVP(){const e=eyePos(),V=m4(),P=m4(),VP=m4();lookAt(V,e,[0,0,0],[0,1,0]);persp(P,Math.PI/4,canvas3.width/canvas3.height,.1,100);mul4(VP,P,V);return{VP,eye:e};}
+
+canvas3.addEventListener('mousedown',e=>{drag3=true;lx3=e.clientX;ly3=e.clientY;stopRot();});
+addEventListener('mouseup',()=>{drag3=false;});
+canvas3.addEventListener('mousemove',e=>{
+  if(!is3D)return;
+  if(drag3){rY+=(e.clientX-lx3)*.005;rX+=(e.clientY-ly3)*.005;rX=Math.max(-1.4,Math.min(1.4,rX));lx3=e.clientX;ly3=e.clientY;draw3();hideCard();return;}
+  handleHover3(e);
+});
+canvas3.addEventListener('wheel',e=>{camD=Math.max(1.35,Math.min(6,camD+e.deltaY*.003));draw3();},{passive:true});
+canvas3.addEventListener('mouseleave',()=>hideCard());
+
+// Touch
+let ltd=0;
+canvas3.addEventListener('touchstart',e=>{if(e.touches.length===1){drag3=true;lx3=e.touches[0].clientX;ly3=e.touches[0].clientY;stopRot();}if(e.touches.length===2)ltd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);},{passive:true});
+addEventListener('touchend',()=>drag3=false);
+canvas3.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag3){rY+=(e.touches[0].clientX-lx3)*.005;rX+=(e.touches[0].clientY-ly3)*.005;rX=Math.max(-1.4,Math.min(1.4,rX));lx3=e.touches[0].clientX;ly3=e.touches[0].clientY;draw3();}if(e.touches.length===2){const nd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);camD=Math.max(1.35,Math.min(6,camD-(nd-ltd)*.005));ltd=nd;draw3();}},{passive:true});
+
+// Rotate button
+const rotBtn=document.getElementById('rotate-btn');
+const rotLabel=document.getElementById('rotate-label');
+function stopRot(){autoRot=false;rotBtn.classList.remove('active');rotLabel.textContent='AUTO ROTATE';}
+function startRot(){autoRot=true;rotBtn.classList.add('active');rotLabel.textContent='ROTATING…';}
+rotBtn.addEventListener('click',()=>autoRot?stopRot():startRot());
+startRot();
+
+// GPU buffers for 3D
+const bufs3 = {};
+let borderBuf3 = null;
+
+function buildPointBuf(disasters){
+  const pos=[], col=[], sz=[];
+  disasters.forEach(d=>{
+    const cfg=TYPE_CFG[d.type]||TYPE_CFG.other;
+    const[x,y,z]=ll2xyz(d.lat,d.lon,1.008);
+    pos.push(x,y,z);
+    col.push(cfg.color[0]/255,cfg.color[1]/255,cfg.color[2]/255);
+    sz.push(15.0);
+  });
+  return {
+    posVBO: mkVBO(new Float32Array(pos)),
+    colVBO: mkVBO(new Float32Array(col)),
+    szVBO:  mkVBO(new Float32Array(sz)),
+    count:  disasters.length,
+    disasters,
+  };
+}
+
+function buildLineBuf3(geo){
+  const pos=[],idx=[];
+  geo.features.forEach(feat=>{
+    const g=feat.geometry; if(!g)return;
+    const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+    polys.forEach(poly=>poly.forEach(ring=>{
+      const si=pos.length/3;
+      ring.forEach(c=>{const[x,y,z]=ll2xyz(c[1],c[0],1.002);pos.push(x,y,z);});
+      for(let i=0;i<ring.length-1;i++)idx.push(si+i,si+i+1);
+    }));
+  });
+  return{posVBO:mkVBO(new Float32Array(pos)),idxBuf:mkIBO(idx),count:idx.length};
+}
+
+function draw3(){
+  if(!is3D)return;
+  gl.clearColor(.018,.038,.078,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  const{VP,eye}=getVP();
+
+  // Globe
+  gl.disable(gl.BLEND);
+  gl.useProgram(globeProg);
+  gl.uniformMatrix4fv(gl.getUniformLocation(globeProg,'uMVP'),false,VP);
+  gl.bindBuffer(gl.ARRAY_BUFFER,globeVBO);
+  const gA=gl.getAttribLocation(globeProg,'aPos');
+  gl.enableVertexAttribArray(gA);gl.vertexAttribPointer(gA,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,globeIBO);
+  gl.drawElements(gl.TRIANGLES,sph.idx.length,gl.UNSIGNED_SHORT,0);
+
+  // Stars
+  gl.enable(gl.BLEND);drawStars(VP);
+  // Borders
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  if(borderBuf3&&vis['borders']){
+    gl.useProgram(lineProg);
+    gl.uniformMatrix4fv(gl.getUniformLocation(lineProg,'uMVP'),false,VP);
+    gl.uniform3fv(gl.getUniformLocation(lineProg,'uEye'),eye);
+    gl.uniform3f(gl.getUniformLocation(lineProg,'uCol'),.204,.373,.533);
+    gl.uniform1f(gl.getUniformLocation(lineProg,'uA'),.42);
+    gl.bindBuffer(gl.ARRAY_BUFFER,borderBuf3.posVBO);
+    const la=gl.getAttribLocation(lineProg,'aPos');
+    gl.enableVertexAttribArray(la);gl.vertexAttribPointer(la,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,borderBuf3.idxBuf);
+    gl.drawElements(gl.LINES,borderBuf3.count,gl.UNSIGNED_INT,0);
+  }
+
+  // Disaster points
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+  gl.useProgram(ptProg);
+  gl.uniformMatrix4fv(gl.getUniformLocation(ptProg,'uMVP'),false,VP);
+  gl.uniform3fv(gl.getUniformLocation(ptProg,'uEye'),eye);
+  const pa=gl.getAttribLocation(ptProg,'aPos');
+  const ca=gl.getAttribLocation(ptProg,'aCol');
+  const sa=gl.getAttribLocation(ptProg,'aSz');
+
+  Object.entries(bufs3).forEach(([type,buf])=>{
+    if(!vis[type])return;
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf.posVBO);gl.enableVertexAttribArray(pa);gl.vertexAttribPointer(pa,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf.colVBO);gl.enableVertexAttribArray(ca);gl.vertexAttribPointer(ca,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf.szVBO);gl.enableVertexAttribArray(sa);gl.vertexAttribPointer(sa,1,gl.FLOAT,false,0,0);
+    gl.drawArrays(gl.POINTS,0,buf.count);
+  });
+}
+
+// 3D hover
+let hovT3=null;
+function handleHover3(e){
+  if(drag3)return;
+  clearTimeout(hovT3);
+  hovT3=setTimeout(()=>{
+    const{VP,eye}=getVP();
+    const camN=n3(eye);
+    let best=null,bestD=18;
+    DISASTERS.forEach(d=>{
+      if(!vis[d.type])return;
+      const[x,y,z]=ll2xyz(d.lat,d.lon,1.008);
+      if(dot3(n3([x,y,z]),camN)<.05)return;
+      const sc=projPt([x,y,z],VP);
+      if(!sc)return;
+      const dd=Math.hypot(sc[0]-e.clientX,sc[1]-e.clientY);
+      if(dd<bestD){bestD=dd;best=d;}
+    });
+    if(best)showCard(best,e.clientX,e.clientY);
+    else hideCard();
+  },25);
+}
+
+// ═══════════════════════════════════════════════
+// CANVAS 2D (FLAT MAP)
+// ═══════════════════════════════════════════════
+let W2,H2,baseW,baseH,offsetX=0,offsetY=0,scale2=1;
+let drag2=false,lx2=0,ly2=0;
+let bordersGeo=null;
+
+const _yMax=Math.log(Math.tan(85*Math.PI/180)+1/Math.cos(85*Math.PI/180));
+
+function ll2px(lat,lon){
+  const mW=baseW*scale2,mH=baseH*scale2;
+  const x=(lon+180)/360*mW;
+  const latR=Math.max(-85,Math.min(85,lat))*Math.PI/180;
+  const yM=Math.log(Math.tan(latR)+1/Math.cos(latR));
+  const y=(1-(yM+_yMax)/(2*_yMax))*mH;
+  return[x+offsetX,y+offsetY];
+}
+
+function computeBase(){
+  const availW=W2-220, availH=H2;
+  const asp=Math.PI/_yMax;
+  if(availW/availH>asp){baseH=Math.floor(availH*.94);baseW=Math.floor(baseH*asp);}
+  else{baseW=Math.floor(availW*.96);baseH=Math.floor(baseW/asp);}
+  offsetX=Math.floor((availW-baseW)/2);
+  offsetY=Math.floor((availH-baseH)/2);
+}
+
+function resize2(){
+  W2=canvas2.width=window.innerWidth;
+  H2=canvas2.height=window.innerHeight;
+  scale2=1; computeBase();
+}
+resize2();
+
+function resetView2(){scale2=1;computeBase();}
+
+const ctx=canvas2.getContext('2d');
+
+function drawRing2(ring){
+  if(ring.length<2)return;
+  ctx.beginPath();let first=true;
+  for(let i=0;i<ring.length;i++){
+    const[px,py]=ll2px(ring[i][1],ring[i][0]);
+    if(first){ctx.moveTo(px,py);first=false;continue;}
+    if(Math.abs(ring[i][0]-ring[i-1][0])>180){ctx.moveTo(px,py);continue;}
+    ctx.lineTo(px,py);
+  }ctx.stroke();
+}
+
+let hoverPt2=null;
+
+function draw2(){
+  if(is3D)return;
+  const mW=baseW*scale2,mH=baseH*scale2;
+  ctx.clearRect(0,0,W2,H2);
+  ctx.fillStyle='#050a14';ctx.fillRect(0,0,W2,H2);
+  ctx.fillStyle='#081422';ctx.fillRect(offsetX,offsetY,mW,mH);
+  ctx.strokeStyle='rgba(26,47,69,0.8)';ctx.lineWidth=1;ctx.strokeRect(offsetX,offsetY,mW,mH);
+  // Grid
+  ctx.strokeStyle='rgba(22,42,64,0.5)';ctx.lineWidth=.5;
+  for(let lon=-180;lon<=180;lon+=30){const[x]=ll2px(0,lon);ctx.beginPath();ctx.moveTo(x,offsetY);ctx.lineTo(x,offsetY+mH);ctx.stroke();}
+  for(let lat=-80;lat<=80;lat+=20){const[,y]=ll2px(lat,0);ctx.beginPath();ctx.moveTo(offsetX,y);ctx.lineTo(offsetX+mW,y);ctx.stroke();}
+  // Borders
+  if(bordersGeo&&vis['borders']){
+    ctx.strokeStyle='rgba(52,95,138,0.55)';ctx.lineWidth=Math.max(.5,.7*Math.sqrt(scale2));
+    bordersGeo.features.forEach(feat=>{
+      const g=feat.geometry;if(!g)return;
+      const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+      polys.forEach(poly=>poly.forEach(ring=>drawRing2(ring)));
+    });
+  }
+  // Disaster points
+  DISASTERS.forEach(d=>{
+    if(!vis[d.type])return;
+    const cfg=TYPE_CFG[d.type]||TYPE_CFG.other;
+    const[px,py]=ll2px(d.lat,d.lon);
+    if(px<-20||px>W2+20||py<-20||py>H2+20)return;
+    const r=Math.max(2.5,5.5*Math.sqrt(scale2));
+    const[cr,cg,cb]=cfg.color;
+    // Glow
+    ctx.shadowColor=`rgb(${cr},${cg},${cb})`;ctx.shadowBlur=r*2.5;
+    // Outer ring
+    ctx.strokeStyle=`rgba(${cr},${cg},${cb},0.6)`;
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);ctx.stroke();
+    // Fill dot
+    ctx.fillStyle=`rgba(${cr},${cg},${cb},0.85)`;
+    ctx.shadowBlur=r*1.5;
+    ctx.beginPath();ctx.arc(px,py,r*.45,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+  });
+  // Hover highlight
+  if(hoverPt2){
+    const cfg=TYPE_CFG[hoverPt2.type]||TYPE_CFG.other;
+    const[px,py]=ll2px(hoverPt2.lat,hoverPt2.lon);
+    const[cr,cg,cb]=cfg.color;
+    ctx.strokeStyle=`rgb(${cr},${cg},${cb})`;ctx.lineWidth=2;
+    ctx.shadowColor=`rgb(${cr},${cg},${cb})`;ctx.shadowBlur=10;
+    const hr=Math.max(5,7*Math.sqrt(scale2));
+    ctx.beginPath();ctx.arc(px,py,hr,0,Math.PI*2);ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+  updateStatBar();
+}
+
+// 2D interaction
+canvas2.addEventListener('mousedown',e=>{drag2=true;lx2=e.clientX;ly2=e.clientY;hideCard();});
+addEventListener('mouseup',()=>drag2=false);
+canvas2.addEventListener('mousemove',e=>{
+  if(!is3D&&drag2){offsetX+=e.clientX-lx2;offsetY+=e.clientY-ly2;lx2=e.clientX;ly2=e.clientY;draw2();return;}
+  if(!is3D)handleHover2(e);
+});
+canvas2.addEventListener('mouseleave',()=>{hideCard();hoverPt2=null;});
+canvas2.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.15:1/1.15,mx=e.clientX,my=e.clientY;
+  offsetX=mx-(mx-offsetX)*f;offsetY=my-(my-offsetY)*f;
+  scale2=Math.max(1,Math.min(50,scale2*f));
+  draw2();
+},{passive:false});
+
+document.getElementById('zoom-in').addEventListener('click',()=>{const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)*1.4;offsetY=cy-(cy-offsetY)*1.4;scale2=Math.min(50,scale2*1.4);draw2();});
+document.getElementById('zoom-out').addEventListener('click',()=>{if(scale2<=1)return;const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)/1.4;offsetY=cy-(cy-offsetY)/1.4;scale2=Math.max(1,scale2/1.4);draw2();});
+document.getElementById('reset-v').addEventListener('click',()=>{resetView2();draw2();});
+
+let hovT2=null;
+function handleHover2(e){
+  clearTimeout(hovT2);
+  hovT2=setTimeout(()=>{
+    const thresh=Math.max(10,12/Math.sqrt(scale2));
+    let best=null,bestD=thresh;
+    DISASTERS.forEach(d=>{
+      if(!vis[d.type])return;
+      const[px,py]=ll2px(d.lat,d.lon);
+      const dd=Math.hypot(px-e.clientX,py-e.clientY);
+      if(dd<bestD){bestD=dd;best=d;}
+    });
+    hoverPt2=best;
+    if(best)showCard(best,e.clientX,e.clientY);
+    else hideCard();
+    draw2();
+  },20);
+}
+
+// 2D touch pan+pinch
+let td2=0;
+canvas2.addEventListener('touchstart',e=>{if(e.touches.length===1){drag2=true;lx2=e.touches[0].clientX;ly2=e.touches[0].clientY;}if(e.touches.length===2)td2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);},{passive:true});
+addEventListener('touchend',()=>drag2=false);
+canvas2.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&drag2){offsetX+=e.touches[0].clientX-lx2;offsetY+=e.touches[0].clientY-ly2;lx2=e.touches[0].clientX;ly2=e.touches[0].clientY;draw2();}
+  if(e.touches.length===2){const nd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);const cx=(e.touches[0].clientX+e.touches[1].clientX)/2,cy=(e.touches[0].clientY+e.touches[1].clientY)/2;const f=nd/td2;offsetX=cx-(cx-offsetX)*f;offsetY=cy-(cy-offsetY)*f;scale2=Math.max(1,Math.min(50,scale2*f));td2=nd;draw2();}
+},{passive:true});
+
+// ═══════════════════════════════════════════════
+// VIEW TOGGLE (top-left Globe / 2D Map)
+// ═══════════════════════════════════════════════
+const viewBtnGlobe=document.getElementById('view-btn-globe');
+const viewBtnFlat=document.getElementById('view-btn-flat');
+const rotBtnEl=document.getElementById('rotate-btn');
+const mapCtrl=document.getElementById('map-controls');
+const hint=document.getElementById('hint');
+
+function setView3D(yes){
+  is3D=!!yes;
+  canvas3.classList.toggle('view-hidden',!is3D);
+  canvas2.classList.toggle('view-hidden',is3D);
+  viewBtnGlobe.classList.toggle('active',is3D);
+  viewBtnFlat.classList.toggle('active',!is3D);
+  rotBtnEl.style.display=is3D?'':'none';
+  mapCtrl.classList.toggle('visible',!is3D);
+  hint.textContent=is3D?'DRAG TO ROTATE · SCROLL TO ZOOM':'DRAG TO PAN · SCROLL TO ZOOM';
+  if(!is3D){resize2();draw2();}
+  else draw3();
+  hideCard();
+}
+viewBtnGlobe.addEventListener('click',()=>setView3D(true));
+viewBtnFlat.addEventListener('click',()=>setView3D(false));
+
+// ═══════════════════════════════════════════════
+// CARD POPUP
+// ═══════════════════════════════════════════════
+const card=document.getElementById('card');
+const cardImg=document.getElementById('card-img');
+const cardPlaceholder=document.getElementById('card-placeholder');
+const cardLoading=document.getElementById('card-loading');
+
+const TYPE_EMOJI={heat:'🌡️',wildfire:'🔥',flood:'🌊',hurricane:'🌀',storm:'⚡',drought:'☀️',pollution:'🏭',['sea level rise']:'🌊',pests:'🦗',other:'⚠️'};
+
+let imgCache={};
+
+function showCard(d,mx,my){
+  const cfg=TYPE_CFG[d.type]||TYPE_CFG.other;
+  document.getElementById('card-dot').style.background=cfg.hex;
+  document.getElementById('card-type-label').textContent=cfg.label.toUpperCase();
+  document.getElementById('card-type-label').style.color=cfg.hex;
+  document.getElementById('card-location').textContent=d.location;
+  document.getElementById('card-date').textContent=d.date||'Date unknown';
+
+  // Position
+  const cw=220,ch=220;
+  const lft=mx+16+cw>window.innerWidth-230?mx-cw-8:mx+16;
+  const top=Math.max(8,Math.min(my-40,window.innerHeight-ch-8));
+  card.style.cssText=`display:block;left:${lft}px;top:${top}px;`;
+  card.style.borderColor=cfg.hex+'44';
+
+  // Image
+  const url=SUPABASE_BASE+'/'+d.photo;
+  if(imgCache[d.id]==='ok'){
+    cardLoading.style.display='none';
+    cardPlaceholder.style.display='none';
+    cardImg.style.display='block';
+    cardImg.src=url;
+  } else if(imgCache[d.id]==='err'){
+    cardLoading.style.display='none';
+    cardImg.style.display='none';
+    cardPlaceholder.style.display='flex';
+    cardPlaceholder.textContent=TYPE_EMOJI[d.type]||'⚠️';
+  } else {
+    cardLoading.style.display='flex';
+    cardImg.style.display='none';
+    cardPlaceholder.style.display='none';
+    const img=new Image();
+    img.onload=()=>{
+      imgCache[d.id]='ok';
+      cardLoading.style.display='none';
+      cardPlaceholder.style.display='none';
+      cardImg.style.display='block';
+      cardImg.src=url;
+    };
+    img.onerror=()=>{
+      imgCache[d.id]='err';
+      cardLoading.style.display='none';
+      cardImg.style.display='none';
+      cardPlaceholder.style.display='flex';
+      cardPlaceholder.textContent=TYPE_EMOJI[d.type]||'⚠️';
+    };
+    img.src=url;
+  }
+}
+
+function hideCard(){card.style.display='none';}
+
+// ═══════════════════════════════════════════════
+// STAT BAR
+// ═══════════════════════════════════════════════
+function updateStatBar(){
+  const vis_count=DISASTERS.filter(d=>vis[d.type]).length;
+  document.getElementById('stat-visible').textContent=vis_count;
+}
+
+// ═══════════════════════════════════════════════
+// SIDE PANEL
+// ═══════════════════════════════════════════════
+function buildPanel(){
+  const scroll=document.getElementById('panel-scroll');
+  scroll.innerHTML='';
+
+  function makeRow(key,color,label,count){
+    const r=document.createElement('div');
+    r.className='row'+(vis[key]?'':' off');
+    r.dataset.key=key;
+    r.innerHTML=`<div class="sw dot" style="background:${color};box-shadow:0 0 6px ${color}44"></div><span class="rl">${label}</span><span class="rc">${count}</span><div class="tog"></div>`;
+    r.addEventListener('click',()=>{
+      vis[key]=!vis[key];
+      r.classList.toggle('off',!vis[key]);
+      if(is3D)draw3();else draw2();
+      updateStatBar();
+    });
+    return r;
+  }
+
+  function makeSec(label,keys){
+    const wrap=document.createElement('div');wrap.className='sec-wrap';
+    const hdr=document.createElement('div');hdr.className='sec';
+    hdr.innerHTML=`<span class="sec-label">${label}</span><span class="sec-tog">▾</span>`;
+    wrap.appendChild(hdr);
+    hdr.addEventListener('click',e=>{
+      const tog=hdr.querySelector('.sec-tog');
+      const rect=hdr.getBoundingClientRect();
+      if(e.clientX>rect.right-30){
+        const anyOn=keys.some(k=>vis[k]);
+        keys.forEach(k=>{vis[k]=!anyOn;const row=wrap.querySelector(`[data-key="${k}"]`);if(row)row.classList.toggle('off',!vis[k]);});
+        wrap.classList.toggle('sec-off',!keys.some(k=>vis[k]));
+        if(is3D)draw3();else draw2();
+        updateStatBar();
+      }else{
+        wrap.classList.toggle('collapsed');
+        tog.textContent=wrap.classList.contains('collapsed')?'▸':'▾';
+      }
+    });
+    return wrap;
+  }
+
+  // Map section
+  const mapSec=makeSec('Map',['borders']);
+  const bRow=document.createElement('div');bRow.className='row'+(vis['borders']?'':' off');bRow.dataset.key='borders';
+  bRow.innerHTML=`<div class="sw line" style="background:#34608a"></div><span class="rl">Country Borders</span><div class="tog"></div>`;
+  bRow.addEventListener('click',()=>{vis['borders']=!vis['borders'];bRow.classList.toggle('off',!vis['borders']);if(is3D)draw3();else draw2();});
+  mapSec.appendChild(bRow);scroll.appendChild(mapSec);
+
+  // Disasters by type
+  const typeCounts={};
+  DISASTERS.forEach(d=>typeCounts[d.type]=(typeCounts[d.type]||0)+1);
+  const typeOrder=['heat','wildfire','flood','hurricane','storm','drought','pollution','sea level rise','pests','other'];
+  const disSec=makeSec('Disaster Type',typeOrder);
+  typeOrder.forEach(t=>{
+    const cfg=TYPE_CFG[t];
+    const n=typeCounts[t]||0;
+    if(!n)return;
+    disSec.appendChild(makeRow(t,cfg.hex,cfg.label,n));
+  });
+  scroll.appendChild(disSec);
+
+  // Toggle all
+  document.getElementById('toggle-all').addEventListener('click',()=>{
+    allOn=!allOn;
+    document.getElementById('toggle-all').textContent=allOn?'All Off':'All On';
+    [...typeOrder,'borders'].forEach(k=>vis[k]=allOn);
+    scroll.querySelectorAll('.row').forEach(r=>r.classList.toggle('off',!allOn));
+    scroll.querySelectorAll('.sec-wrap').forEach(w=>w.classList.toggle('sec-off',!allOn));
+    if(is3D)draw3();else draw2();
+    updateStatBar();
+  });
+}
+
+// ═══════════════════════════════════════════════
+// TOPOJSON → GEOJSON
+// ═══════════════════════════════════════════════
+function topoToGeo(topo){
+  const sc=topo.transform?.scale||[1,1],tr=topo.transform?.translate||[0,0];
+  const arcs=topo.arcs.map(arc=>{let x=0,y=0;return arc.map(p=>{x+=p[0];y+=p[1];return[x*sc[0]+tr[0],y*sc[1]+tr[1]];});});
+  function getArc(i){return i>=0?arcs[i]:arcs[~i].slice().reverse();}
+  function toRing(ids){return ids.flatMap((i,j)=>{const a=getArc(i);return j<ids.length-1?a.slice(0,-1):a;});}
+  const obj=topo.objects.countries||topo.objects.land||Object.values(topo.objects)[0];
+  return{type:'FeatureCollection',features:obj.geometries.map(geom=>{
+    if(geom.type==='Polygon')return{type:'Feature',geometry:{type:'Polygon',coordinates:geom.arcs.map(toRing)},properties:{}};
+    if(geom.type==='MultiPolygon')return{type:'Feature',geometry:{type:'MultiPolygon',coordinates:geom.arcs.map(p=>p.map(toRing))},properties:{}};
+    return null;
+  }).filter(Boolean)};
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+function setLoad(pct,msg){
+  document.getElementById('load-bar').style.width=pct+'%';
+  if(msg)document.getElementById('load-msg').textContent=msg;
+}
+
+function init(){
+  setLoad(10,'Building event layers…');
+
+  // Group disasters by type for GPU buffers
+  const byType={};
+  DISASTERS.forEach(d=>{
+    const t=d.type||'other';
+    if(!byType[t])byType[t]=[];
+    byType[t].push(d);
+  });
+  Object.entries(byType).forEach(([t,ds])=>{
+    bufs3[t]=buildPointBuf(ds);
+  });
+  vis['borders']=true;
+
+  setLoad(35,'Building panel…');
+  buildPanel();
+  updateStatBar();
+
+  setLoad(55,'Fetching borders…');
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')
+    .then(r=>r.json())
+    .then(topo=>{
+      setLoad(80,'Processing borders…');
+      bordersGeo=topoToGeo(topo);
+      borderBuf3=buildLineBuf3(bordersGeo);
+      finish();
+    })
+    .catch(()=>finish());
+}
+
+function finish(){
+  setLoad(100,'');
+  setTimeout(()=>document.getElementById('loading').style.display='none',300);
+  draw3();
+}
+
+init();
+
+// Render loop (3D only)
+(function loop(){
+  if(is3D&&autoRot){rY+=.0012;draw3();}
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

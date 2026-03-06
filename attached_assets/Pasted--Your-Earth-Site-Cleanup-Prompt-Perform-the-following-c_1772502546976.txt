@@ -1,0 +1,160 @@
+# Your Earth — Site Cleanup Prompt
+
+Perform the following cleanup tasks exactly as specified. Do not refactor anything beyond what is listed. Make surgical edits only.
+
+---
+
+## PART 1 — DELETE THESE FILES ENTIRELY
+
+Delete the following files. They are either unused or replaced:
+
+**Pages (never routed or replaced by better versions):**
+- `client/src/pages/FeedPage.tsx` — replaced by CommunityFeedPage
+- `client/src/pages/CategoryLandingPage.tsx` — never imported in App.tsx
+- `client/src/pages/MediaGalleryPage.tsx` — never imported in App.tsx
+
+**Components (never imported anywhere in the codebase):**
+- `client/src/components/CategorySystem.tsx`
+- `client/src/components/CoalDataImporter.tsx`
+- `client/src/components/CoalDataTester.tsx`
+- `client/src/components/DesignSystem.tsx`
+- `client/src/components/EventsHub.tsx`
+- `client/src/components/FeatureCard.tsx`
+- `client/src/components/MobileCard.tsx`
+- `client/src/components/TypographySystem.tsx`
+
+**Styles (never imported anywhere):**
+- `client/src/styles/globals.css`
+
+---
+
+## PART 2 — EDIT `client/src/App.tsx`
+
+Make these 4 changes:
+
+**1. Delete line 49** (FeedPage import):
+```ts
+// DELETE THIS LINE:
+import { FeedPage } from './pages/FeedPage';
+```
+
+**2. Delete line 83** (dead title entry):
+```ts
+// DELETE THIS LINE:
+'feed': 'Feed - Your Earth',
+```
+
+Also delete this line nearby (also dead — no route goes to 'data'):
+```ts
+// DELETE THIS LINE:
+'data': 'Climate Data - Your Earth',
+```
+
+**3. Delete lines 210–211** (old feed route):
+```ts
+// DELETE THESE TWO LINES:
+case 'feed':
+  return <ProtectedRoute user={user} onNavigate={handleNavigate}><FeedPage onNavigate={handleNavigate} user={user} /></ProtectedRoute>;
+```
+
+---
+
+## PART 3 — EDIT `client/src/components/Navigation.tsx`
+
+Make these 6 changes:
+
+**1. Delete the `Rss` import (line 38):**
+```ts
+// DELETE THIS LINE from the lucide-react import block:
+Rss,
+```
+
+**2. Delete the `Feed` top-nav item (line 89):**
+```ts
+// DELETE THIS LINE from mainNavItems array:
+{ label: "Feed", page: "feed", hasDropdown: false },
+```
+
+**3. Delete the dead `isDataMenuOpen` state (line 57):**
+```ts
+// DELETE THIS LINE:
+const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
+```
+
+**4. Delete the entire `dataCategories` array (lines 281–318):**
+```ts
+// DELETE the entire block starting with:
+const dataCategories = [
+  // ...all entries...
+];
+```
+
+**5. Delete the entire Data mega-menu JSX block (lines 726–781):**
+```tsx
+// DELETE this entire block:
+{/* Mega Menu Dropdown - Data Section (Desktop) */}
+<AnimatePresence>
+  {isDataMenuOpen && (
+    <motion.div
+      ...
+    >
+      ...
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+The block starts with the comment `{/* Mega Menu Dropdown - Data Section (Desktop) */}` and ends with the closing `</AnimatePresence>` just before `</motion.header>`.
+
+**6. Delete the two dead mobile icon lines (around line 847–848):**
+```tsx
+// DELETE THESE TWO LINES from the mobile nav icon block:
+{item.label === "Data" && <Database className="h-6 w-6" />}
+{item.label === "Feed" && <Rss className="h-6 w-6" />}
+```
+
+Also delete the `setIsDataMenuOpen` calls that remain in the `onMouseEnter`/`onMouseLeave` handlers on the nav buttons (lines ~374, ~380, ~389). Search for all occurrences of `setIsDataMenuOpen` and `isDataMenuOpen` and remove them.
+
+---
+
+## PART 4 — EDIT `client/src/pages/DashboardPage.tsx`
+
+Change 2 `"feed"` references to `"community-feed"`:
+
+**Line 260:**
+```ts
+// FIND:
+onClick={() => onNavigate?.("feed")}
+// REPLACE WITH:
+onClick={() => onNavigate?.("community-feed")}
+```
+
+**Line 296:**
+```ts
+// FIND:
+{ label: "Go to Feed", icon: MessageCircle, page: "feed" },
+// REPLACE WITH:
+{ label: "Go to Feed", icon: MessageCircle, page: "community-feed" },
+```
+
+---
+
+## PART 5 — VERIFY AFTER CHANGES
+
+After making all changes, confirm:
+
+1. The top navigation bar shows: **Learn | Community | Take Action** — no "Feed" item
+2. Clicking **Community → Feed** navigates to `community-feed` which loads `feed.html` in an iframe
+3. No TypeScript errors from the deleted imports
+4. The Dashboard "Go to Feed" button correctly navigates to the community feed
+5. The app builds without errors (`npm run build` or equivalent)
+
+---
+
+## DO NOT CHANGE
+
+- `client/public/energy-map.html` — used in HomePage.tsx hero section
+- `client/public/feed.html` — the active feed page loaded by CommunityFeedPage iframe
+- `client/src/pages/ClimateTracePage.tsx` — wired to `case 'learn-trace'` in App.tsx
+- `client/src/pages/CommunityFeedPage.tsx` — this is the keeper
+- Anything in `client/src/components/ui/` — shadcn components, leave untouched
+- `client/src/index.css` — active Tailwind stylesheet, leave untouched

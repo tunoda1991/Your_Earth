@@ -1,0 +1,140 @@
+Replit Prompt
+Create a live global electricity and carbon intensity map for Your Earth. Follow the exact same pattern as globe_map.html and disasters.html already in the project.
+
+File 1 — public/electricity_map.html
+Create this file from scratch. It is a fully self-contained page with no external React dependencies.
+Design: Match disasters.html exactly — #050a14 background, rgba(5,10,20,0.92) nav, Courier New monospace font throughout, #1a2f45 borders, #a0c4d8 text, ye-nav / ye-nav-link / ye-nav-link active CSS class names.
+Globe: Three.js r128 from https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js. Dark ocean sphere (#050a18), faint lat/lon grid lines (#0d2035), subtle atmosphere glow. Each country zone is represented as a glowing dot on the globe surface — a small sphere with a ring halo. Drag to rotate, scroll to zoom, slow auto-rotation that stops on drag. Hover dots to show detail card.
+Colors: Choropleth scale based on carbon intensity:
+
+0 gCO₂/kWh → #22c55e (green)
+150 → #84cc16
+300 → #eab308 (yellow)
+450 → #f97316 (orange)
+600+ → #ef4444 (red)
+
+Layout:
+
+Fixed left panel (300px wide, from top nav to bottom): signal switcher tabs at top, then panel header with "LIVE · UPDATING EVERY 15 MIN" badge with pulsing green dot, then color legend bar, then scrollable sorted zone list showing country name + live value
+Hover detail card (fixed, top-right, 260px wide): shows zone key, country name, carbon intensity with color, renewable %, fossil-free %, electricity mix breakdown as a colored segmented bar (nuclear=purple, solar=yellow, wind=blue, hydro=cyan, gas=orange, coal=gray, oil=red), last updated timestamp
+Status bar (fixed bottom, left of panel): zones loaded counter, active signal name, "SOURCE: Electricity Maps API", controls hint on right
+Nav bar top right: shows "GLOBAL AVG: ___ gCO₂/kWh", spinning refresh ring while loading, last updated time
+
+Signal switcher tabs (Carbon Intensity / Renewable % / Fossil %): clicking each recolors all dots and re-sorts the zone list. Update the legend bar and scale labels accordingly.
+Data — 40 live zones (fetch sequentially, 200ms gap between requests to stay under 50 req/hour rate limit):
+US, GB, DE, FR, ES, IT, PL, NL, SE, NO, DK, FI, AT, CH, BE, PT,
+CN, IN, JP, KR, AU, BR, CA, MX, ZA, EG, NG, AR, CL, TR,
+SA, ID, MY, TH, PH, VN, PK, UA, RO, GR
+With display names and approximate lat/lon for globe dot placement:
+US=United States(37,-96), GB=United Kingdom(52,-2), DE=Germany(51,10),
+FR=France(46,2), ES=Spain(40,-4), IT=Italy(42,12), PL=Poland(52,20),
+NL=Netherlands(52,5), SE=Sweden(60,18), NO=Norway(64,18),
+DK=Denmark(56,10), FI=Finland(64,26), AT=Austria(47,14),
+CH=Switzerland(47,8), BE=Belgium(50,4), PT=Portugal(39,-8),
+CN=China(35,104), IN=India(21,79), JP=Japan(36,138), KR=South Korea(37,128),
+AU=Australia(-25,134), BR=Brazil(-11,-53), CA=Canada(56,-106),
+MX=Mexico(24,-102), ZA=South Africa(-30,23), EG=Egypt(27,31),
+NG=Nigeria(9,9), AR=Argentina(-38,-64), CL=Chile(-36,-72),
+TR=Turkey(39,35), SA=Saudi Arabia(24,45), ID=Indonesia(-1,114),
+MY=Malaysia(3,110), TH=Thailand(16,101), PH=Philippines(13,122),
+VN=Vietnam(16,108), PK=Pakistan(30,69), UA=Ukraine(48,31),
+RO=Romania(46,25), GR=Greece(39,22)
+API calls for each zone:
+GET https://api-access.electricitymaps.com/free-tier/carbon-intensity/latest?zone=XX
+GET https://api-access.electricitymaps.com/free-tier/power-breakdown/latest?zone=XX
+Headers: auth-token: YOUR_FREE_API_KEY
+From carbon-intensity/latest extract: carbonIntensity, datetime, isEstimated
+From power-breakdown/latest extract: renewablePercentage, fossilFreePercentage, powerConsumptionBreakdown (the mix object)
+Static baseline fallback for zones where API fails or for non-priority countries seeded into global state — use these approximate IEA 2023 gCO₂/kWh values so the globe looks globally populated:
+jsconst STATIC_BASELINE = {
+  RU:480, KZ:680, UZ:540, BY:380, RS:540, BA:770, HR:230, SK:170,
+  CZ:400, HU:230, BG:400, LT:120, LV:130, EE:560, IS:30, LU:180,
+  IE:310, LY:520, TN:420, DZ:520, MA:560, GH:370, KE:130, ET:30,
+  TZ:250, MZ:200, ZW:390, AO:340, SN:360, UG:30, ZM:80, BW:840,
+  IQ:620, IR:540, JO:510, IL:490, KW:740, AE:550, QA:540, OM:560,
+  BD:620, LK:320, NP:60, MM:310, KH:580, MN:780, NZ:160,
+  VE:270, CO:220, PE:240, EC:150, BO:440, PY:30, UY:150,
+  CR:30, PA:220, GT:330, HN:300, DO:480, CU:510,
+};
+Auto-refresh every 15 minutes: re-fetch all 40 zones, update dots, re-sort zone list, update global average in nav.
+Navigation bar — use the same ye-nav structure as disasters.html. Include full dropdowns:
+Learn dropdown items:
+
+📚 Climate Education → index.html?page=learn-education
+🧮 Carbon Calculator → index.html?page=learn-calculator
+📊 Climate Dashboard → index.html?page=climate-data-dashboard
+🏢 Corporate Monitor → index.html?page=learn-corporate
+🏦 Organization Bank → index.html?page=learn-databank
+🗺 Infrastructure Map → globe_map.html
+⚠️ Disaster Map → disasters.html
+⚡ Live Electricity Map → electricity_map.html ← mark as active
+
+Community dropdown items:
+
+💬 Feed → feed.html
+⚡ Energy → index.html?page=community-energy
+🌾 Food → index.html?page=community-food
+🚗 Mobility → index.html?page=community-mobility
+💻 Technology → index.html?page=community-technology
+⚖️ Policy → index.html?page=community-policy
+🌿 Nature → index.html?page=community-nature
+
+Take Action dropdown:
+
+🎯 Campaigns & Actions → index.html?page=campaigns-actions
+📅 Events → index.html?page=events
+💼 Climate Jobs → index.html?page=jobs
+
+Replace YOUR_FREE_API_KEY on the const API_KEY line with the actual key from app.electricitymaps.com/settings/api-access.
+
+File 2 — src/components/pages/ElectricityMapPage.tsx
+tsximport { useEffect } from "react";
+
+interface Props { onNavigate?: (page: string) => void; }
+
+export function ElectricityMapPage({ onNavigate }: Props) {
+  useEffect(() => { document.title = "Live Electricity Map — Your Earth"; }, []);
+  return (
+    <div style={{ height: "calc(100vh - 64px)", marginTop: "64px" }}>
+      <iframe
+        src="/electricity_map.html"
+        title="Live Global Electricity & Carbon Intensity Map"
+        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+        allow="fullscreen"
+      />
+    </div>
+  );
+}
+
+File 3 — Updates to existing React files
+App.tsx — import ElectricityMapPage and add to renderPage():
+typescriptcase 'learn-electricity-map':
+  return <ElectricityMapPage onNavigate={handleNavigate} />;
+Navigation.tsx — add to learnCategories array (after Disaster Map entry):
+typescript{
+  icon: Zap,
+  title: "Live Electricity Map",
+  description: "Real-time carbon intensity & renewable share by country",
+  page: "learn-electricity-map",
+  color: "text-yellow-400",
+  bgColor: "bg-yellow-400/10",
+  borderColor: "border-yellow-400/20"
+},
+Zap is already imported. Also update the Learn mega-menu grid from grid-cols-2 to grid-cols-3 since there are now 7 items.
+LearnPage.tsx — add to learningModules array:
+typescript{
+  title: "Live Electricity Map",
+  description: "Real-time carbon intensity and renewable share for 40+ countries. See which grids are running clean vs fossil-heavy right now, auto-refreshed every 15 minutes via Electricity Maps API.",
+  icon: Zap,
+  slug: "electricity-map",
+  features: [
+    "Live carbon intensity (gCO₂eq/kWh)",
+    "Renewable & fossil-free % per zone",
+    "Electricity mix by source (solar, wind, nuclear…)",
+    "Auto-refreshes every 15 minutes"
+  ],
+  stats: { zones: "40+ live", granularity: "15 min", view: "3D Globe" },
+  color: "yellow",
+  hasSubcategories: false
+},
+disasters.html and globe_map.html — add ⚡ ELECTRICITY link to their nav bars pointing to electricity_map.html, so cross-navigation between all three maps works.

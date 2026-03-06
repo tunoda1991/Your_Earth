@@ -1,0 +1,320 @@
+PART 4 — Wire to Supabase (replace mock data with real data)
+The Supabase project credentials are:
+
+Project ID: pgqisbbixphfzgvzdmfa
+Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBncWlzYmJpeHBoZnpndnpkbWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTM1MjgsImV4cCI6MjA3NjI4OTUyOH0.iX5XNO8eAsPwe7JwCkxjH50tKgygFZ5DHp0ahO2HFJM
+Supabase URL: https://pgqisbbixphfzgvzdmfa.supabase.co
+
+The existing DB tables are: posts, follows, profiles, reactions, discussion_likes.
+4a — Add Supabase JS client
+Add this script tag at the very top of <head>, before the Google Fonts link:
+html<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+Then in the <script> block, replace the existing SUPABASE_BASE constant with full Supabase init:
+js// FIND AND REPLACE:
+const SUPABASE_BASE = 'https://YOUR_PROJECT_REF.supabase.co/storage/v1/object/public';
+
+// REPLACE WITH:
+const SUPABASE_URL = 'https://pgqisbbixphfzgvzdmfa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBncWlzYmJpeHBoZnpndnpkbWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTM1MjgsImV4cCI6MjA3NjI4OTUyOH0.iX5XNO8eAsPwe7JwCkxjH50tKgygFZ5DHp0ahO2HFJM';
+const SUPABASE_STORAGE = `${SUPABASE_URL}/storage/v1/object/public`;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+4b — Auth state: detect logged-in user
+Add this function immediately after the sb and currentUser lines:
+jsasync function initAuth(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(session?.user){
+    currentUser = session.user;
+    // Fetch profile
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    if(profile){
+      // Update compose box and user card with real name/avatar
+      const initials = (profile.username || 'YE').slice(0,2).toUpperCase();
+      document.querySelectorAll('.compose-avatar, .sb-user-av').forEach(el => el.textContent = initials);
+      const nameEl = document.querySelector('.sb-user-name');
+      if(nameEl) nameEl.textContent = profile.username || 'You';
+    }
+  }
+  // Always load feed regardless of auth state
+  await loadSupabaseFeed(true);
+}
+4c — Replace renderFeed with real Supabase feed loader
+Add this new async function. Keep the existing renderPost() and renderFeed() functions as fallback — just add this new loader that calls them:
+jsasync function loadSupabaseFeed(reset = false){
+  const container = document.getElementById('feed-container');
+  const loadMoreBtn = document.getElementById('load-more');
+
+  if(reset){
+    currentPage = 0;
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-38);font-size:13px;">Loading posts…</div>';
+  }
+
+  try {
+    let query = sb
+      .from('posts')
+      .select(`
+        id, content, image_url, created_at, category,
+        profiles:user_id ( id, username, avatar_url )
+      `)
+      .order('created_at', { ascending: false })
+      .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
+
+    if(activeFilter !== 'all') query = query.eq('category', activeFilter);
+
+    const { data: posts, error } = await query;
+
+    if(error) throw error;
+
+    if(reset) container.innerHTML = '';
+
+    if(!posts || posts.length === 0){
+      if(reset){
+        // No real posts yet — fall back to mock disaster data
+        renderFeed(true);
+        return;
+      }
+      loadMoreBtn.style.display = 'none';
+      return;
+    }
+
+    posts.forEach((post, i) => {
+      const profile = post.profiles || {};
+      const username = profile.username || 'Anonymous';
+      const initials = username.slice(0,2).toUpperCase();
+      const catKey = post.category || 'nature';
+      const cat = CAT[catKey] || CAT.nature;
+      const timeStr = timeAgoFromDate(post.created_at);
+      const isLiked = likedPosts.has(post.id);
+
+      const html = `
+<div class="post-card" data-id="${post.id}" style="animation-delay:${i * 50}ms;--cat-color:${cat.color}">
+  <div class="post-header">
+    <div class="post-meta">
+      <div class="post-avatar" style="background:linear-gradient(135deg,${cat.color},${cat.color}88);">${initials}</div>
+      <div class="post-info">
+        <div class="post-name-row">
+          <span class="post-name">${username}</span>
+          <span class="post-badge" style="background:${cat.bg};color:${cat.color};border:1px solid ${cat.color}30">${cat.icon} ${cat.label}</span>
+          <span class="post-time">${timeStr}</span>
+        </div>
+        <div class="post-community">Posted in <b>Community Feed</b></div>
+      </div>
+    </div>
+    <div class="post-top-right">
+      <button class="post-icon-btn" title="Save" onclick="toggleSave('${post.id}',this)">🔖</button>
+      <button class="post-icon-btn" onclick="showPostMenu(event,'${post.id}')">···</button>
+    </div>
+  </div>
+
+  ${post.image_url ? `
+  <div class="post-image-wrap">
+    <img class="post-image" src="${post.image_url}" alt="Post image" style="height:220px;object-fit:cover;width:100%;display:block;">
+    <div class="post-image-overlay"><div class="post-image-overlay-icon">🔍</div></div>
+    <div class="post-image-gradient"></div>
+  </div>` : ''}
+
+  <div class="post-body">
+    <div class="post-text">${post.content.length > 200 ? post.content.slice(0,200) + '…' : post.content}</div>
+    <div class="post-tags">
+      <span class="post-tag">#ClimateAction</span>
+      <span class="post-tag">#${cat.label.replace(/\s/g,'')}</span>
+      <span class="post-tag">#YourEarth</span>
+    </div>
+  </div>
+
+  <div class="post-footer">
+    <div class="post-footer-left">
+      <button class="react-btn ${isLiked ? 'liked' : ''}" id="like-btn-${post.id}" onclick="handleLike('${post.id}',this)">
+        <svg viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span class="like-count" data-base="0">0</span>
+      </button>
+      <button class="react-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        0
+      </button>
+    </div>
+    <div class="post-footer-right">
+      <span class="post-views">👁 —</span>
+    </div>
+  </div>
+</div>`;
+      container.insertAdjacentHTML('beforeend', html);
+    });
+
+    currentPage++;
+    loadMoreBtn.style.display = posts.length < PAGE_SIZE ? 'none' : 'flex';
+    loadMoreBtn.onclick = () => loadSupabaseFeed(false);
+    document.getElementById('stat-visible').textContent = container.querySelectorAll('.post-card').length;
+
+  } catch(err) {
+    console.warn('Supabase feed error, falling back to mock data:', err);
+    renderFeed(reset);
+  }
+}
+
+function timeAgoFromDate(dateStr){
+  if(!dateStr) return '—';
+  const now = new Date();
+  const d = new Date(dateStr);
+  const secs = Math.floor((now - d) / 1000);
+  if(secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if(mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if(hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if(days < 7) return `${days}d`;
+  if(days < 30) return `${Math.floor(days/7)}w`;
+  if(days < 365) return `${Math.floor(days/30)}mo`;
+  return `${Math.floor(days/365)}y`;
+}
+4d — Wire the post submission to Supabase
+Replace the submitPost() function:
+jsasync function submitPost(){
+  const textEl = document.getElementById('compose-text');
+  const text = textEl?.value?.trim();
+  if(!text){ closeModal('modal-compose'); return; }
+
+  // Get selected category
+  const selectedPill = document.querySelector('#compose-cat-pills .cat-pill.selected');
+  const category = selectedPill ? Object.keys(CAT).find(k => CAT[k].label === selectedPill.textContent.trim().slice(2)) || 'nature' : 'nature';
+
+  const btn = document.querySelector('#modal-compose .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Posting…'; }
+
+  try {
+    if(currentUser){
+      const { error } = await sb.from('posts').insert({
+        user_id: currentUser.id,
+        content: text,
+        category: category,
+      });
+      if(error) throw error;
+    }
+
+    closeModal('modal-compose');
+    textEl.value = '';
+    updateCharCount(textEl);
+
+    // Refresh feed
+    await loadSupabaseFeed(true);
+
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:100px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#34d399;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:600;backdrop-filter:blur(12px);animation:fadeUp .3s ease;';
+    banner.textContent = '✓ Post shared to community!';
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 2500);
+
+  } catch(err) {
+    console.error('Post failed:', err);
+    closeModal('modal-compose');
+    textEl.value = '';
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = 'Post'; }
+  }
+}
+4e — Wire like/reaction to Supabase
+Add this handleLike function that wraps the existing toggleLike with a Supabase upsert:
+jsasync function handleLike(postId, btn){
+  toggleLike(postId, btn); // optimistic UI update immediately
+
+  if(!currentUser) return; // not logged in — UI update only
+
+  const isNowLiked = likedPosts.has(postId);
+  try {
+    if(isNowLiked){
+      await sb.from('reactions').upsert({
+        post_id: postId,
+        user_id: currentUser.id,
+        type: 'heart'
+      }, { onConflict: 'post_id,user_id' });
+    } else {
+      await sb.from('reactions').delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+    }
+  } catch(err){
+    console.warn('Reaction sync failed:', err);
+  }
+}
+4f — Wire follow suggestions to Supabase
+Replace the toggleFollow function:
+jsasync function toggleFollow(btn){
+  const isFollowing = btn.classList.contains('following');
+  btn.classList.toggle('following', !isFollowing);
+  btn.textContent = isFollowing ? 'Follow' : '✓ Following';
+
+  if(!currentUser) return;
+
+  const personEl = btn.closest('.follow-person');
+  const nameEl = personEl?.querySelector('.fp-name');
+  if(!nameEl) return;
+
+  // Look up user by username
+  try {
+    const { data: profile } = await sb.from('profiles').select('id').eq('username', nameEl.textContent.trim()).single();
+    if(!profile) return;
+
+    if(!isFollowing){
+      await sb.from('follows').upsert({ follower_id: currentUser.id, following_id: profile.id }, { onConflict: 'follower_id,following_id' });
+    } else {
+      await sb.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', profile.id);
+    }
+  } catch(err){
+    console.warn('Follow sync failed:', err);
+  }
+}
+4g — Add category column to posts table
+Add a new migration file supabase-migrations/005_posts_category.sql:
+sql-- Add category column to posts
+alter table public.posts
+  add column if not exists category text default 'nature' not null;
+
+-- Index for filtering
+create index if not exists posts_category_idx on public.posts(category);
+
+-- Add name column to profiles (used by Your Earth app)  
+alter table public.profiles
+  add column if not exists name text;
+
+update public.profiles set name = username where name is null;
+Run this migration in the Supabase dashboard SQL editor.
+4h — Replace the init block at the bottom
+js// FIND the existing init block:
+renderCatGrid();
+renderComposeCatPills('compose-cat-pills');
+renderCreateCatPills();
+renderCommunities();
+renderTrending();
+buildTicker();
+renderFeed(true);
+
+// REPLACE WITH:
+renderCatGrid();
+renderComposeCatPills('compose-cat-pills');
+renderCreateCatPills();
+renderCommunities();
+renderFollowSuggestions();
+renderTrending();
+buildTicker();
+// Load real feed from Supabase, fall back to mock if error
+initAuth();
+
+PART 5 — Also update CommunityFeedPage.tsx
+The posts table now has a category column. Also update the iframe filter to pass the active user session via postMessage in the future. For now, just ensure the iframe height is correct:
+tsx// Confirm client/src/pages/CommunityFeedPage.tsx has this (update if different):
+<div style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
+No other changes needed to CommunityFeedPage.tsx.
+
+VERIFY AFTER CHANGES
+
+Feed page loads without JS errors in console
+#sub-header search bar is fully visible below the React nav — no overlap
+Left sidebar Maps section shows only: Infrastructure Globe, Disaster Map, Electricity Map
+Right panel shows 4 widgets: Explore Topics, Communities, People to Follow, Upcoming Events, Trending Now
+People to Follow "Refresh" button cycles through suggestions
+Follow buttons toggle state
+On page load, Supabase is queried for real posts — if none exist yet, mock disaster data renders as fallback
+Compose modal "Post" button inserts to posts table when user is logged in
+Console shows Supabase feed error, falling back to mock data only if DB has no posts yet (expected until real posts are created)
+The migration SQL (005_posts_category.sql) is run in Supabase dashboard
