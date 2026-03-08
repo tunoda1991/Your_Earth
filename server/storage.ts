@@ -15,7 +15,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   // Posts
-  getPosts(opts: { category?: string; search?: string; groupId?: string; limit?: number; offset?: number }): Promise<{ posts: PostWithMeta[]; total: number }>;
+  getPosts(opts: { category?: string; search?: string; groupId?: string; limit?: number; offset?: number; sort?: "latest" | "oldest" }): Promise<{ posts: PostWithMeta[]; total: number }>;
   getPost(id: string, userName?: string): Promise<PostWithMeta | undefined>;
   createPost(data: Omit<FeedPost, "id" | "createdAt">): Promise<FeedPost>;
   deletePost(id: string): Promise<boolean>;
@@ -105,8 +105,8 @@ export class MemStorage implements IStorage {
   }
 
   // ── Posts ───────────────────────────────────────────────
-  async getPosts({ category, search, groupId, limit = 20, offset = 0 }: {
-    category?: string; search?: string; groupId?: string; limit?: number; offset?: number;
+  async getPosts({ category, search, groupId, limit = 20, offset = 0, sort = "latest" }: {
+    category?: string; search?: string; groupId?: string; limit?: number; offset?: number; sort?: "latest" | "oldest";
   }): Promise<{ posts: PostWithMeta[]; total: number }> {
     let arr = [...this._posts.values()];
     if (category && category !== "all") arr = arr.filter(p => p.category === category);
@@ -117,7 +117,9 @@ export class MemStorage implements IStorage {
     }
     arr.sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      return b.createdAt.getTime() - a.createdAt.getTime();
+      return sort === "oldest"
+        ? a.createdAt.getTime() - b.createdAt.getTime()
+        : b.createdAt.getTime() - a.createdAt.getTime();
     });
     const total = arr.length;
     const sliced = arr.slice(offset, offset + limit);

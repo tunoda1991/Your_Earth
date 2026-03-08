@@ -973,9 +973,9 @@ body{
   <div class="widget">
     <div class="widget-head"><div class="widget-title">Platform Stats</div><span class="widget-action">View Report</span></div>
     <div class="stat-grid-2x2">
-      <div class="stat-box"><div class="stat-num">152</div><div class="stat-lbl">Events Tracked</div></div>
-      <div class="stat-box"><div class="stat-num">72k</div><div class="stat-lbl">Members</div></div>
-      <div class="stat-box"><div class="stat-num">7</div><div class="stat-lbl">Categories</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-events">—</div><div class="stat-lbl">Events Tracked</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-members">—</div><div class="stat-lbl">Members</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-groups">—</div><div class="stat-lbl">Communities</div></div>
       <div class="stat-box"><div class="stat-num" id="stat-visible">—</div><div class="stat-lbl">Matching Feed</div></div>
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--gb-s);">
@@ -1237,6 +1237,17 @@ async function initAuth(){
   } catch(e){ /* supabase auth optional */ }
 
   await loadSupabaseFeed(true);
+  loadStats();
+}
+
+async function loadStats(){
+  try {
+    const data = await apiFetch('/api/feed/stats');
+    const el = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+    el('stat-events', data.events ?? '—');
+    el('stat-members', data.members ?? '—');
+    el('stat-groups', data.groups ?? '—');
+  } catch(e){ /* stats are non-critical */ }
 }
 
 async function loadSupabaseFeed(reset = false){
@@ -1254,6 +1265,7 @@ async function loadSupabaseFeed(reset = false){
     if(activeFilter !== 'all') params.set('category', activeFilter);
     params.set('limit', PAGE_SIZE);
     params.set('offset', currentPage * PAGE_SIZE);
+    if(!sortLatest) params.set('sort', 'oldest');
     const data = await apiFetch(`/api/feed/posts?${params}`);
     const posts = data.posts || [];
 

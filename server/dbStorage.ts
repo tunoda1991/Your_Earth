@@ -39,9 +39,9 @@ export class DatabaseStorage implements IStorage {
 
   async getPosts(opts: {
     category?: string; search?: string; groupId?: string;
-    limit?: number; offset?: number;
+    limit?: number; offset?: number; sort?: "latest" | "oldest";
   }): Promise<{ posts: PostWithMeta[]; total: number }> {
-    const { category, search, groupId, limit = 20, offset = 0 } = opts;
+    const { category, search, groupId, limit = 20, offset = 0, sort = "latest" } = opts;
 
     const conditions = [];
     if (category && category !== "all") conditions.push(eq(posts.category, category));
@@ -57,9 +57,10 @@ export class DatabaseStorage implements IStorage {
     const [{ total }] = await this.db
       .select({ total: count() }).from(posts).where(where);
 
+    const timeOrder = sort === "oldest" ? asc(posts.createdAt) : desc(posts.createdAt);
     const rows = await this.db.select().from(posts)
       .where(where)
-      .orderBy(desc(posts.pinned), desc(posts.createdAt))
+      .orderBy(desc(posts.pinned), timeOrder)
       .limit(limit)
       .offset(offset);
 

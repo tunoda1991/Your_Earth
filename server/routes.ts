@@ -82,11 +82,12 @@ export async function registerRoutes(
   app.get("/api/feed/posts", async (req, res) => {
     try {
       storage.setUserName(userName(req));
-      const { category, search, groupId, limit, offset } = req.query as Record<string, string>;
+      const { category, search, groupId, limit, offset, sort } = req.query as Record<string, string>;
       const result = await storage.getPosts({
         category, search, groupId,
         limit: limit ? parseInt(limit) : 20,
         offset: offset ? parseInt(offset) : 0,
+        sort: sort === "oldest" ? "oldest" : "latest",
       });
       res.json(result);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
