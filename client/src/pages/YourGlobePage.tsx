@@ -35,59 +35,50 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
   }, [dropdownOpen]);
 
   return (
-    <div className="w-full bg-[#050a14]" style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
-      {/* Floating map switcher */}
-      <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-50 flex items-center gap-1">
-        {/* Desktop: inline tabs */}
-        <div className="hidden md:flex items-center bg-black/70 backdrop-blur-xl rounded-full border border-white/10 p-1 shadow-2xl">
-          {MAPS.map((map) => {
-            const Icon = map.icon;
-            const isActive = map.id === activeMap;
-            return (
-              <button
-                key={map.id}
-                onClick={() => setActiveMap(map.id)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer ${
-                  isActive
-                    ? "bg-white/15 text-white shadow-inner"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/5"
-                }`}
-                title={map.description}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {map.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Mobile: dropdown */}
-        <div className="md:hidden relative">
+    <div className="relative w-full bg-[#050a14]" style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
+      <div className="absolute top-[92px] left-[160px] z-50">
+        <div className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
-            className="flex items-center gap-2 bg-black/70 backdrop-blur-xl rounded-full border border-white/10 px-4 py-2 text-white text-sm font-medium shadow-2xl cursor-pointer"
+            className="flex items-center gap-2 border border-[#1a2f45] px-4 py-[6px] text-[9px] font-medium tracking-[.18em] uppercase cursor-pointer transition-all duration-200"
+            style={{
+              background: "rgba(6,13,26,0.94)",
+              backdropFilter: "blur(8px)",
+              color: "#7ab3cc",
+              fontFamily: "'Courier New', monospace",
+            }}
           >
-            <current.icon className="w-4 h-4" />
+            <current.icon className="w-3.5 h-3.5" />
             {current.label}
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`w-3 h-3 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
           </button>
           {dropdownOpen && (
-            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden min-w-[200px]">
+            <div
+              className="absolute top-full mt-1 left-0 border border-[#1a2f45] overflow-hidden min-w-[220px]"
+              style={{
+                background: "rgba(6,13,26,0.97)",
+                backdropFilter: "blur(12px)",
+              }}
+            >
               {MAPS.map((map) => {
                 const Icon = map.icon;
+                const isActive = map.id === activeMap;
                 return (
                   <button
                     key={map.id}
                     onClick={() => { setActiveMap(map.id); setDropdownOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors cursor-pointer ${
-                      map.id === activeMap ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
-                    }`}
+                    className="w-full flex items-center gap-3 px-4 py-[8px] transition-colors cursor-pointer"
+                    style={{
+                      fontFamily: "'Courier New', monospace",
+                      fontSize: "9px",
+                      letterSpacing: ".18em",
+                      textTransform: "uppercase",
+                      color: isActive ? "#7ab3cc" : "#3a5a7a",
+                      background: isActive ? "rgba(122,179,204,0.12)" : "transparent",
+                    }}
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <div className="text-left">
-                      <div className="font-medium">{map.label}</div>
-                      <div className="text-[10px] text-white/40 leading-tight">{map.description}</div>
-                    </div>
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{map.label}</span>
                   </button>
                 );
               })}

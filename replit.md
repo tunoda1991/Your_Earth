@@ -25,11 +25,23 @@ Uses custom state-based routing via `currentPage` state + `switch` in `renderPag
 - `MarketplacePage`, `JobsPage`, `ProfilePage`, `DashboardPage`, etc.
 
 ## Standalone HTML Pages (in client/public/, served via iframe wrappers)
-- `renewables_map.html` - Renewable energy infrastructure (used by InfraMapPage)
+- `renewables_map.html` - Renewable energy infrastructure (used by InfraMapPage and YourGlobePage "Infrastructure")
 - `globe_map.html` - 3D WebGL global infrastructure map (power plants, renewables, industrial sites)
+- `globe_map_2d.html` - 2D canvas version of globe_map
+- `fossils_map.html` - Fossil fuel infrastructure map (not linked in YourGlobePage; reachable only via globe_map view-toggle)
 - `disasters.html` - 152 global climate disaster events on 3D/2D Cesium globe
-- `feed.html` - Community activity feed with glassmorphism theme, wired to Supabase backend via yeApi()
 - `electricity_map.html` - Live global electricity & carbon intensity map with Three.js globe, 40 live zones + 60+ static baseline zones, choropleth coloring, signal switcher (carbon/renewable/fossil), auto-refresh every 15 min
+- `emissions_map.html` - Climate TRACE emissions sources by sector & year
+- `user_network.html` - Global community connections on a 3D globe
+- `energy-map.html` - Leaflet-based energy map with color scale and size legends
+- `feed.html` - Community activity feed with glassmorphism theme, wired to Supabase backend via yeApi()
+
+### Map UI Conventions
+- All map HTML pages use `font-family: 'Courier New', monospace`, CSS variables `--bg:#050a14`, `--panel:rgba(6,13,26,0.94)`, `--border:#1a2f45`, `--accent:#7ab3cc`
+- Minimum font-size: 9px across all map files
+- `#header` at `top:44px; left:12px`, `#view-toggle` at `top:12px; left:12px; z-index:20`
+- Right panel widths: renewables/fossils/disasters/user_network = 220px; electricity = 300px; emissions = 290px
+- YourGlobePage.tsx uses a monospace-styled dropdown selector (not tabs) to switch between maps
 
 ## Backend API Proxy (server/routes.ts)
 - `GET /api/electricity-maps/carbon-intensity/:zone` - Proxies to Electricity Maps API with auth token from ELECTRICITY_MAPS_API_KEY env secret

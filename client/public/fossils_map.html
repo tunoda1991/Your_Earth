@@ -11,16 +11,14 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 canvas{display:block;}
 #canvas-2d{position:absolute;top:0;left:0;cursor:grab;display:none;}
 #canvas-2d:active{cursor:grabbing;}
-#header{position:fixed;top:0;left:0;right:220px;padding:18px 22px 0;pointer-events:none;z-index:10;}
+#header{position:fixed;top:44px;left:12px;right:220px;padding:0;pointer-events:none;z-index:10;}
 #header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;}
 #header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
 #view-toggle{position:fixed;top:12px;left:12px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
 #view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
 #view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
 #view-toggle button:hover:not(.active){color:var(--text);}
-#other-btn{position:fixed;bottom:18px;right:236px;padding:7px 16px;border:1px solid var(--border);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;background:var(--panel);color:var(--mid);cursor:pointer;z-index:20;text-transform:uppercase;}
-#other-btn:hover{border-color:var(--accent);color:var(--accent);}
-#citation{position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:7px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;opacity:.5;font-family:'Courier New',monospace;text-transform:uppercase;white-space:nowrap;}
+#citation{position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;opacity:.5;font-family:'Courier New',monospace;text-transform:uppercase;white-space:nowrap;}
 #rotate-btn{position:fixed;bottom:18px;left:22px;padding:7px 14px;border:1px solid var(--border);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;background:var(--panel);color:var(--mid);cursor:pointer;z-index:20;display:flex;align-items:center;gap:7px;text-transform:uppercase;}
 #rotate-btn:hover{border-color:var(--accent);color:var(--accent);}
 #rotate-btn.active{border-color:#4a9a7a;color:#4a9a7a;}
@@ -32,7 +30,7 @@ canvas{display:block;}
 #panel{position:fixed;top:0;right:0;bottom:0;width:220px;background:var(--panel);border-left:1px solid var(--border);backdrop-filter:blur(8px);display:flex;flex-direction:column;z-index:15;}
 #panel-head{padding:18px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
 #panel-head h2{font-size:9px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase;font-weight:400;}
-#toggle-all{font-size:8px;letter-spacing:.12em;color:var(--dim);background:none;border:1px solid var(--border);font-family:'Courier New',monospace;padding:3px 8px;cursor:pointer;text-transform:uppercase;}
+#toggle-all{font-size:9px;letter-spacing:.12em;color:var(--dim);background:none;border:1px solid var(--border);font-family:'Courier New',monospace;padding:3px 8px;cursor:pointer;text-transform:uppercase;}
 #toggle-all:hover{border-color:var(--accent);color:var(--accent);}
 #panel-scroll{overflow-y:auto;flex:1;padding:4px 0 16px;}
 #panel-scroll::-webkit-scrollbar{width:3px;}
@@ -40,7 +38,7 @@ canvas{display:block;}
 .sec-wrap{border-top:1px solid var(--border);margin-top:4px;}
 .sec-wrap:first-child{border-top:none;margin-top:0;}
 .sec{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 5px;cursor:pointer;user-select:none;}
-.sec-label{font-size:8px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;}
+.sec-label{font-size:9px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;}
 .sec-tog{font-size:9px;color:var(--dim);transition:color .15s;padding:0 2px;}
 .sec-wrap:hover .sec-tog{color:var(--accent);}
 .sec-wrap.collapsed .row,.sec-wrap.collapsed .sub-wrap{display:none;}
@@ -56,7 +54,7 @@ canvas{display:block;}
 .row:not(.off) .tog{background:rgba(122,179,204,.3);}
 .row:not(.off) .tog::after{transform:translateX(12px);background:var(--accent);}
 #tooltip{position:fixed;pointer-events:none;background:rgba(4,9,20,.96);border:1px solid var(--border);padding:11px 15px;font-size:11px;display:none;z-index:30;max-width:240px;}
-.tt-cat{font-size:8px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:4px;}
+.tt-cat{font-size:9px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:4px;}
 .tt-name{color:#d8eef8;font-size:11px;margin-bottom:2px;}
 .tt-row{font-size:9px;display:flex;gap:6px;}.tt-label{color:var(--dim);min-width:52px;}.tt-val{color:#8abdd8;}
 #loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;}
@@ -66,8 +64,8 @@ canvas{display:block;}
 .sub-wrap{border-top:1px solid rgba(26,47,69,0.5);margin-top:2px;}
 .sub-wrap:first-of-type{border-top:none;}
 .sub-head{display:flex;align-items:center;justify-content:space-between;padding:5px 16px 3px 22px;cursor:pointer;user-select:none;}
-.sub-label{font-size:7.5px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;opacity:.75;}
-.sub-tog{font-size:8px;color:var(--dim);padding:0 2px;}
+.sub-label{font-size:9px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;opacity:.75;}
+.sub-tog{font-size:9px;color:var(--dim);padding:0 2px;}
 .sub-wrap.collapsed .row{display:none;}
 .sub-wrap.sub-off .sub-label{opacity:.3;}
 .row.sub-row{padding-left:28px;}
@@ -78,7 +76,6 @@ canvas{display:block;}
 <canvas id="canvas-2d"></canvas>
 <div id="header"><h1>Fossil & Industrial Footprint</h1><p id="sub">Fossil & Industry · 3D Globe</p></div>
 <div id="view-toggle"><button id="view-btn-globe" class="active">Globe</button><button id="view-btn-flat">2D Map</button></div>
-<button id="other-btn" onclick="location.href='renewables_map.html'">⬡ RENEWABLES MAP</button>
 <button id="rotate-btn"><span class="dot"></span><span id="rotate-label">AUTO ROTATE</span></button>
 <div id="map-controls"><button id="zoom-in">+ Zoom</button><button id="zoom-out">− Zoom</button><button id="reset-v">Reset</button></div>
 <div id="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
