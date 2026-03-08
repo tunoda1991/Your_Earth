@@ -36,9 +36,7 @@ import {
   LineChart,
   Plane,
   Globe,
-    AlertTriangle,
     MessageCircle,
-    Network,
     Newspaper
   } from "lucide-react";
 
@@ -137,48 +135,12 @@ export function Navigation({ onNavigate, user, currentPage, onLogout }: Navigati
     },
     {
       icon: Globe,
-      title: "Infrastructure Map",
-      description: "Global power plants, renewables & industrial sites",
-      page: "learn-infra-map",
+      title: "Your Globe",
+      description: "Interactive maps: infrastructure, disasters, electricity, emissions & network",
+      page: "your-globe",
       color: "text-teal-500",
       bgColor: "bg-teal-500/10",
       borderColor: "border-teal-500/20"
-    },
-    {
-      icon: AlertTriangle,
-      title: "Disaster Map",
-      description: "152 global climate disasters & extreme events",
-      page: "learn-disaster-map",
-      color: "text-orange-400",
-      bgColor: "bg-orange-400/10",
-      borderColor: "border-orange-400/20"
-    },
-    {
-      icon: Zap,
-      title: "Live Electricity Map",
-      description: "Real-time global carbon intensity & electricity mix",
-      page: "learn-electricity-map",
-      color: "text-yellow-400",
-      bgColor: "bg-yellow-400/10",
-      borderColor: "border-yellow-400/20"
-    },
-    {
-      icon: BarChart3,
-      title: "Emissions Map",
-      description: "Climate TRACE emissions sources by sector & year",
-      page: "learn-emissions-map",
-      color: "text-rose-400",
-      bgColor: "bg-rose-400/10",
-      borderColor: "border-rose-400/20"
-    },
-    {
-      icon: Network,
-      title: "User Network",
-      description: "Global community connections on a 3D globe",
-      page: "learn-user-network",
-      color: "text-indigo-400",
-      bgColor: "bg-indigo-400/10",
-      borderColor: "border-indigo-400/20"
     }
   ];
 

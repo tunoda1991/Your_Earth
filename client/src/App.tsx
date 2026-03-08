@@ -46,12 +46,8 @@ import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { TermsOfServicePage } from "./pages/TermsOfServicePage";
 import { ClimateDataDashboardPage } from './pages/ClimateDataDashboardPage';
 import { TopicPage } from './pages/TopicPage';
-import { InfraMapPage } from './pages/InfraMapPage';
-import { DisasterMapPage } from './pages/DisasterMapPage';
 import { CommunityFeedPage } from './pages/CommunityFeedPage';
-import { ElectricityMapPage } from './pages/ElectricityMapPage';
-import { EmissionsMapPage } from './pages/EmissionsMapPage';
-import { UserNetworkPage } from './pages/UserNetworkPage';
+import { YourGlobePage } from './pages/YourGlobePage';
 import { ConnectPage } from './pages/ConnectPage';
 import { ConnectSectorPage } from './pages/ConnectSectorPage';
 import { ConnectArticlePage } from './pages/ConnectArticlePage';
@@ -84,12 +80,8 @@ export default function App() {
       'profile': 'Profile - Your Earth',
       'dashboard': 'Dashboard - Your Earth',
       'settings': 'Settings - Your Earth',
-      'learn-infra-map': 'Infrastructure Map - Your Earth',
-      'learn-disaster-map': 'Disaster Map - Your Earth',
+      'your-globe': 'Your Globe - Your Earth',
       'community-feed': 'Community Feed - Your Earth',
-      'learn-electricity-map': 'Live Electricity Map - Your Earth',
-      'learn-emissions-map': 'Emissions Map - Your Earth',
-      'learn-user-network': 'User Network - Your Earth',
       'connect': 'Connect - Climate News - Your Earth',
       'connect-sector': 'Sector News - Your Earth',
       'connect-article': 'Article - Your Earth',
@@ -243,10 +235,8 @@ export default function App() {
         return <ProtectedRoute user={user} onNavigate={handleNavigate}><DashboardPage user={user} onNavigate={handleNavigate} /></ProtectedRoute>;
       case 'settings':
         return <ProtectedRoute user={user} onNavigate={handleNavigate}><SettingsPage user={user} onNavigate={handleNavigate} /></ProtectedRoute>;
-      case 'learn-infra-map':
-        return <InfraMapPage onNavigate={handleNavigate} />;
-      case 'learn-disaster-map':
-        return <DisasterMapPage onNavigate={handleNavigate} />;
+      case 'your-globe':
+        return <YourGlobePage onNavigate={handleNavigate} />;
       case 'community-feed':
         return <CommunityFeedPage onNavigate={handleNavigate} user={user} />;
       case 'about':
@@ -263,12 +253,6 @@ export default function App() {
         return <ClimateDataDashboardPage onNavigate={handleNavigate} user={user} />;
       case 'topic':
         return <TopicPage onNavigate={handleNavigate} user={user} topicData={selectedTopic} />;
-      case 'learn-electricity-map':
-        return <ElectricityMapPage onNavigate={handleNavigate} />;
-      case 'learn-emissions-map':
-        return <EmissionsMapPage onNavigate={handleNavigate} />;
-      case 'learn-user-network':
-        return <UserNetworkPage onNavigate={handleNavigate} />;
       case 'connect':
         return <ConnectPage onNavigate={handleNavigate} user={user} onSectorClick={handleConnectSectorClick} onArticleClick={handleConnectArticleClick} />;
       case 'connect-sector':
