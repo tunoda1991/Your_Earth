@@ -52,6 +52,9 @@ import { CommunityFeedPage } from './pages/CommunityFeedPage';
 import { ElectricityMapPage } from './pages/ElectricityMapPage';
 import { EmissionsMapPage } from './pages/EmissionsMapPage';
 import { UserNetworkPage } from './pages/UserNetworkPage';
+import { ConnectPage } from './pages/ConnectPage';
+import { ConnectSectorPage } from './pages/ConnectSectorPage';
+import { ConnectArticlePage } from './pages/ConnectArticlePage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import type { AppUser, TopicData } from './types/app';
 
@@ -67,8 +70,9 @@ export default function App() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState<TopicData | null>(null);
+  const [selectedConnectSector, setSelectedConnectSector] = useState<string | null>(null);
+  const [selectedConnectArticle, setSelectedConnectArticle] = useState<string | null>(null);
 
-  // Update page title helper
   const updatePageTitle = (page: string) => {
     const titles: Record<string, string> = {
       'home': 'Your Earth - Climate Action Platform',
@@ -86,6 +90,9 @@ export default function App() {
       'learn-electricity-map': 'Live Electricity Map - Your Earth',
       'learn-emissions-map': 'Emissions Map - Your Earth',
       'learn-user-network': 'User Network - Your Earth',
+      'connect': 'Connect - Climate News - Your Earth',
+      'connect-sector': 'Sector News - Your Earth',
+      'connect-article': 'Article - Your Earth',
     };
     document.title = titles[page] || 'Your Earth';
   };
@@ -150,6 +157,16 @@ export default function App() {
   const handleTopicClick = (topicData: TopicData) => {
     setSelectedTopic(topicData);
     handleNavigate('topic');
+  };
+
+  const handleConnectSectorClick = (slug: string) => {
+    setSelectedConnectSector(slug);
+    handleNavigate('connect-sector');
+  };
+
+  const handleConnectArticleClick = (id: string) => {
+    setSelectedConnectArticle(id);
+    handleNavigate('connect-article');
   };
 
   const handleAuthSuccess = (userData: AppUser) => {
@@ -252,6 +269,12 @@ export default function App() {
         return <EmissionsMapPage onNavigate={handleNavigate} />;
       case 'learn-user-network':
         return <UserNetworkPage onNavigate={handleNavigate} />;
+      case 'connect':
+        return <ConnectPage onNavigate={handleNavigate} user={user} onSectorClick={handleConnectSectorClick} onArticleClick={handleConnectArticleClick} />;
+      case 'connect-sector':
+        return <ConnectSectorPage sectorSlug={selectedConnectSector || undefined} onNavigate={handleNavigate} onArticleClick={handleConnectArticleClick} user={user} />;
+      case 'connect-article':
+        return <ConnectArticlePage articleId={selectedConnectArticle || undefined} onNavigate={handleNavigate} onArticleClick={handleConnectArticleClick} user={user} />;
       default:
         return <HomePage onNavigate={handleNavigate} user={user} />;
     }

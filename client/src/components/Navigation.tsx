@@ -36,10 +36,11 @@ import {
   LineChart,
   Plane,
   Globe,
-  AlertTriangle,
-  MessageCircle,
-  Network
-} from "lucide-react";
+    AlertTriangle,
+    MessageCircle,
+    Network,
+    Newspaper
+  } from "lucide-react";
 
 interface NavigationProps {
   onNavigate?: (page: string) => void;
@@ -182,6 +183,15 @@ export function Navigation({ onNavigate, user, currentPage, onLogout }: Navigati
   ];
 
   const communityCategories = [
+    {
+      icon: Newspaper,
+      title: "Connect",
+      description: "AI-curated climate news and insights",
+      page: "connect",
+      color: "text-cyan-500",
+      bgColor: "bg-cyan-500/10",
+      borderColor: "border-cyan-500/20"
+    },
     {
       icon: MessageCircle,
       title: "Feed",
