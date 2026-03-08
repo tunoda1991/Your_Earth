@@ -13,29 +13,12 @@ const RSS_FEEDS = [
   { url: "https://insideclimatenews.org/feed/", source_name: "Inside Climate News", source_type: "news" },
   { url: "https://cleantechnica.com/feed/", source_name: "CleanTechnica", source_type: "news" },
   { url: "https://electrek.co/feed/", source_name: "Electrek", source_type: "news" },
-  { url: "https://www.ecowatch.com/feed", source_name: "EcoWatch", source_type: "news" },
   { url: "https://grist.org/feed/", source_name: "Grist", source_type: "news" },
-  { url: "https://www.renewableenergyworld.com/feed/", source_name: "Renewable Energy World", source_type: "news" },
-  { url: "https://www.greentechmedia.com/feed", source_name: "GreenTech Media", source_type: "news" },
-  { url: "https://www.desmog.com/feed/", source_name: "DeSmog", source_type: "news" },
-  { url: "https://theenergymix.com/feed/", source_name: "The Energy Mix", source_type: "news" },
   { url: "https://www.canarymedia.com/feed", source_name: "Canary Media", source_type: "news" },
   { url: "https://climatechangenews.com/feed/", source_name: "Climate Home News", source_type: "news" },
-  { url: "https://www.greenbiz.com/feed", source_name: "GreenBiz", source_type: "news" },
 ];
 
-const GNEWS_QUERIES = [
-  "climate change",
-  "renewable energy solar wind",
-  "electric vehicle EV",
-  "carbon emissions net zero",
-  "biodiversity conservation",
-  "sustainable agriculture food",
-  "climate policy COP",
-  "green hydrogen",
-  "deforestation forest",
-  "ocean pollution plastic",
-];
+const GNEWS_QUERIES = ["climate change", "renewable energy"];
 
 interface RawArticle {
   title: string;
@@ -44,6 +27,16 @@ interface RawArticle {
   pubDate: string;
   source_name: string;
   source_type: string;
+}
+
+function fetchWithTimeout(url: string, opts: RequestInit = {}, ms = 4000): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    fetch(url, opts).then(
+      (res) => { clearTimeout(timer); resolve(res); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
 }
 
 function extractTag(xml: string, tag: string): string {
@@ -56,23 +49,16 @@ function extractTag(xml: string, tag: string): string {
 }
 
 function isValidTitle(title: string): boolean {
-  if (!title || title.length < 15) return false;
-  if (title.length > 300) return false;
+  if (!title || title.length < 15 || title.length > 300) return false;
   const upperRatio = (title.match(/[A-Z]/g) || []).length / title.length;
-  if (upperRatio > 0.7 && title.length > 20) return false;
-  return true;
+  return !(upperRatio > 0.7 && title.length > 20);
 }
 
 function isRecent(pubDate: string, maxAgeDays = 7): boolean {
   if (!pubDate) return true;
   const parsed = new Date(pubDate);
   if (isNaN(parsed.getTime())) return true;
-  const ageDays = (Date.now() - parsed.getTime()) / (1000 * 60 * 60 * 24);
-  return ageDays <= maxAgeDays;
-}
-
-function hasSubstantiveContent(desc: string): boolean {
-  return desc.length >= 30;
+  return (Date.now() - parsed.getTime()) / (1000 * 60 * 60 * 24) <= maxAgeDays;
 }
 
 const CLIMATE_KEYWORDS = [
@@ -106,26 +92,23 @@ function deduplicateArticles(articles: RawArticle[]): RawArticle[] {
   for (const a of articles) {
     if (seen.has(a.link)) continue;
     seen.add(a.link);
-    const isDuplicate = kept.some((k) => titleSimilarity(k.title, a.title) > 0.75);
-    if (isDuplicate) continue;
+    if (kept.some((k) => titleSimilarity(k.title, a.title) > 0.75)) continue;
     kept.push(a);
   }
   return kept;
 }
 
 async function fetchRSSArticles(): Promise<RawArticle[]> {
-  const allArticles: RawArticle[] = [];
   const results = await Promise.allSettled(
     RSS_FEEDS.map(async (feed) => {
       try {
-        const resp = await fetch(feed.url, {
+        const resp = await fetchWithTimeout(feed.url, {
           headers: { "User-Agent": "ClimateScope/1.0" },
-          signal: AbortSignal.timeout(10000),
-        });
+        }, 4000);
         if (!resp.ok) return [];
         const xml = await resp.text();
         const items = xml.split(/<item[\s>]/i).slice(1);
-        return items.slice(0, 10).map((item) => ({
+        return items.slice(0, 5).map((item) => ({
           title: extractTag(item, "title"),
           link: extractTag(item, "link") || extractTag(item, "guid"),
           description: extractTag(item, "description").slice(0, 500),
@@ -133,12 +116,12 @@ async function fetchRSSArticles(): Promise<RawArticle[]> {
           source_name: feed.source_name,
           source_type: feed.source_type,
         })).filter((a) => a.title && a.link);
-      } catch (e) {
-        console.warn(`Failed to fetch ${feed.source_name}:`, e);
+      } catch {
         return [];
       }
     })
   );
+  const allArticles: RawArticle[] = [];
   for (const result of results) {
     if (result.status === "fulfilled") allArticles.push(...result.value);
   }
@@ -146,28 +129,31 @@ async function fetchRSSArticles(): Promise<RawArticle[]> {
 }
 
 async function fetchGNewsArticles(apiKey: string): Promise<RawArticle[]> {
-  const allArticles: RawArticle[] = [];
-  for (const query of GNEWS_QUERIES) {
-    try {
-      const resp = await fetch(
-        `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=10&apikey=${apiKey}`,
-        { signal: AbortSignal.timeout(10000) }
-      );
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      for (const a of data.articles || []) {
-        allArticles.push({
+  const results = await Promise.allSettled(
+    GNEWS_QUERIES.map(async (query) => {
+      try {
+        const resp = await fetchWithTimeout(
+          `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=5&apikey=${apiKey}`,
+          {}, 4000,
+        );
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        return (data.articles || []).map((a: any) => ({
           title: a.title,
           link: a.url,
           description: a.description || a.content || "",
           pubDate: a.publishedAt,
           source_name: a.source?.name || "GNews",
-          source_type: "news",
-        });
+          source_type: "news" as const,
+        }));
+      } catch {
+        return [];
       }
-    } catch (e) {
-      console.warn(`GNews "${query}" failed:`, e);
-    }
+    })
+  );
+  const allArticles: RawArticle[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled") allArticles.push(...r.value);
   }
   return allArticles;
 }
@@ -177,6 +163,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  const MAX_WALL_MS = 50000;
+
   try {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
@@ -185,44 +174,39 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log("Fetching RSS feeds...");
-    const rssArticles = await fetchRSSArticles();
-    console.log(`Got ${rssArticles.length} RSS articles`);
+    console.log("Fetching articles...");
+    const [rssArticles, gnewsArticles] = await Promise.all([
+      fetchRSSArticles(),
+      Deno.env.get("GNEWS_API_KEY") ? fetchGNewsArticles(Deno.env.get("GNEWS_API_KEY")!) : Promise.resolve([]),
+    ]);
+    console.log(`RSS: ${rssArticles.length}, GNews: ${gnewsArticles.length}`);
 
-    const gnewsKey = Deno.env.get("GNEWS_API_KEY");
-    let gnewsArticles: RawArticle[] = [];
-    if (gnewsKey) {
-      console.log("Fetching GNews...");
-      gnewsArticles = await fetchGNewsArticles(gnewsKey);
-      console.log(`Got ${gnewsArticles.length} GNews articles`);
-    }
-
-    let allRaw = [...rssArticles, ...gnewsArticles];
-    allRaw = allRaw.filter((a) => isValidTitle(a.title));
-    allRaw = allRaw.filter((a) => isRecent(a.pubDate));
-    allRaw = allRaw.filter((a) => hasSubstantiveContent(a.description));
-    allRaw = allRaw.filter((a) => isClimateRelevant(a.title, a.description));
+    let allRaw = [...rssArticles, ...gnewsArticles]
+      .filter((a) => isValidTitle(a.title))
+      .filter((a) => isRecent(a.pubDate))
+      .filter((a) => a.description.length >= 30)
+      .filter((a) => isClimateRelevant(a.title, a.description));
     allRaw = deduplicateArticles(allRaw);
 
     if (allRaw.length === 0) {
-      return new Response(JSON.stringify({ error: "No articles passed quality filters" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ success: true, inserted: 0, message: "No articles passed filters" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const urls = allRaw.map((a) => a.link);
-    const { data: existing } = await supabase.from("articles").select("source_url, title").in("source_url", urls);
+    const { data: existing } = await supabase.from("articles").select("source_url").in("source_url", urls);
     const existingUrls = new Set((existing || []).map((e: any) => e.source_url));
 
     const { data: recentDbArticles } = await supabase
       .from("articles").select("title")
       .gte("published_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order("published_at", { ascending: false }).limit(500);
+      .order("published_at", { ascending: false }).limit(300);
     const dbTitles = (recentDbArticles || []).map((r: any) => r.title);
 
     allRaw = allRaw.filter((a) => {
       if (existingUrls.has(a.link)) return false;
-      return !dbTitles.some((dbTitle: string) => titleSimilarity(dbTitle, a.title) > 0.7);
+      return !dbTitles.some((t: string) => titleSimilarity(t, a.title) > 0.7);
     });
 
     if (allRaw.length === 0) {
@@ -230,6 +214,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    allRaw = allRaw.slice(0, 30);
 
     const BATCH_SIZE = 15;
     const sectorImages: Record<string, string> = {
@@ -245,120 +231,86 @@ serve(async (req) => {
     let totalInserted = 0;
 
     for (let i = 0; i < allRaw.length; i += BATCH_SIZE) {
+      if (Date.now() - startTime > MAX_WALL_MS) {
+        console.log("Approaching wall clock limit, stopping early");
+        break;
+      }
+
       const batch = allRaw.slice(i, i + BATCH_SIZE);
       const articleSummaries = batch.map((a, idx) =>
-        `[${idx}] "${a.title}" — ${a.description.slice(0, 200)}`
+        `[${idx}] "${a.title}" — ${a.description.slice(0, 150)}`
       ).join("\n");
 
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gemini-2.0-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content: `You are a climate news analyst and quality filter. For each article, provide:
-- A concise 2-3 sentence summary focusing on the key climate impact or development
-- Sector: energy, mobility, food, industry, technology, policy, or nature
-- Sentiment: positive, neutral, or negative
-- Region: specific country/region (e.g. "US", "EU", "China", "Global")
-- trending: true only for genuinely significant breaking stories
-- relevance_score: 1-10 rating of how relevant and important this is for climate-aware readers
+      try {
+        const response = await fetchWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: `You are a climate news analyst. Analyze each article and return a JSON object with an "articles" array.
 
-Use the enrich_articles tool.`,
-            },
-            { role: "user", content: `Analyze these climate news articles:\n\n${articleSummaries}` },
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "enrich_articles",
-              description: "Return enriched metadata for each article",
-              parameters: {
-                type: "object",
-                properties: {
-                  articles: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        index: { type: "number" },
-                        summary: { type: "string" },
-                        sector: { type: "string", enum: ["energy", "mobility", "food", "industry", "technology", "policy", "nature"] },
-                        sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
-                        region: { type: "string" },
-                        trending: { type: "boolean" },
-                        relevance_score: { type: "number" },
-                      },
-                      required: ["index", "summary", "sector", "sentiment", "region", "trending", "relevance_score"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["articles"],
-                additionalProperties: false,
+For each article provide: index (number), summary (2-3 sentences on climate impact), sector (one of: energy, mobility, food, industry, technology, policy, nature), sentiment (positive/neutral/negative), region (e.g. "US", "EU", "Global"), trending (boolean, true only for major breaking stories), relevance_score (1-10).
+
+Articles:
+${articleSummaries}
+
+Respond with ONLY valid JSON.` }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.2,
               },
-            },
-          }],
-          tool_choice: { type: "function", function: { name: "enrich_articles" } },
-        }),
-      });
+            }),
+          },
+          20000,
+        );
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          await new Promise((r) => setTimeout(r, 10000));
-          i -= BATCH_SIZE;
+        if (!response.ok) {
+          console.error(`Gemini ${response.status}: ${await response.text().catch(() => "")}`);
+          if (response.status === 429) {
+            await new Promise((r) => setTimeout(r, 3000));
+            i -= BATCH_SIZE;
+          }
           continue;
         }
-        if (response.status === 402) break;
-        continue;
-      }
 
-      const aiData = await response.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (!toolCall) continue;
+        const aiData = await response.json();
+        const text = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) { console.warn("Empty Gemini response"); continue; }
 
-      const parsed = JSON.parse(toolCall.function.arguments);
-      const enriched = parsed.articles || [];
-      const qualityFiltered = enriched.filter((e: any) => (e.relevance_score ?? 5) >= 5);
+        let parsed: any;
+        try { parsed = JSON.parse(text); } catch { console.warn("Bad JSON:", text.slice(0, 100)); continue; }
+        const enriched = (parsed.articles || []).filter((e: any) => (e.relevance_score ?? 5) >= 5);
 
-      const articlesToInsert = qualityFiltered.map((e: any) => {
-        const raw = batch[e.index];
-        if (!raw) return null;
-        return {
-          title: raw.title,
-          summary: e.summary,
-          sector: e.sector,
-          source_url: raw.link,
-          source_name: raw.source_name,
-          source_type: raw.source_type,
-          image_url: sectorImages[e.sector] || sectorImages.nature,
-          sentiment: e.sentiment,
-          trending: e.trending || false,
-          region: e.region || "Global",
-          published_at: raw.pubDate ? new Date(raw.pubDate).toISOString() : new Date().toISOString(),
-        };
-      }).filter(Boolean);
+        const articlesToInsert = enriched.map((e: any) => {
+          const raw = batch[e.index];
+          if (!raw) return null;
+          return {
+            title: raw.title,
+            summary: e.summary,
+            sector: e.sector,
+            source_url: raw.link,
+            source_name: raw.source_name,
+            source_type: raw.source_type,
+            image_url: sectorImages[e.sector] || sectorImages.nature,
+            sentiment: e.sentiment,
+            trending: e.trending || false,
+            region: e.region || "Global",
+            published_at: raw.pubDate ? new Date(raw.pubDate).toISOString() : new Date().toISOString(),
+          };
+        }).filter(Boolean);
 
-      if (articlesToInsert.length > 0) {
-        const { data, error } = await supabase.from("articles").insert(articlesToInsert).select();
-        if (error) {
-          console.error("Insert error:", error);
-        } else {
-          totalInserted += data?.length || 0;
+        if (articlesToInsert.length > 0) {
+          const { data, error } = await supabase.from("articles").insert(articlesToInsert).select();
+          if (error) console.error("Insert error:", error);
+          else totalInserted += data?.length || 0;
         }
-      }
-
-      if (i + BATCH_SIZE < allRaw.length) {
-        await new Promise((r) => setTimeout(r, 2000));
+      } catch (err) {
+        console.error("Batch error:", err);
       }
     }
 
-    return new Response(JSON.stringify({ success: true, inserted: totalInserted }), {
+    return new Response(JSON.stringify({ success: true, inserted: totalInserted, elapsed_ms: Date.now() - startTime }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

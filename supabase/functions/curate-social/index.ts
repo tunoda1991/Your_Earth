@@ -164,65 +164,31 @@ serve(async (req) => {
         .map((p, idx) => `[${idx}] [${p.platform}] u/${p.author} on ${p.source_name}: "${p.title}" — ${p.text.slice(0, 200)} (score: ${p.score})`)
         .join("\n");
 
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gemini-2.0-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content: `You are a climate social media analyst. For each social post, provide:
-- A concise 1-2 sentence summary of the climate relevance
-- Sector: energy, mobility, food, industry, technology, policy, or nature
-- Sentiment: positive, neutral, or negative
-- Region: country/region or "Global"
-- trending: true if score > 50, false otherwise
+          contents: [{ role: "user", parts: [{ text: `You are a climate social media analyst. Analyze each post and return a JSON object with a "posts" array.
 
-Use the enrich_posts tool.`,
-            },
-            { role: "user", content: `Analyze these climate-related social media posts:\n\n${postSummaries}` },
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "enrich_posts",
-              description: "Return enriched metadata for each social post",
-              parameters: {
-                type: "object",
-                properties: {
-                  posts: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        index: { type: "number" },
-                        summary: { type: "string" },
-                        sector: { type: "string", enum: ["energy", "mobility", "food", "industry", "technology", "policy", "nature"] },
-                        sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
-                        region: { type: "string" },
-                        trending: { type: "boolean" },
-                      },
-                      required: ["index", "summary", "sector", "sentiment", "region", "trending"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["posts"],
-                additionalProperties: false,
-              },
-            },
-          }],
-          tool_choice: { type: "function", function: { name: "enrich_posts" } },
+For each post provide: index (number), summary (1-2 sentences on climate relevance), sector (one of: energy, mobility, food, industry, technology, policy, nature), sentiment (positive/neutral/negative), region (country/region or "Global"), trending (boolean, true if score > 50).
+
+Posts to analyze:
+${postSummaries}
+
+Respond with ONLY valid JSON, no markdown.` }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+          },
         }),
+        signal: AbortSignal.timeout(30000),
       });
 
       if (!response.ok) {
+        const errText = await response.text();
+        console.error(`Gemini error ${response.status}:`, errText);
         if (response.status === 429) {
-          await new Promise((r) => setTimeout(r, 10000));
+          await new Promise((r) => setTimeout(r, 5000));
           i -= BATCH_SIZE;
           continue;
         }
@@ -230,10 +196,11 @@ Use the enrich_posts tool.`,
       }
 
       const aiData = await response.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (!toolCall) continue;
+      const text = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) { console.warn("No text in Gemini response"); continue; }
 
-      const parsed = JSON.parse(toolCall.function.arguments);
+      let parsed: any;
+      try { parsed = JSON.parse(text); } catch { console.warn("Failed to parse Gemini JSON:", text.slice(0, 200)); continue; }
       const enriched = parsed.posts || [];
 
       const articlesToInsert = enriched.map((e: any) => {
