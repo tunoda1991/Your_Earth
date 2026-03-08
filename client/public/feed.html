@@ -1132,11 +1132,11 @@ body{
     <div class="modal-body">
       <div class="form-row">
         <div class="form-label">Community Name</div>
-        <input class="form-input" type="text" placeholder="e.g. HBS Energy Club, Climate Reality Berlin, MIT Sustainability…">
+        <input class="form-input" id="cc-name" type="text" placeholder="e.g. HBS Energy Club, Climate Reality Berlin, MIT Sustainability…">
       </div>
       <div class="form-row">
         <div class="form-label">Description</div>
-        <textarea class="form-input form-textarea" placeholder="What is this community about? Who should join? What actions do you take?"></textarea>
+        <textarea class="form-input form-textarea" id="cc-desc" placeholder="What is this community about? Who should join? What actions do you take?"></textarea>
       </div>
       <div class="form-row">
         <div class="form-label">Primary Topic Category</div>
@@ -1159,7 +1159,7 @@ body{
       </div>
       <div class="form-row">
         <div class="form-label">Admin / Organiser Name</div>
-        <input class="form-input" type="text" placeholder="Your name or organisation">
+        <input class="form-input" type="text" id="cc-admin" placeholder="Your name or organisation">
       </div>
       <div class="form-row">
         <div class="form-label">Contact Email</div>
@@ -1167,7 +1167,7 @@ body{
       </div>
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
         <button class="btn-ghost" onclick="closeModal('modal-create-community')">Cancel</button>
-        <button class="btn-primary" onclick="closeModal('modal-create-community')">
+        <button class="btn-primary" onclick="submitCreateCommunity()">
           🌱 Create Community
         </button>
       </div>
@@ -1198,21 +1198,44 @@ const SUPABASE_STORAGE = `${SUPABASE_URL}/storage/v1/object/public`;
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 
+// ── Express API helpers ──
+let feedUserName = localStorage.getItem('feedDisplayName') || '';
+function apiHeaders(){ return { 'Content-Type':'application/json', 'X-User-Name': feedUserName }; }
+
+async function apiFetch(url, opts={}){
+  const res = await fetch(url, { ...opts, headers: { ...apiHeaders(), ...(opts.headers||{}) } });
+  if(!res.ok) throw new Error((await res.json().catch(()=>({}))).error || res.statusText);
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
+}
+
 async function initAuth(){
-  const { data: { session } } = await sb.auth.getSession();
-  if(session?.user){
-    currentUser = session.user;
-    // Fetch profile
-    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-    if(profile){
-      // Update compose box and user card with real name/avatar
-      const initials = (profile.username || 'YE').slice(0,2).toUpperCase();
-      document.querySelectorAll('.compose-avatar, .sb-user-av').forEach(el => el.textContent = initials);
-      const nameEl = document.querySelector('.sb-user-name');
-      if(nameEl) nameEl.textContent = profile.username || 'You';
-    }
+  // Prompt for display name if not set
+  if(!feedUserName){
+    feedUserName = prompt('Enter your display name for the community feed:') || 'Guest';
+    localStorage.setItem('feedDisplayName', feedUserName);
   }
-  // Always load feed regardless of auth state
+  const initials = feedUserName.slice(0,2).toUpperCase();
+  document.querySelectorAll('.compose-avatar, .sb-user-av').forEach(el => el.textContent = initials);
+  const nameEl = document.querySelector('.sb-user-name');
+  if(nameEl) nameEl.textContent = feedUserName;
+
+  // Try Supabase auth too
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if(session?.user){
+      currentUser = session.user;
+      const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+      if(profile){
+        const i2 = (profile.username || 'YE').slice(0,2).toUpperCase();
+        document.querySelectorAll('.compose-avatar, .sb-user-av').forEach(el => el.textContent = i2);
+        const n2 = document.querySelector('.sb-user-name');
+        if(n2) n2.textContent = profile.username || feedUserName;
+        if(profile.username) feedUserName = profile.username;
+      }
+    }
+  } catch(e){ /* supabase auth optional */ }
+
   await loadSupabaseFeed(true);
 }
 
@@ -1225,42 +1248,37 @@ async function loadSupabaseFeed(reset = false){
     container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-38);font-size:13px;">Loading posts…</div>';
   }
 
+  // ── Try Express API first ──
   try {
-    let query = sb
-      .from('posts')
-      .select(`
-        id, content, image_url, created_at, category,
-        profiles:user_id ( id, username, avatar_url )
-      `)
-      .order('created_at', { ascending: false })
-      .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
-
-    if(activeFilter !== 'all') query = query.eq('category', activeFilter);
-
-    const { data: posts, error } = await query;
-
-    if(error) throw error;
+    const params = new URLSearchParams();
+    if(activeFilter !== 'all') params.set('category', activeFilter);
+    params.set('limit', PAGE_SIZE);
+    params.set('offset', currentPage * PAGE_SIZE);
+    const data = await apiFetch(`/api/feed/posts?${params}`);
+    const posts = data.posts || [];
 
     if(reset) container.innerHTML = '';
 
-    if(!posts || posts.length === 0){
-      if(reset){
-        // No real posts yet — fall back to mock disaster data
-        renderFeed(true);
-        return;
-      }
-      loadMoreBtn.style.display = 'none';
+    if(posts.length === 0 && reset){
+      renderFeed(true);
       return;
     }
 
     posts.forEach((post, i) => {
-      const profile = post.profiles || {};
-      const username = profile.username || 'Anonymous';
+      const username = post.authorName || 'Anonymous';
       const initials = username.slice(0,2).toUpperCase();
       const catKey = post.category || 'nature';
       const cat = CAT[catKey] || CAT.nature;
-      const timeStr = timeAgoFromDate(post.created_at);
-      const isLiked = likedPosts.has(post.id);
+      const timeStr = timeAgoFromDate(post.createdAt);
+      const isLiked = likedPosts.has(post.id) || (post.userReactions||[]).includes('like');
+      const isSaved = savedPosts.has(post.id) || (post.userReactions||[]).includes('save');
+      const isReposted = repostedPosts.has(post.id) || (post.userReactions||[]).includes('repost');
+      const likes = (post.reactions && post.reactions.like) || 0;
+      const reposts = (post.reactions && post.reactions.repost) || 0;
+      const comments = post.commentCount || 0;
+      if(isLiked) likedPosts.add(post.id);
+      if(isSaved) savedPosts.add(post.id);
+      if(isReposted) repostedPosts.add(post.id);
 
       const html = `
 <div class="post-card" data-id="${post.id}" style="animation-delay:${i * 50}ms;--cat-color:${cat.color}">
@@ -1277,14 +1295,14 @@ async function loadSupabaseFeed(reset = false){
       </div>
     </div>
     <div class="post-top-right">
-      <button class="post-icon-btn" title="Save" onclick="toggleSave('${post.id}',this)">🔖</button>
+      <button class="post-icon-btn" title="Save" onclick="handleSave('${post.id}',this)">🔖</button>
       <button class="post-icon-btn" onclick="showPostMenu(event,'${post.id}')">···</button>
     </div>
   </div>
 
-  ${post.image_url ? `
+  ${post.imageUrl ? `
   <div class="post-image-wrap">
-    <img class="post-image" src="${post.image_url}" alt="Post image" style="height:220px;object-fit:cover;width:100%;display:block;">
+    <img class="post-image" src="${post.imageUrl}" alt="Post image" style="height:220px;object-fit:cover;width:100%;display:block;">
     <div class="post-image-overlay"><div class="post-image-overlay-icon">🔍</div></div>
     <div class="post-image-gradient"></div>
   </div>` : ''}
@@ -1302,15 +1320,19 @@ async function loadSupabaseFeed(reset = false){
     <div class="post-footer-left">
       <button class="react-btn ${isLiked ? 'liked' : ''}" id="like-btn-${post.id}" onclick="handleLike('${post.id}',this)">
         <svg viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        <span class="like-count" data-base="0">0</span>
+        <span class="like-count" data-base="${likes}">${likes}</span>
       </button>
-      <button class="react-btn">
+      <button class="react-btn" onclick="openPostModal('${post.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        0
+        ${comments}
       </button>
     </div>
     <div class="post-footer-right">
-      <span class="post-views">👁 —</span>
+      <button class="react-btn ${isReposted ? 'reposted' : ''}" onclick="handleRepost('${post.id}',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        <span class="repost-count" data-base="${reposts}">${reposts}</span>
+      </button>
+      <button class="post-icon-btn ${isSaved ? '' : ''}" title="${isSaved?'Saved':'Save'}" onclick="handleSave('${post.id}',this)" ${isSaved?'style="color:#fbbf24"':''}>🔖</button>
     </div>
   </div>
 </div>`;
@@ -1320,10 +1342,10 @@ async function loadSupabaseFeed(reset = false){
     currentPage++;
     loadMoreBtn.style.display = posts.length < PAGE_SIZE ? 'none' : 'flex';
     loadMoreBtn.onclick = () => loadSupabaseFeed(false);
-    document.getElementById('stat-visible').textContent = container.querySelectorAll('.post-card').length;
+    document.getElementById('stat-visible').textContent = data.total || container.querySelectorAll('.post-card').length;
 
   } catch(err) {
-    console.warn('Supabase feed error, falling back to mock data:', err);
+    console.warn('API feed error, falling back to mock data:', err);
     renderFeed(reset);
   }
 }
@@ -1346,26 +1368,33 @@ function timeAgoFromDate(dateStr){
 }
 
 async function handleLike(postId, btn){
-  toggleLike(postId, btn); // optimistic UI update immediately
-
-  if(!currentUser) return; // not logged in — UI update only
-
+  toggleLike(postId, btn);
   const isNowLiked = likedPosts.has(postId);
   try {
     if(isNowLiked){
-      await sb.from('reactions').upsert({
-        post_id: postId,
-        user_id: currentUser.id,
-        type: 'heart'
-      }, { onConflict: 'post_id,user_id' });
+      await apiFetch(`/api/feed/posts/${postId}/reactions`, { method:'POST', body: JSON.stringify({ type:'like' }) });
     } else {
-      await sb.from('reactions').delete()
-        .eq('post_id', postId)
-        .eq('user_id', currentUser.id);
+      await apiFetch(`/api/feed/posts/${postId}/reactions?type=like`, { method:'DELETE' });
     }
-  } catch(err){
-    console.warn('Reaction sync failed:', err);
-  }
+  } catch(err){ console.warn('Reaction sync failed:', err); }
+}
+
+async function handleRepost(postId, btn){
+  toggleRepost(postId, btn);
+  const isNow = repostedPosts.has(postId);
+  try {
+    if(isNow) await apiFetch(`/api/feed/posts/${postId}/reactions`, { method:'POST', body: JSON.stringify({ type:'repost' }) });
+    else await apiFetch(`/api/feed/posts/${postId}/reactions?type=repost`, { method:'DELETE' });
+  } catch(err){ console.warn('Repost sync failed:', err); }
+}
+
+async function handleSave(postId, btn){
+  toggleSave(postId, btn);
+  const isNow = savedPosts.has(postId);
+  try {
+    if(isNow) await apiFetch(`/api/feed/posts/${postId}/reactions`, { method:'POST', body: JSON.stringify({ type:'save' }) });
+    else await apiFetch(`/api/feed/posts/${postId}/reactions?type=save`, { method:'DELETE' });
+  } catch(err){ console.warn('Save sync failed:', err); }
 }
 
 
@@ -1676,7 +1705,15 @@ function clearSearch(){
   loadSupabaseFeed(true);
 }
 
-function openPostModal(id){
+async function openPostModal(id){
+  // Try API post first
+  try {
+    const post = await apiFetch(`/api/feed/posts/${id}`);
+    if(post && post.id){
+      openApiPostModal(post);
+      return;
+    }
+  } catch(e){ /* not an API post, try DISASTERS */ }
   const r=DISASTERS.find(d=>d.id===id);if(!r)return;
   const dt=DTYPE[r.type]||DTYPE.other;
   const cat=CAT[dt.cat]||CAT.nature;
@@ -1736,6 +1773,94 @@ function openPostModal(id){
   document.getElementById('modal-post').classList.add('open');
 }
 
+async function openApiPostModal(post){
+  const catKey = post.category||'nature';
+  const cat = CAT[catKey]||CAT.nature;
+  const likes = (post.reactions&&post.reactions.like)||0;
+  const isLiked = likedPosts.has(post.id);
+  const username = post.authorName||'Anonymous';
+  const initials = username.slice(0,2).toUpperCase();
+  const timeStr = timeAgoFromDate(post.createdAt);
+
+  document.getElementById('modal-post-title').textContent = username+'\'s Post';
+  const wrap = document.getElementById('modal-post-img-wrap');
+  if(post.imageUrl){
+    wrap.innerHTML=`<img class="modal-img" src="${post.imageUrl}" alt="Post image" style="display:block;" onerror="this.style.display='none'">`;
+  } else {
+    wrap.innerHTML='';
+  }
+  document.getElementById('modal-post-badge').innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,${cat.color},${cat.color}88);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#0f172a;">${initials}</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--text-100);">${username}</div>
+        <div style="font-size:11px;color:var(--text-38);">${timeStr}</div>
+      </div>
+      <span style="margin-left:auto;background:${cat.bg};color:${cat.color};border:1px solid ${cat.color}30;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;">${cat.icon} ${cat.label}</span>
+    </div>`;
+  document.getElementById('modal-post-date').textContent='';
+  document.getElementById('modal-post-location').textContent='';
+
+  // Load comments from API
+  let commentsHtml = '';
+  try {
+    const cdata = await apiFetch(`/api/feed/posts/${post.id}/comments`);
+    const cmts = Array.isArray(cdata) ? cdata : [];
+    commentsHtml = cmts.map(c=>{
+      const ci = (c.authorName||'?').slice(0,2).toUpperCase();
+      return `<div style="display:flex;gap:10px;margin-bottom:14px;">
+        <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,${cat.color},${cat.color}88);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0f172a;flex-shrink:0;">${ci}</div>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-70);">${c.authorName} <span style="font-size:10px;color:var(--text-38);font-weight:400;">${timeAgoFromDate(c.createdAt)}</span></div>
+          <div style="font-size:13px;color:var(--text-56);line-height:1.6;margin-top:3px;">${c.content}</div>
+        </div>
+      </div>`;
+    }).join('');
+    if(cmts.length===0) commentsHtml = '<div style="color:var(--text-38);font-size:13px;">No comments yet.</div>';
+  } catch(e){ commentsHtml = '<div style="color:var(--text-38);font-size:13px;">Could not load comments.</div>'; }
+
+  document.getElementById('modal-post-desc').innerHTML=`
+    <p style="font-size:14px;color:var(--text-56);line-height:1.75;margin-bottom:16px;">${post.content}</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+      <span class="post-tag">#ClimateAction</span>
+      <span class="post-tag">#${cat.label.replace(/\\s/g,'')}</span>
+      <span class="post-tag">#YourEarth</span>
+    </div>
+    <div style="padding-top:16px;border-top:1px solid var(--gb-s);">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-38);margin-bottom:12px;">Comments</div>
+      ${commentsHtml}
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <input id="modal-comment-input" class="form-input" style="flex:1;margin:0;padding:8px 12px;font-size:13px;" placeholder="Write a comment…">
+        <button class="btn-primary" style="padding:8px 14px;font-size:12px;" onclick="submitComment('${post.id}')">Send</button>
+      </div>
+    </div>`;
+
+  const likeBtn = document.getElementById('modal-like-btn');
+  likeBtn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${isLiked?'#f87171':'none'}" stroke="${isLiked?'#f87171':'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${isLiked?likes+1:likes}`;
+  likeBtn.style.color=isLiked?'#f87171':'';
+  likeBtn.onclick=()=>{
+    handleLike(post.id, document.getElementById(`like-btn-${post.id}`));
+  };
+  document.getElementById('modal-post').classList.add('open');
+}
+
+async function submitComment(postId){
+  const input = document.getElementById('modal-comment-input');
+  const text = input?.value?.trim();
+  if(!text) return;
+  try {
+    await apiFetch(`/api/feed/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content: text }),
+    });
+    input.value = '';
+    openPostModal(postId);
+  } catch(err){
+    console.warn('Comment failed:', err);
+    alert('Failed to post comment');
+  }
+}
+
 function generateComments(r){
   const commentAuthors = AUTHORS.slice(0,4);
   const commentTexts = [
@@ -1787,17 +1912,50 @@ document.getElementById('sort-btn').addEventListener('click',function(){
 // Load more
 document.getElementById('load-more').addEventListener('click',()=>loadSupabaseFeed(false));
 
-// Search
+// Search — debounced, uses API search param
+let _searchTimer;
 document.getElementById('search-input').addEventListener('input',function(){
+  clearTimeout(_searchTimer);
   const q=this.value.trim().toLowerCase();
   if(!q){activeFilter='all';document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.filter==='all'));loadSupabaseFeed(true);return;}
-  const results=DISASTERS.filter(r=>r.location.toLowerCase().includes(q)||r.type.includes(q));
-  const container=document.getElementById('feed-container');
-  container.innerHTML='';currentPage=0;
-  results.slice(0,PAGE_SIZE).forEach((r,i)=>container.insertAdjacentHTML('beforeend',renderPost(r,i,i*40)));
-  loadImages(container);
-  document.getElementById('stat-visible').textContent=results.length;
-  document.getElementById('load-more').style.display='none';
+  _searchTimer = setTimeout(async ()=>{
+    try {
+      const data = await apiFetch(`/api/feed/posts?search=${encodeURIComponent(q)}&limit=50`);
+      const posts = data.posts || [];
+      const container=document.getElementById('feed-container');
+      container.innerHTML='';currentPage=0;
+      if(posts.length===0){
+        container.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-38);font-size:13px;">No posts matching "'+q+'"</div>';
+      } else {
+        posts.forEach((post,i)=>{
+          const username = post.authorName||'Anonymous';
+          const initials = username.slice(0,2).toUpperCase();
+          const catKey = post.category||'nature';
+          const cat = CAT[catKey]||CAT.nature;
+          const timeStr = timeAgoFromDate(post.createdAt);
+          const likes = (post.reactions&&post.reactions.like)||0;
+          const comments = post.commentCount||0;
+          const reposts = (post.reactions&&post.reactions.repost)||0;
+          const isLiked = likedPosts.has(post.id);
+          const isSaved = savedPosts.has(post.id);
+          const isReposted = repostedPosts.has(post.id);
+          const html = `<div class="post-card" data-id="${post.id}" style="animation-delay:${i*50}ms;--cat-color:${cat.color}"><div class="post-header"><div class="post-meta"><div class="post-avatar" style="background:linear-gradient(135deg,${cat.color},${cat.color}88);">${initials}</div><div class="post-info"><div class="post-name-row"><span class="post-name">${username}</span><span class="post-badge" style="background:${cat.bg};color:${cat.color};border:1px solid ${cat.color}30">${cat.icon} ${cat.label}</span><span class="post-time">${timeStr}</span></div></div></div></div><div class="post-body"><div class="post-text">${post.content.length>200?post.content.slice(0,200)+'…':post.content}</div></div><div class="post-footer"><div class="post-footer-left"><button class="react-btn ${isLiked?'liked':''}" onclick="handleLike('${post.id}',this)"><svg viewBox="0 0 24 24" fill="${isLiked?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="like-count" data-base="${likes}">${likes}</span></button><button class="react-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${comments}</button></div></div></div>`;
+          container.insertAdjacentHTML('beforeend',html);
+        });
+      }
+      document.getElementById('stat-visible').textContent=posts.length;
+      document.getElementById('load-more').style.display='none';
+    } catch(err){
+      console.warn('Search failed, falling back to local:', err);
+      const results=DISASTERS.filter(r=>r.location.toLowerCase().includes(q)||r.type.includes(q));
+      const container=document.getElementById('feed-container');
+      container.innerHTML='';currentPage=0;
+      results.slice(0,PAGE_SIZE).forEach((r,i)=>container.insertAdjacentHTML('beforeend',renderPost(r,i,i*40)));
+      loadImages(container);
+      document.getElementById('stat-visible').textContent=results.length;
+      document.getElementById('load-more').style.display='none';
+    }
+  }, 300);
 });
 
 // Modal helpers
@@ -1934,6 +2092,33 @@ async function toggleFollow(btn){
   }
 }
 
+async function submitCreateCommunity(){
+  const name = document.getElementById('cc-name')?.value?.trim();
+  const desc = document.getElementById('cc-desc')?.value?.trim();
+  if(!name){ alert('Please enter a community name'); return; }
+  const selectedPill = document.querySelector('#create-cat-pills .cat-pill.selected');
+  const category = selectedPill ? Object.keys(CAT).find(k => CAT[k].label === selectedPill.textContent.trim().slice(2)) || 'nature' : 'nature';
+  const type = document.getElementById('type-private')?.classList.contains('selected') ? 'private' : 'open';
+  try {
+    await apiFetch('/api/feed/groups', {
+      method: 'POST',
+      body: JSON.stringify({ name, description: desc, category, type }),
+    });
+    closeModal('modal-create-community');
+    document.getElementById('cc-name').value='';
+    document.getElementById('cc-desc').value='';
+    await renderCommunities();
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:100px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#34d399;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:600;backdrop-filter:blur(12px);animation:fadeUp .3s ease;';
+    banner.textContent = '✓ Community created!';
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 2500);
+  } catch(err){
+    console.error('Create community failed:', err);
+    alert('Failed to create community: ' + err.message);
+  }
+}
+
 function renderCatGrid(){
   const g=document.getElementById('cat-grid');
   Object.entries(CAT).forEach(([k,c])=>{
@@ -1968,9 +2153,19 @@ function renderCreateCatPills(){
   });
 }
 
-function renderCommunities(){
+async function renderCommunities(){
   const container=document.getElementById('communities-list');
-  COMMUNITIES.forEach(c=>{
+  container.innerHTML='';
+  let groups = COMMUNITIES;
+  try {
+    const data = await apiFetch('/api/feed/groups');
+    if(data && data.length > 0) groups = data.map(g => ({
+      id: g.id, name: g.name, icon: { energy:'⚡',food:'🌾',mobility:'🚗',technology:'💡',nature:'🌱',policy:'⚖️',industry:'🏭' }[g.category] || '🌍',
+      cat: g.category || 'nature', members: g.memberCount || 0, joined: g.isMember || false,
+      desc: g.description || '', admins: [g.creatorName], posts_week: 0,
+    }));
+  } catch(e){ /* fallback to static COMMUNITIES */ }
+  groups.forEach(c=>{
     const cat=CAT[c.cat]||CAT.nature;
     const el=document.createElement('div');
     el.className='comm-item';
@@ -1978,19 +2173,23 @@ function renderCommunities(){
       <div class="comm-avatar" style="background:${cat.bg};border-color:${cat.color}22;">${c.icon}</div>
       <div class="comm-info">
         <div class="comm-name">${c.name}</div>
-        <div class="comm-meta">${c.members} members · ${cat.label}</div>
+        <div class="comm-meta">${typeof c.members==='number'?c.members:c.members} members · ${cat.label}</div>
       </div>
-      <button class="comm-join-btn ${c.joined?'joined':''}" onclick="event.stopPropagation();toggleJoinComm(this)">${c.joined?'✓ Joined':'Join'}</button>`;
+      <button class="comm-join-btn ${c.joined?'joined':''}" data-gid="${c.id}" onclick="event.stopPropagation();toggleJoinComm(this,'${c.id}')">${c.joined?'✓ Joined':'Join'}</button>`;
     el.querySelector('.comm-avatar').addEventListener('click',()=>openCommunityDetail(c.id));
     el.querySelector('.comm-name').addEventListener('click',()=>openCommunityDetail(c.id));
     container.appendChild(el);
   });
 }
 
-function toggleJoinComm(btn){
+async function toggleJoinComm(btn, groupId){
   const joined=btn.classList.contains('joined');
   btn.classList.toggle('joined',!joined);
   btn.textContent=joined?'Join':'✓ Joined';
+  try {
+    if(!joined) await apiFetch(`/api/feed/groups/${groupId}/members`, { method:'POST', body:'{}' });
+    else await apiFetch(`/api/feed/groups/${groupId}/members`, { method:'DELETE' });
+  } catch(e){ console.warn('Join/leave failed:', e); }
 }
 
 function renderTrending(){
@@ -2074,14 +2273,10 @@ async function submitPost(){
   if(btn){ btn.disabled = true; btn.textContent = 'Posting…'; }
 
   try {
-    if(currentUser){
-      const { error } = await sb.from('posts').insert({
-        user_id: currentUser.id,
-        content: text,
-        category: category,
-      });
-      if(error) throw error;
-    }
+    await apiFetch('/api/feed/posts', {
+      method: 'POST',
+      body: JSON.stringify({ content: text, category: category }),
+    });
 
     closeModal('modal-compose');
     textEl.value = '';

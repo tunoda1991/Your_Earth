@@ -11,7 +11,7 @@ export function CommunityFeedPage({ onNavigate, user }: Props) {
   }, []);
 
   return (
-    <div className="w-full bg-[#0f172a]" style={{ height: "calc(100vh - 64px)", marginTop: "64px" }}>
+    <div className="w-full bg-[#0f172a]" style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
       <iframe
         src="/feed.html"
         title="Community Feed"
