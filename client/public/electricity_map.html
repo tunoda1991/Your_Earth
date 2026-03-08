@@ -21,6 +21,9 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 #view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
 #view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
 #view-toggle button:hover:not(.active){color:var(--text);}
+#header{position:fixed;top:44px;left:0;right:300px;padding:0 22px;pointer-events:none;z-index:10;}
+#header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;font-family:'Courier New',monospace;}
+#header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
 #globe-controls{position:fixed;bottom:18px;left:22px;z-index:20;}
 #flat-controls{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:20;}
 #flat-controls button{padding:5px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);}
@@ -82,6 +85,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
   <button id="btn-globe" class="active">Globe</button>
   <button id="btn-flat">2D Map</button>
 </div>
+<div id="header"><h1>Live Electricity Map</h1><p>Real-time carbon intensity &amp; electricity mix</p></div>
 <div id="globe-controls">
   <button id="btn-rotate" class="active"><span class="ctrl-dot"></span><span id="rotate-label">Auto Rotate</span></button>
 </div>
