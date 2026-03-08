@@ -64,6 +64,13 @@ The following pages require authentication (redirect to login if not signed in):
 
 Protected route logic is in `client/src/components/ProtectedRoute.tsx` and wraps pages in `App.tsx`'s `renderPage()`.
 
+## Replit Environment Setup
+- Server runs on port 5000 with host `0.0.0.0` (required for Replit webview)
+- Vite dev server is embedded in Express via middleware mode (server/vite.ts)
+- `allowedHosts: true` set in vite.config.ts to trust the Replit proxy
+- Workflow: `npm run dev` → starts Express+Vite on port 5000
+- Deployment: autoscale, build with `npm run build`, run with `node dist/index.cjs`
+
 ## Important Notes
 - CSS uses Tailwind v4 with oklch colors (238KB index.css from Figma export)
 - Assets are in `client/src/assets/` (PNG files from Figma export)
