@@ -567,6 +567,7 @@ function setView3D(yes){
   viewBtnGlobe.classList.toggle('active',is3D);viewBtnFlat.classList.toggle('active',!is3D);
   rotBtn.style.display=is3D?'':'none';mapCtrl.classList.toggle('visible',!is3D);
   hint.textContent=is3D?'DRAG TO ROTATE · SCROLL TO ZOOM':'DRAG TO PAN · SCROLL TO ZOOM';
+  document.querySelector('#header p').textContent=is3D?'Global community connections on a 3D globe':'Global community connections on a 2D map';
   if(!is3D){resize2();draw2();}else draw3();hideCard();
 }
 viewBtnGlobe.addEventListener('click',()=>setView3D(true));

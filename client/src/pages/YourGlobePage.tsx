@@ -36,8 +36,8 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
 
   return (
     <div className="w-full bg-[#050a14]" style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
-      {/* Map switcher dropdown — bottom of map zone, aligned with view toggle */}
-      <div style={{ position: "fixed", bottom: "18px", right: "232px", zIndex: 9999 }}>
+      {/* Map switcher dropdown — bottom of map zone, just left of right panel */}
+      <div style={{ position: "fixed", bottom: "18px", right: activeMap === "electricity" ? "312px" : activeMap === "emissions" ? "302px" : "232px", zIndex: 9999 }}>
         <div className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
