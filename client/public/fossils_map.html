@@ -11,7 +11,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 canvas{display:block;}
 #canvas-2d{position:absolute;top:0;left:0;cursor:grab;display:none;}
 #canvas-2d:active{cursor:grabbing;}
-#header{position:fixed;top:44px;left:0;right:220px;padding:0 22px;pointer-events:none;z-index:10;}
+#header{position:fixed;top:12px;left:0;right:220px;padding:0 22px;pointer-events:none;z-index:10;}
 #header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;}
 #header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
 #view-toggle{position:fixed;top:12px;right:232px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
@@ -106,7 +106,6 @@ const GAS_CFG={op:{label:'Operating',color:[0,218,165]},co:{label:'Construction'
 const OIL_CFG={op:{label:'Operating',color:[255,112,22]},co:{label:'Construction',color:[255,215,75]},pr:{label:'Proposed',color:[200,150,100]},rt:{label:'Retired',color:[80,80,80]}};
 const SECTIONS=[
   {key:'sec_map',   label:'Map',               keys:['borders']},
-  {key:'sec_power', label:'Power Generation',  keys:['pt_pc','pt_po','pt_px']},
   {key:'sec_indus', label:'Industry',          keys:['pt_o','pt_c','pt_cm','pt_m','pt_l','pt_s','pt_i','pt_ct']},
   {key:'sec_gas',   label:'Gas Pipelines',     keys:['gas_op','gas_co','gas_pr','gas_rt']},
   {key:'sec_oil',   label:'Oil & NGL Pipelines',keys:['oil_op','oil_co','oil_pr','oil_rt']},
@@ -335,20 +334,15 @@ function buildPanel(){
   function makeRow(key,swColor,isLine,label,count){const r=document.createElement('div');r.className='row'+(vis[key]?'':' off');r.dataset.key=key;const sw=document.createElement('div');sw.className='sw '+(isLine?'line':'dot');sw.style.background=`rgb(${swColor[0]},${swColor[1]},${swColor[2]})`;const rl=document.createElement('span');rl.className='rl';rl.textContent=label;const rc=document.createElement('span');rc.className='rc';if(count!=null)rc.textContent=count;const tog=document.createElement('div');tog.className='tog';r.append(sw,rl,rc,tog);r.addEventListener('click',()=>{vis[key]=!vis[key];r.classList.toggle('off',!vis[key]);if(currentView==='3d')draw3d();else render2d();});return r;}
   function makeSec(secDef){const wrap=document.createElement('div');wrap.className='sec-wrap';wrap.dataset.sec=secDef.key;const hd=document.createElement('div');hd.className='sec';hd.innerHTML=`<span class="sec-label">${secDef.label}</span><span class="sec-tog">▾</span>`;const anyOff=secDef.keys.some(k=>!vis[k]);wrap.classList.toggle('sec-off',anyOff);hd.addEventListener('click',e=>{const tog=hd.querySelector('.sec-tog'),rect=hd.getBoundingClientRect();if(e.clientX>rect.right-28){const anyOn=secDef.keys.some(k=>vis[k]);secDef.keys.forEach(k=>{vis[k]=!anyOn;const row=wrap.querySelector(`[data-key="${k}"]`);if(row)row.classList.toggle('off',!vis[k]);});wrap.classList.toggle('sec-off',!secDef.keys.some(k=>vis[k]));if(currentView==='3d')draw3d();else render2d();}else{wrap.classList.toggle('collapsed');tog.textContent=wrap.classList.contains('collapsed')?'▸':'▾';}});wrap.appendChild(hd);return wrap;}
   const mapSec=makeSec(SECTIONS[0]);mapSec.appendChild(makeRow('borders',[52,95,138],true,'Country Borders',null));scroll.appendChild(mapSec);
-  const pwrSec=makeSec(SECTIONS[1]);
-  function makeSubGroup(subLabel,codes,countFn){const sub=document.createElement('div');sub.className='sub-wrap';const subKeys=codes.map(c=>'pt_'+c);const shdr=document.createElement('div');shdr.className='sub-head';shdr.innerHTML=`<span class="sub-label">${subLabel}</span><span class="sub-tog">▾</span>`;sub.appendChild(shdr);shdr.addEventListener('click',e=>{const tog=shdr.querySelector('.sub-tog'),rect=shdr.getBoundingClientRect();if(e.clientX>rect.right-28){const anyOn=subKeys.some(k=>vis[k]);subKeys.forEach(k=>{vis[k]=!anyOn;const row=sub.querySelector(`[data-key="${k}"]`);if(row)row.classList.toggle('off',!vis[k]);});sub.classList.toggle('sub-off',!subKeys.some(k=>vis[k]));const allSecOff=!SECTIONS[1].keys.some(k=>vis[k]);pwrSec.classList.toggle('sec-off',allSecOff);if(currentView==='3d')draw3d();else render2d();}else{sub.classList.toggle('collapsed');tog.textContent=sub.classList.contains('collapsed')?'▸':'▾';}});codes.forEach(code=>{const cnt=countFn(code);if(cnt===null)return;const cfg=POINT_LAYERS[code];const row=makeRow('pt_'+code,cfg.color,false,cfg.label,cnt);row.classList.add('sub-row');sub.appendChild(row);});return sub;}
 
   const ptCounts={};RAW_DATA.forEach(d=>ptCounts[d[2]]=(ptCounts[d[2]]||0)+1);
-  const pwrSub=makeSubGroup('Fossil Power',['pc','po','px'],c=>ptCounts[c]?(ptCounts[c]).toLocaleString():null);
-  pwrSec.appendChild(pwrSub);
-  scroll.appendChild(pwrSec);
-  const indusSec=makeSec(SECTIONS[2]);
+  const indusSec=makeSec(SECTIONS[1]);
   ['o','c','cm','m','l','s','i','ct'].forEach(code=>{const cfg=POINT_LAYERS[code];const cnt=ptCounts[code];if(!cnt)return;indusSec.appendChild(makeRow('pt_'+code,cfg.color,false,cfg.label,cnt.toLocaleString()));});
   scroll.appendChild(indusSec);
-  const gasSec=makeSec(SECTIONS[3]);const gasCounts={};PIPELINE_DATA.forEach(p=>{gasCounts[p[1]]=(gasCounts[p[1]]||0)+1;});
+  const gasSec=makeSec(SECTIONS[2]);const gasCounts={};PIPELINE_DATA.forEach(p=>{gasCounts[p[1]]=(gasCounts[p[1]]||0)+1;});
   ['op','co','pr','rt'].forEach(st=>{const buf=bufs['gas_'+st];if(!buf)return;gasSec.appendChild(makeRow('gas_'+st,GAS_CFG[st].color,true,GAS_CFG[st].label,gasCounts[st]?.toLocaleString()||null));});
   scroll.appendChild(gasSec);
-  const oilSec=makeSec(SECTIONS[4]);const oilCounts={};OIL_PIPELINE_DATA.forEach(p=>{oilCounts[p[1]]=(oilCounts[p[1]]||0)+1;});
+  const oilSec=makeSec(SECTIONS[3]);const oilCounts={};OIL_PIPELINE_DATA.forEach(p=>{oilCounts[p[1]]=(oilCounts[p[1]]||0)+1;});
   ['op','co','pr','rt'].forEach(st=>{const buf=bufs['oil_'+st];if(!buf)return;oilSec.appendChild(makeRow('oil_'+st,OIL_CFG[st].color,true,OIL_CFG[st].label,oilCounts[st]?.toLocaleString()||null));});
   scroll.appendChild(oilSec);
 
