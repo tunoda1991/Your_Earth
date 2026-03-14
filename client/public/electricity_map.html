@@ -14,16 +14,13 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 #globe-canvas{display:block;position:absolute;inset:0;}
 #flat-canvas{display:none;position:absolute;inset:0;cursor:grab;}
 #flat-canvas:active{cursor:grabbing;}
-#header{position:fixed;top:44px;left:12px;right:300px;padding:0;pointer-events:none;z-index:10;}
-#header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;font-family:'Courier New',monospace;}
-#header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
-#view-toggle{position:fixed;top:12px;left:12px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
-#view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
-#view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
-#view-toggle button:hover:not(.active){color:var(--text);}
 #header{position:fixed;top:44px;left:0;right:300px;padding:0 22px;pointer-events:none;z-index:10;}
 #header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;font-family:'Courier New',monospace;}
 #header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
+#view-toggle{position:fixed;top:12px;right:312px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
+#view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
+#view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
+#view-toggle button:hover:not(.active){color:var(--text);}
 #globe-controls{position:fixed;bottom:18px;left:22px;z-index:20;}
 #flat-controls{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:20;}
 #flat-controls button{padding:5px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);}
@@ -80,19 +77,18 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 </style>
 </head>
 <body>
-<div id="header"><h1>Live Electricity Map</h1><p>Real-time Carbon Intensity & Electricity Mix</p></div>
-<div id="view-toggle">
-  <button id="btn-globe" class="active">Globe</button>
-  <button id="btn-flat">2D Map</button>
-</div>
 <div id="header"><h1>Live Electricity Map</h1><p>Real-time carbon intensity &amp; electricity mix</p></div>
+<div id="view-toggle">
+  <button id="view-btn-globe" class="active">Globe</button>
+  <button id="view-btn-flat">2D Map</button>
+</div>
 <div id="globe-controls">
-  <button id="btn-rotate" class="active"><span class="ctrl-dot"></span><span id="rotate-label">Auto Rotate</span></button>
+  <button id="rotate-btn" class="active"><span class="ctrl-dot"></span><span id="rotate-label">ROTATE</span></button>
 </div>
 <div id="flat-controls">
-  <button id="mz-in">+ Zoom</button>
-  <button id="mz-out">&#8722; Zoom</button>
-  <button id="mz-reset">Reset</button>
+  <button id="zoom-in">+ Zoom</button>
+  <button id="zoom-out">&#8722; Zoom</button>
+  <button id="reset-v">Reset</button>
 </div>
 <div id="hover-tooltip">
   <div class="ht-name" id="ht-name"></div>
@@ -733,7 +729,7 @@ FC.addEventListener('wheel',e=>{
 // ════════════════════════════════════════════════════════
 // VIEW / CONTROLS
 // ════════════════════════════════════════════════════════
-const BG=document.getElementById('btn-globe'),BF=document.getElementById('btn-flat');
+const BG=document.getElementById('view-btn-globe'),BF=document.getElementById('view-btn-flat');
 const GCtrl=document.getElementById('globe-controls'),FCtrl=document.getElementById('flat-controls');
 const SBR=document.querySelector('#status-bar .sb-right');
 
@@ -752,9 +748,9 @@ function toFlat(){
 }
 BG.addEventListener('click',toGlobe);BF.addEventListener('click',toFlat);
 
-const BRot=document.getElementById('btn-rotate');
+const BRot=document.getElementById('rotate-btn');
 const BRotLabel=document.getElementById('rotate-label');
-BRot.addEventListener('click',()=>{autoRot=!autoRot;BRot.classList.toggle('active',autoRot);BRotLabel.textContent=autoRot?'Auto Rotate':'Stopped';});
+BRot.addEventListener('click',()=>{autoRot=!autoRot;BRot.classList.toggle('active',autoRot);BRotLabel.textContent=autoRot?'ROTATING':'ROTATE';});
 
 const BBP=document.getElementById('btn-borders-panel');
 BBP.addEventListener('click',()=>{
@@ -766,9 +762,9 @@ BBP.addEventListener('click',()=>{
   if(isFlat)draw2d();
 });
 
-document.getElementById('mz-in').addEventListener('click',()=>{const c=fW/2,d=fH/2;fOX=c-(c-fOX)*1.4;fOY=d-(d-fOY)*1.4;fSc=Math.min(40,fSc*1.4);draw2d();});
-document.getElementById('mz-out').addEventListener('click',()=>{if(fSc<=1)return;const c=fW/2,d=fH/2;fOX=c-(c-fOX)/1.4;fOY=d-(d-fOY)/1.4;fSc=Math.max(1,fSc/1.4);base();draw2d();});
-document.getElementById('mz-reset').addEventListener('click',()=>{fSc=1;base();draw2d();});
+document.getElementById('zoom-in').addEventListener('click',()=>{const c=fW/2,d=fH/2;fOX=c-(c-fOX)*1.4;fOY=d-(d-fOY)*1.4;fSc=Math.min(40,fSc*1.4);draw2d();});
+document.getElementById('zoom-out').addEventListener('click',()=>{if(fSc<=1)return;const c=fW/2,d=fH/2;fOX=c-(c-fOX)/1.4;fOY=d-(d-fOY)/1.4;fSc=Math.max(1,fSc/1.4);base();draw2d();});
+document.getElementById('reset-v').addEventListener('click',()=>{fSc=1;base();draw2d();});
 
 window.addEventListener('resize',()=>{
   if(isFlat){resize2d();draw2d();}

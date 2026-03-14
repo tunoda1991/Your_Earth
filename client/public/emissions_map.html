@@ -18,16 +18,13 @@ canvas{display:block;position:absolute;inset:0;}
 #fc{display:none;position:absolute;inset:0;cursor:grab;}
 #fc:active{cursor:grabbing;}
 
-#header{position:fixed;top:44px;left:12px;right:290px;padding:0;pointer-events:none;z-index:10;}
-#header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;font-family:'Courier New',monospace;}
-#header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
-#view-toggle{position:fixed;top:12px;left:12px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
-#view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
-#view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
-#view-toggle button:hover:not(.active){color:var(--text);}
 #header{position:fixed;top:44px;left:0;right:290px;padding:0 22px;pointer-events:none;z-index:10;}
 #header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;font-family:'Courier New',monospace;}
 #header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
+#view-toggle{position:fixed;top:12px;right:302px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
+#view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
+#view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
+#view-toggle button:hover:not(.active){color:var(--text);}
 
 #btm{position:fixed;bottom:18px;left:22px;display:flex;flex-direction:column;gap:4px;z-index:20;}
 #btm-flat{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:20;}
@@ -107,20 +104,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 <canvas id="gc"></canvas>
 <canvas id="fc"></canvas>
 
-<div id="header"><h1>Emissions Sources</h1><p>Global CO₂e Emissions by Sector & Year</p></div>
-<div id="view-toggle">
-  <button class="active" id="bg">Globe</button>
-  <button id="b2">2D Map</button>
-</div>
 <div id="header"><h1>Emissions Sources</h1><p>Climate TRACE emissions by sector &amp; year</p></div>
+<div id="view-toggle">
+  <button class="active" id="view-btn-globe">Globe</button>
+  <button id="view-btn-flat">2D Map</button>
+</div>
 
 <div id="btm">
-  <button id="rotbtn" class="active"><span class="dot"></span><span>Auto Rotate</span></button>
+  <button id="rotate-btn" class="active"><span class="dot"></span><span id="rotate-label">ROTATE</span></button>
 </div>
 <div id="btm-flat">
-  <button id="em-zoom-in">+ Zoom</button>
-  <button id="em-zoom-out">− Zoom</button>
-  <button id="em-zoom-reset">Reset</button>
+  <button id="zoom-in">+ Zoom</button>
+  <button id="zoom-out">− Zoom</button>
+  <button id="reset-v">Reset</button>
 </div>
 
 <div id="tip">
@@ -1126,21 +1122,22 @@ function refresh(){
 }
 
 // ── view toggle ───────────────────────────────────────────────────────────────
-document.getElementById('bg').addEventListener('click',()=>{
+document.getElementById('view-btn-globe').addEventListener('click',()=>{
   isGlobe=true;
   gc.style.display='block';fc.style.display='none';
-  document.getElementById('bg').classList.add('active');document.getElementById('b2').classList.remove('active');
+  document.getElementById('view-btn-globe').classList.add('active');document.getElementById('view-btn-flat').classList.remove('active');
   document.getElementById('btm').style.display='flex';document.getElementById('btm-flat').style.display='none';
 });
-document.getElementById('b2').addEventListener('click',()=>{
+document.getElementById('view-btn-flat').addEventListener('click',()=>{
   isGlobe=false;
   gc.style.display='none';fc.style.display='block';
-  document.getElementById('b2').classList.add('active');document.getElementById('bg').classList.remove('active');
+  document.getElementById('view-btn-flat').classList.add('active');document.getElementById('view-btn-globe').classList.remove('active');
   document.getElementById('btm').style.display='none';document.getElementById('btm-flat').style.display='flex';
   fc.width=window.innerWidth;fc.height=window.innerHeight;pan={x:0,y:0};z2=1;draw2();
 });
-document.getElementById('rotbtn').addEventListener('click',()=>{
-  autoRot=!autoRot;document.getElementById('rotbtn').classList.toggle('active',autoRot);
+const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementById('rotate-label');
+rotBtn.addEventListener('click',()=>{
+  autoRot=!autoRot;rotBtn.classList.toggle('active',autoRot);rotLabel.textContent=autoRot?'ROTATING':'ROTATE';
 });
 document.getElementById('btn-borders-panel').addEventListener('click',function(){
   bordersVisible=!bordersVisible;
@@ -1148,13 +1145,13 @@ document.getElementById('btn-borders-panel').addEventListener('click',function()
   this.textContent=bordersVisible?'Borders On':'Borders Off';
   if(isGlobe){/* borderGroup.visible set in animate */}else draw2();
 });
-document.getElementById('em-zoom-in').addEventListener('click',()=>{
+document.getElementById('zoom-in').addEventListener('click',()=>{
   const c=fc.width/2,d=fc.height/2;pan.x=c-(c-pan.x)*1.4;pan.y=d-(d-pan.y)*1.4;z2=Math.min(40,z2*1.4);draw2();
 });
-document.getElementById('em-zoom-out').addEventListener('click',()=>{
+document.getElementById('zoom-out').addEventListener('click',()=>{
   if(z2<=1)return;const c=fc.width/2,d=fc.height/2;pan.x=c-(c-pan.x)/1.4;pan.y=d-(d-pan.y)/1.4;z2=Math.max(1,z2/1.4);draw2();
 });
-document.getElementById('em-zoom-reset').addEventListener('click',()=>{pan={x:0,y:0};z2=1;draw2();});
+document.getElementById('reset-v').addEventListener('click',()=>{pan={x:0,y:0};z2=1;draw2();});
 
 // ── year slider ───────────────────────────────────────────────────────────────
 document.getElementById('ysl').addEventListener('input',function(){

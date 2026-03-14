@@ -17,15 +17,15 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 .view-hidden{opacity:0;pointer-events:none;}
 #avatar-layer{position:absolute;inset:0;pointer-events:none;z-index:2;}
 
-#view-toggle{position:fixed;top:12px;left:12px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
+#view-toggle{position:fixed;top:12px;right:232px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
 #view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
 #view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
 #view-toggle button:hover:not(.active){color:var(--text);}
-#header{position:fixed;top:44px;left:12px;right:220px;padding:0;pointer-events:none;z-index:10;}
+#header{position:fixed;top:44px;left:0;right:220px;padding:0 22px;pointer-events:none;z-index:10;}
 #header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;font-family:'Courier New',monospace;}
 #header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
 
-#rotate-btn{position:fixed;bottom:18px;left:22px;padding:7px 14px;border:1px solid var(--border);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.2em;color:var(--mid);background:var(--panel);cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);display:flex;align-items:center;gap:7px;z-index:10;}
+#rotate-btn{position:fixed;bottom:18px;left:22px;padding:7px 14px;border:1px solid var(--border);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;color:var(--mid);background:var(--panel);cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);display:flex;align-items:center;gap:7px;z-index:20;}
 #rotate-btn:hover{border-color:var(--accent);color:var(--accent);}
 #rotate-btn.active{border-color:#4a9a7a;color:#4a9a7a;}
 #rotate-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
@@ -101,7 +101,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
   <button id="view-btn-flat">2D Map</button>
 </div>
 <div id="header"><h1>User Network</h1><p>Global community connections on a 3D globe</p></div>
-<button id="rotate-btn"><span class="dot"></span><span id="rotate-label">AUTO ROTATE</span></button>
+<button id="rotate-btn"><span class="dot"></span><span id="rotate-label">ROTATE</span></button>
 <div id="map-controls">
   <button id="zoom-in">+ Zoom</button>
   <button id="zoom-out">− Zoom</button>
@@ -322,8 +322,8 @@ addEventListener('touchend',()=>drag3=false);
 canvas3.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag3){rY+=(e.touches[0].clientX-lx3)*.005;rX+=(e.touches[0].clientY-ly3)*.005;rX=Math.max(-1.4,Math.min(1.4,rX));lx3=e.touches[0].clientX;ly3=e.touches[0].clientY;draw3();}if(e.touches.length===2){const nd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);camD=Math.max(1.35,Math.min(6,camD-(nd-ltd)*.005));ltd=nd;draw3();}},{passive:true});
 
 const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementById('rotate-label');
-function stopRot(){autoRot=false;rotBtn.classList.remove('active');rotLabel.textContent='AUTO ROTATE';}
-function startRot(){autoRot=true;rotBtn.classList.add('active');rotLabel.textContent='ROTATING\u2026';}
+function stopRot(){autoRot=false;rotBtn.classList.remove('active');rotLabel.textContent='ROTATE';}
+function startRot(){autoRot=true;rotBtn.classList.add('active');rotLabel.textContent='ROTATING';}
 rotBtn.addEventListener('click',()=>autoRot?stopRot():startRot());
 startRot();
 
