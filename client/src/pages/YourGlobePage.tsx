@@ -6,7 +6,8 @@ interface Props {
 }
 
 const MAPS = [
-  { id: "infrastructure", label: "Infrastructure", src: "/renewables_map.html", description: "Global power plants, renewables & industrial sites" },
+  { id: "renewable", label: "Renewable", src: "/renewables_map.html", description: "Global power plants, renewables & industrial sites" },
+  { id: "fossils", label: "Fossils", src: "/fossils_map.html", description: "Global fossil fuel infrastructure & extraction sites" },
   { id: "disaster", label: "Disasters", src: "/disasters.html", description: "Global climate disasters & extreme events" },
   { id: "electricity", label: "Electricity", src: "/electricity_map.html", description: "Real-time carbon intensity & electricity mix" },
   { id: "emissions", label: "Emissions", src: "/emissions_map.html", description: "Climate TRACE emissions sources by sector & year" },
@@ -17,7 +18,7 @@ type MapId = typeof MAPS[number]["id"];
 
 export function YourGlobePage({ onNavigate, initialMap }: Props) {
   const [activeMap, setActiveMap] = useState<MapId>(
-    (initialMap as MapId) || "infrastructure"
+    (initialMap as MapId) || "renewable"
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -35,8 +36,8 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
 
   return (
     <div className="w-full bg-[#050a14]" style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
-      {/* Map switcher dropdown — positioned top-right, styled to match map UI */}
-      <div className="absolute top-[92px] right-[12px] z-50">
+      {/* Map switcher dropdown — fixed positioning escapes iframe stacking context */}
+      <div style={{ position: "fixed", top: "92px", right: "12px", zIndex: 9999 }}>
         <div className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
@@ -47,7 +48,7 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
               background: "rgba(6,13,26,0.94)",
               backdropFilter: "blur(8px)",
               fontFamily: "'Courier New', monospace",
-              fontSize: "9px",
+              fontSize: "11px",
               letterSpacing: ".18em",
               textTransform: "uppercase" as const,
               color: "#7ab3cc",
@@ -61,7 +62,7 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
               marginLeft: 4,
               transition: "transform .2s",
               transform: dropdownOpen ? "rotate(180deg)" : "rotate(0)",
-              fontSize: "9px",
+              fontSize: "11px",
               color: "#3a5a7a",
             }}>▾</span>
           </button>
@@ -73,7 +74,7 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
                 border: "1px solid #1a2f45",
                 backdropFilter: "blur(12px)",
                 minWidth: "200px",
-                zIndex: 60,
+                zIndex: 9999,
               }}
             >
               {MAPS.map((map) => (
@@ -87,7 +88,7 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
                     gap: "10px",
                     padding: "9px 14px",
                     fontFamily: "'Courier New', monospace",
-                    fontSize: "9px",
+                    fontSize: "11px",
                     letterSpacing: ".12em",
                     textTransform: "uppercase" as const,
                     color: map.id === activeMap ? "#7ab3cc" : "#6a8fa8",
