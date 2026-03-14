@@ -34,6 +34,7 @@ canvas{display:block;position:absolute;inset:0;}
 #rotate-btn:hover{border-color:var(--accent);color:var(--accent);}
 #rotate-btn.active{border-color:#4a9a7a;color:#4a9a7a;}
 #rotate-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+#hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;text-transform:uppercase;font-family:'Courier New',monospace;white-space:nowrap;}
 #panel-borders{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
 #panel-borders .panel-border-btn{padding:6px 12px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
 #panel-borders .panel-border-btn:hover{border-color:var(--accent);color:var(--accent);}
@@ -120,6 +121,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   <button id="zoom-out">− Zoom</button>
   <button id="reset-v">Reset</button>
 </div>
+<div id="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
 
 <div id="tip">
   <div class="tn" id="tn"></div>
@@ -1129,12 +1131,14 @@ document.getElementById('view-btn-globe').addEventListener('click',()=>{
   gc.style.display='block';fc.style.display='none';
   document.getElementById('view-btn-globe').classList.add('active');document.getElementById('view-btn-flat').classList.remove('active');
   document.getElementById('btm').style.display='flex';document.getElementById('btm-flat').style.display='none';
+  document.getElementById('hint').textContent='DRAG TO ROTATE \u00B7 SCROLL TO ZOOM';
 });
 document.getElementById('view-btn-flat').addEventListener('click',()=>{
   isGlobe=false;
   gc.style.display='none';fc.style.display='block';
   document.getElementById('view-btn-flat').classList.add('active');document.getElementById('view-btn-globe').classList.remove('active');
   document.getElementById('btm').style.display='none';document.getElementById('btm-flat').style.display='flex';
+  document.getElementById('hint').textContent='DRAG TO PAN \u00B7 SCROLL TO ZOOM';
   fc.width=window.innerWidth;fc.height=window.innerHeight;pan={x:0,y:0};z2=1;draw2();
 });
 const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementById('rotate-label');
