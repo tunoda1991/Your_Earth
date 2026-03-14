@@ -72,6 +72,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 .dc-mix-item{display:flex;align-items:center;gap:3px;font-size:9px;color:var(--dim);letter-spacing:.08em;}
 .dc-mix-swatch{width:6px;height:6px;border-radius:1px;}
 .dc-updated{font-size:9px;color:var(--dim);letter-spacing:.1em;margin-top:8px;text-transform:uppercase;}
+#hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;text-transform:uppercase;font-family:'Courier New',monospace;white-space:nowrap;}
 #citation{position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;opacity:.5;font-family:'Courier New',monospace;text-transform:uppercase;white-space:nowrap;}
 </style>
 </head>
@@ -126,6 +127,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
     <div class="dc-updated" id="dc-updated"></div>
   </div>
 </div>
+<div id="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
 <div id="citation">Source: Electricity Maps API · <span id="sb-zones"></span></div>
 <canvas id="flat-canvas"></canvas>
 <canvas id="globe-canvas"></canvas>
@@ -723,7 +725,7 @@ FC.addEventListener('wheel',e=>{
 // ════════════════════════════════════════════════════════
 const BG=document.getElementById('view-btn-globe'),BF=document.getElementById('view-btn-flat');
 const GCtrl=document.getElementById('globe-controls'),FCtrl=document.getElementById('flat-controls');
-const SBR={set textContent(_){}};
+const SBR={set textContent(v){document.getElementById('hint').textContent=v;}};
 
 function toGlobe(){
   isFlat=false;GC.style.display='block';FC.style.display='none';

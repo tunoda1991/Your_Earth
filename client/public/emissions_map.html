@@ -34,7 +34,6 @@ canvas{display:block;position:absolute;inset:0;}
 #rotate-btn:hover{border-color:var(--accent);color:var(--accent);}
 #rotate-btn.active{border-color:#4a9a7a;color:#4a9a7a;}
 #rotate-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-#citation{position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;opacity:.5;font-family:'Courier New',monospace;text-transform:uppercase;white-space:nowrap;}
 #panel-borders{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
 #panel-borders .panel-border-btn{padding:6px 12px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
 #panel-borders .panel-border-btn:hover{border-color:var(--accent);color:var(--accent);}
@@ -1258,6 +1257,5 @@ requestAnimationFrame(()=>{
   setTimeout(()=>{ hideLoad(); tryLive(); }, 400);
 });
 </script>
-<div id="citation">Source: Climate TRACE API</div>
 </body>
 </html>

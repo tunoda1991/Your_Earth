@@ -37,7 +37,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 #map-controls button:hover{border-color:var(--accent);color:var(--accent);}
 
 #hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--dim);letter-spacing:.15em;pointer-events:none;}
-#stat-bar{position:fixed;top:76px;left:12px;display:flex;gap:14px;pointer-events:none;z-index:10;}
+#stat-bar{position:fixed;top:40px;left:22px;display:flex;gap:14px;pointer-events:none;z-index:10;}
 .stat-chip{font-size:9px;letter-spacing:.15em;color:var(--dim);border:1px solid var(--border);padding:3px 8px;background:rgba(6,13,26,.8);backdrop-filter:blur(6px);}
 .stat-chip span{color:var(--accent);}
 
@@ -654,10 +654,6 @@ function buildPanel(){
   Object.entries(CONN_CFG).forEach(([key,cfg])=>{connSec.appendChild(makeRow('c_'+key,cfg.hex,'arc',cfg.label,connCounts[key]||0));});
   scroll.appendChild(connSec);
 
-  // User list section
-  const userSec=makeSec('Members');
-  const userListDiv=document.createElement('div');userListDiv.id='user-list';
-  userSec.appendChild(userListDiv);scroll.appendChild(userSec);
   updateUserList();
 
   document.getElementById('toggle-all').addEventListener('click',()=>{
