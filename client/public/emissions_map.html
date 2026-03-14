@@ -1003,8 +1003,9 @@ animate();
 const fc=document.getElementById('fc');
 const ctx2=fc.getContext('2d');
 let pan={x:0,y:0},z2=1,d2=false,d2x=0,d2y=0;
-
-function ll2px(lat,lon){return[(lon+180)/360*fc.width*z2+pan.x,(90-lat)/180*fc.height*z2+pan.y];}
+let bW=0,bH=0,bX=0,bY=0;
+function computeBase(){bW=Math.min(fc.width,fc.height*2);bH=bW/2;bX=(fc.width-bW)/2;bY=(fc.height-bH)/2;}
+function ll2px(lat,lon){return[bX+(lon+180)/360*bW*z2+pan.x,bY+(90-lat)/180*bH*z2+pan.y];}
 function draw2(){
   const FW=fc.width,FH=fc.height;
   ctx2.fillStyle='#050a14';ctx2.fillRect(0,0,FW,FH);
@@ -1139,7 +1140,7 @@ document.getElementById('view-btn-flat').addEventListener('click',()=>{
   document.getElementById('view-btn-flat').classList.add('active');document.getElementById('view-btn-globe').classList.remove('active');
   document.getElementById('btm').style.display='none';document.getElementById('btm-flat').style.display='flex';
   document.getElementById('hint').textContent='DRAG TO PAN \u00B7 SCROLL TO ZOOM';
-  fc.width=window.innerWidth;fc.height=window.innerHeight;pan={x:0,y:0};z2=1;draw2();
+  fc.width=window.innerWidth;fc.height=window.innerHeight;pan={x:0,y:0};z2=1;computeBase();draw2();
 });
 const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementById('rotate-label');
 rotBtn.addEventListener('click',()=>{
