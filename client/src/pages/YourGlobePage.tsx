@@ -11,6 +11,7 @@ const MAPS = [
   { id: "disaster", label: "Disasters", src: "/disasters.html", description: "Global climate disasters & extreme events" },
   { id: "electricity", label: "Electricity", src: "/electricity_map.html", description: "Real-time carbon intensity & electricity mix" },
   { id: "emissions", label: "Emissions", src: "/emissions_map.html", description: "Climate TRACE emissions sources by sector & year" },
+  { id: "flights", label: "Flights", src: "/flight_map.html", description: "Real-time global aircraft positions via OpenSky Network" },
   { id: "network", label: "User Network", src: "/user_network.html", description: "Global community connections on a 3D globe" },
 ] as const;
 

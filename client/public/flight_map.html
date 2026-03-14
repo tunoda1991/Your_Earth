@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Flight Map — Your Earth</title>
+<style>
+:root{--bg:#050a14;--panel:rgba(6,13,26,0.94);--border:#1a2f45;--dim:#3a5a7a;--mid:#6a8fa8;--text:#a0c4d8;--accent:#7ab3cc;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;overflow:hidden;width:100vw;height:100vh;}
+canvas{display:block;position:absolute;inset:0;}
+.view-hidden{display:none!important;}
+#header{position:fixed;top:12px;left:0;right:220px;padding:0 22px;pointer-events:none;z-index:10;}
+#header h1{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--accent);font-weight:400;}
+#header p{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-top:3px;}
+#view-toggle{position:fixed;top:12px;right:232px;z-index:20;display:flex;border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(8px);}
+#view-toggle button{padding:6px 13px;background:var(--panel);color:var(--dim);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;}
+#view-toggle button.active{background:rgba(122,179,204,.12);color:var(--accent);}
+#view-toggle button:hover:not(.active){color:var(--text);}
+#panel{position:fixed;top:0;right:0;bottom:0;width:220px;background:var(--panel);border-left:1px solid var(--border);backdrop-filter:blur(8px);display:flex;flex-direction:column;z-index:15;}
+#panel-head{padding:18px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+#panel-head h2{font-size:9px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase;font-weight:400;}
+.live-badge{display:inline-flex;align-items:center;gap:5px;font-size:8px;letter-spacing:.18em;color:#22c55e;text-transform:uppercase;}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#22c55e;animation:pulse-dot 2s infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4);}50%{opacity:.7;box-shadow:0 0 0 4px rgba(34,197,94,0);}}
+#panel-scroll{overflow-y:auto;flex:1;padding:4px 0 16px;}
+#panel-scroll::-webkit-scrollbar{width:3px;}
+#panel-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.sec-wrap{border-top:1px solid var(--border);margin-top:4px;}
+.sec-wrap:first-child{border-top:none;margin-top:0;}
+.sec{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 5px;cursor:pointer;user-select:none;}
+.sec-label{font-size:9px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;}
+.sec-tog{font-size:9px;color:var(--dim);transition:color .15s;padding:0 2px;}
+.sec-wrap:hover .sec-tog{color:var(--accent);}
+.sec-wrap.collapsed .row,.sec-wrap.collapsed .alt-row{display:none;}
+.row{display:flex;align-items:center;gap:8px;padding:5px 16px;cursor:pointer;transition:background .15s;}
+.row:hover{background:rgba(255,255,255,.025);}
+.row.off .sw{opacity:.22;}.row.off .rl{color:var(--dim);}.row.off .rc{opacity:.25;}
+.sw{flex-shrink:0;}.sw.line{width:16px;height:3px;border-radius:1.5px;}
+.rl{font-size:10px;color:var(--mid);letter-spacing:.03em;flex:1;line-height:1.3;}
+.rc{font-size:9px;color:var(--dim);flex-shrink:0;}
+.tog{flex-shrink:0;width:24px;height:12px;background:var(--border);border-radius:6px;position:relative;transition:background .2s;}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--dim);transition:transform .2s,background .2s;}
+.row:not(.off) .tog{background:rgba(122,179,204,.3);}
+.row:not(.off) .tog::after{transform:translateX(12px);background:var(--accent);}
+.alt-row{display:flex;align-items:center;gap:8px;padding:4px 16px;cursor:pointer;transition:background .15s;}
+.alt-row:hover{background:rgba(255,255,255,.025);}
+.alt-row.off .alt-swatch,.alt-row.off .alt-label{opacity:.25;}
+.alt-swatch{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.alt-label{font-size:10px;color:var(--mid);letter-spacing:.03em;flex:1;line-height:1.3;}
+.alt-count{font-size:9px;color:var(--dim);}
+.alt-tog{flex-shrink:0;width:24px;height:12px;background:var(--border);border-radius:6px;position:relative;transition:background .2s;}
+.alt-tog::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--dim);transition:transform .2s,background .2s;}
+.alt-row:not(.off) .alt-tog{background:rgba(122,179,204,.3);}
+.alt-row:not(.off) .alt-tog::after{transform:translateX(12px);background:var(--accent);}
+.stat-strip{display:flex;gap:6px;padding:8px 16px 4px;flex-wrap:wrap;}
+.stat-chip{font-size:9px;letter-spacing:.12em;color:var(--mid);background:rgba(26,47,69,.5);border:1px solid var(--border);padding:4px 8px;text-transform:uppercase;white-space:nowrap;}
+.stat-chip span{color:var(--accent);margin-left:4px;}
+#refresh-row{padding:10px 16px;border-top:1px solid var(--border);margin-top:auto;display:flex;align-items:center;gap:8px;}
+#refresh-btn{font-size:9px;letter-spacing:.14em;color:var(--dim);background:none;border:1px solid var(--border);font-family:'Courier New',monospace;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all .2s;flex-shrink:0;}
+#refresh-btn:hover{border-color:var(--accent);color:var(--accent);}
+#refresh-countdown{font-size:9px;color:var(--dim);letter-spacing:.1em;flex:1;text-align:right;}
+.err-note{font-size:9px;color:#ef4444;letter-spacing:.1em;padding:8px 16px;line-height:1.5;}
+#btm{position:fixed;bottom:18px;left:22px;display:flex;flex-direction:column;gap:4px;z-index:20;}
+#btm button{padding:7px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.18em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);display:flex;align-items:center;gap:7px;}
+#btm button:hover{border-color:var(--accent);color:var(--accent);}
+#btm button.active{border-color:#4a9a7a;color:#4a9a7a;}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+#btm-flat{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:20;}
+#btm-flat button{padding:5px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);}
+#btm-flat button:hover{border-color:var(--accent);color:var(--accent);}
+#hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;text-transform:uppercase;white-space:nowrap;}
+#tooltip{position:fixed;pointer-events:none;background:rgba(4,9,20,.96);border:1px solid var(--border);padding:10px 14px;font-size:11px;display:none;z-index:30;max-width:220px;backdrop-filter:blur(8px);}
+.tt-call{font-size:10px;letter-spacing:.1em;color:#d8eef8;font-weight:700;margin-bottom:4px;}
+.tt-row{font-size:9px;display:flex;gap:6px;margin-top:2px;}.tt-lbl{color:var(--dim);min-width:52px;}.tt-val{color:var(--accent);}
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;}
+#loading p{font-size:9px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;}
+.bar-wrap{width:160px;height:2px;background:var(--border);border-radius:1px;}
+.bar{height:100%;width:0%;background:var(--accent);border-radius:1px;transition:width .4s;}
+#citation{position:fixed;bottom:7px;left:50%;transform:translateX(-50%);font-size:8px;letter-spacing:.18em;color:var(--dim);pointer-events:none;z-index:10;text-transform:uppercase;white-space:nowrap;}
+#map-controls{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:10;}
+#map-controls button{padding:5px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);}
+#map-controls button:hover{border-color:var(--accent);color:var(--accent);}
+</style>
+</head>
+<body>
+
+<canvas id="canvas-3d"></canvas>
+<canvas id="canvas-2d" class="view-hidden"></canvas>
+
+<div id="view-toggle">
+  <button id="view-btn-globe" class="active">Globe</button>
+  <button id="view-btn-flat">2D Map</button>
+</div>
+<div id="header"><h1>Live Flights</h1><p id="sub">Real-time aircraft positions &nbsp;·&nbsp; 3D Globe</p></div>
+
+<div id="btm">
+  <button id="rotate-btn" class="active"><span class="dot"></span><span id="rotate-label">ROTATING</span></button>
+</div>
+<div id="btm-flat">
+  <button id="zoom-in">+ Zoom</button>
+  <button id="zoom-out">− Zoom</button>
+  <button id="reset-v">Reset</button>
+</div>
+<div id="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
+
+<div id="panel">
+  <div id="panel-head">
+    <h2>Flights</h2>
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+  </div>
+  <div id="panel-scroll"></div>
+  <div id="refresh-row">
+    <button id="refresh-btn">Refresh</button>
+    <span id="refresh-countdown">Next in 60s</span>
+  </div>
+</div>
+
+<div id="tooltip">
+  <div class="tt-call" id="tt-call">—</div>
+  <div class="tt-row"><span class="tt-lbl">Country</span><span class="tt-val" id="tt-country">—</span></div>
+  <div class="tt-row"><span class="tt-lbl">Altitude</span><span class="tt-val" id="tt-alt">—</span></div>
+  <div class="tt-row"><span class="tt-lbl">Speed</span><span class="tt-val" id="tt-spd">—</span></div>
+  <div class="tt-row"><span class="tt-lbl">Heading</span><span class="tt-val" id="tt-hdg">—</span></div>
+</div>
+
+<div id="loading">
+  <p id="load-msg">Initializing…</p>
+  <div class="bar-wrap"><div class="bar" id="load-bar"></div></div>
+</div>
+
+<div id="citation">Source: OpenSky Network &nbsp;·&nbsp; opensky-network.org</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// ALTITUDE BANDS
+// ═══════════════════════════════════════════════
+const ALT_BANDS = [
+  { key:'low',    label:'Under 10,000 ft',    maxFt:10000,    hex:'#f97316', rgb:[249,115,22]  },
+  { key:'mid',    label:'10,000 – 25,000 ft', maxFt:25000,    hex:'#fbbf24', rgb:[251,191,36]  },
+  { key:'high',   label:'Above 25,000 ft',    maxFt:Infinity, hex:'#7ab3cc', rgb:[122,179,204] },
+];
+function bandOf(ft){for(const b of ALT_BANDS)if(ft<=b.maxFt)return b;return ALT_BANDS[2];}
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let FLIGHTS=[], vis={low:true,mid:true,high:true,borders:true};
+let hovered=null, lastUpdate=null, fetchError=null;
+let is3D=true, autoRot=true, rX=0.3, rY=0, camD=2.7;
+let W3,H3;
+let flightBuf=null; // {posVBO,colVBO,szVBO,count,flights[]}
+let borderBuf=null;
+let nextRefresh=60, countdownTimer=null;
+
+// ═══════════════════════════════════════════════
+// WEBGL SETUP
+// ═══════════════════════════════════════════════
+const canvas3=document.getElementById('canvas-3d');
+const canvas2=document.getElementById('canvas-2d');
+const gl=canvas3.getContext('webgl',{antialias:true,alpha:false});
+gl.getExtension('OES_element_index_uint');
+
+function mkShader(t,s){const sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);return sh;}
+function mkProg(vs,fs){const p=gl.createProgram();gl.attachShader(p,mkShader(gl.VERTEX_SHADER,vs));gl.attachShader(p,mkShader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);return p;}
+function mkVBO(d,dyn){const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,d,dyn?gl.DYNAMIC_DRAW:gl.STATIC_DRAW);return b;}
+function mkIBO(d){const b=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,b);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(d),gl.STATIC_DRAW);return b;}
+
+const globeProg=mkProg(
+  `attribute vec3 aPos;uniform mat4 uMVP;varying vec3 vN;void main(){vN=aPos;gl_Position=uMVP*vec4(aPos,1.);}`,
+  `precision mediump float;varying vec3 vN;void main(){vec3 n=normalize(vN);float d=max(dot(n,normalize(vec3(1.2,1.6,.8))),0.);vec3 c=vec3(.018,.068,.148)+d*vec3(.025,.07,.14);float gLa=pow(abs(cos(asin(clamp(n.y,-1.,1.))*6.)),26.);float gLo=pow(abs(cos(atan(n.z,n.x)*6.)),26.);c=mix(c,c+vec3(.025,.05,.09),max(gLa,gLo)*.55);gl_FragColor=vec4(c,1.);}`
+);
+const ptProg=mkProg(
+  `attribute vec3 aPos;attribute vec3 aCol;attribute float aSz;uniform mat4 uMVP;uniform vec3 uEye;varying vec3 vCol;varying float vVis;void main(){vCol=aCol;vVis=dot(normalize(aPos),normalize(uEye));gl_Position=uMVP*vec4(aPos,1.);gl_PointSize=vVis>.05?aSz:0.;}`,
+  `precision mediump float;varying vec3 vCol;varying float vVis;void main(){if(vVis<.05)discard;vec2 c=gl_PointCoord-.5;if(dot(c,c)>.25)discard;float r=sqrt(dot(c,c));float core=1.-smoothstep(0.,.12,r);float ring=smoothstep(.12,.22,r)*(1.-smoothstep(.22,.25,r));float a=(core*.9+ring*.5)*min(vVis*3.,1.);gl_FragColor=vec4(vCol,a);}`
+);
+const lineProg=mkProg(
+  `attribute vec3 aPos;uniform mat4 uMVP;uniform vec3 uEye;varying float vF;void main(){vF=dot(normalize(aPos),normalize(uEye));gl_Position=uMVP*vec4(aPos,1.);}`,
+  `precision mediump float;uniform vec3 uCol;uniform float uA;varying float vF;void main(){if(vF<.06)discard;gl_FragColor=vec4(uCol,smoothstep(.06,.28,vF)*uA);}`
+);
+const starProg=mkProg(
+  `attribute vec3 aPos;attribute float aBri;attribute vec2 aPS;uniform mat4 uMVP;uniform float uT;varying float vA;void main(){float blink=.55+.45*sin(uT*aPS[1]+aPS[0]);vA=aBri*blink;gl_Position=uMVP*vec4(aPos,1.);gl_PointSize=1.+aBri*1.6;}`,
+  `precision mediump float;varying float vA;void main(){float d=length(gl_PointCoord-.5)*2.;if(d>1.)discard;gl_FragColor=vec4(.80,.93,1.,vA*(1.-d*.4));}`
+);
+
+// Matrix math
+const m4=()=>new Float32Array(16);
+function mul4(o,a,b){for(let i=0;i<4;i++)for(let j=0;j<4;j++){o[j*4+i]=0;for(let k=0;k<4;k++)o[j*4+i]+=a[k*4+i]*b[j*4+k];}return o;}
+function persp(m,fov,asp,n,f){m.fill(0);const t=1/Math.tan(fov/2);m[0]=t/asp;m[5]=t;m[10]=(f+n)/(n-f);m[11]=-1;m[14]=2*f*n/(n-f);return m;}
+function lookAt(m,e,c,u){const z=n3(sub3(e,c)),x=n3(cross3(u,z)),y=cross3(z,x);m[0]=x[0];m[4]=x[1];m[8]=x[2];m[12]=-dot3(x,e);m[1]=y[0];m[5]=y[1];m[9]=y[2];m[13]=-dot3(y,e);m[2]=z[0];m[6]=z[1];m[10]=z[2];m[14]=-dot3(z,e);m[3]=m[7]=m[11]=0;m[15]=1;return m;}
+const sub3=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const dot3=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const n3=a=>{const l=Math.sqrt(dot3(a,a));return[a[0]/l,a[1]/l,a[2]/l];};
+function ll2xyz(lat,lon,r){const ph=(90-lat)*Math.PI/180,th=(lon+180)*Math.PI/180;return[-r*Math.sin(ph)*Math.cos(th),r*Math.cos(ph),r*Math.sin(ph)*Math.sin(th)];}
+function projPt(pt,VP){const[x,y,z]=pt,cx=VP[0]*x+VP[4]*y+VP[8]*z+VP[12],cy=VP[1]*x+VP[5]*y+VP[9]*z+VP[13],cw=VP[3]*x+VP[7]*y+VP[11]*z+VP[15];if(Math.abs(cw)<.0001)return null;return[(cx/cw*.5+.5)*W3,(1-(cy/cw*.5+.5))*H3];}
+
+// Globe mesh
+function buildSphere(R,la,lo){const v=[],idx=[];for(let i=0;i<=la;i++){const t=i/la*Math.PI;for(let j=0;j<=lo;j++){const p=j/lo*2*Math.PI;v.push(R*Math.sin(t)*Math.cos(p),R*Math.cos(t),R*Math.sin(t)*Math.sin(p));}}for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=i*(lo+1)+j,b=a+lo+1;idx.push(a,b,a+1,b,b+1,a+1);}return{v:new Float32Array(v),idx:new Uint16Array(idx)};}
+const sph=buildSphere(1,64,96);
+const globeVBO=mkVBO(sph.v);
+const globeIBO=(()=>{const b=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,b);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,sph.idx,gl.STATIC_DRAW);return b;})();
+
+// Stars
+const STAR_N=340;
+const _sPos=new Float32Array(STAR_N*3),_sBri=new Float32Array(STAR_N),_sPack=new Float32Array(STAR_N*2);
+for(let i=0;i<STAR_N;i++){const u=Math.random()*2-1,th=Math.random()*Math.PI*2,r=Math.sqrt(Math.max(0,1-u*u));_sPos[i*3]=r*Math.cos(th)*4.8;_sPos[i*3+1]=u*4.8;_sPos[i*3+2]=r*Math.sin(th)*4.8;_sBri[i]=.25+Math.random()*.75;_sPack[i*2]=Math.random()*Math.PI*2;_sPack[i*2+1]=.25+Math.random()*.6;}
+const starVBO=mkVBO(_sPos),starBriVBO=mkVBO(_sBri),starPackVBO=mkVBO(_sPack);
+let _starT=0,_starLast=performance.now();
+function drawStars(VP){const now=performance.now();_starT+=(now-_starLast)/1000;_starLast=now;gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.useProgram(starProg);gl.uniformMatrix4fv(gl.getUniformLocation(starProg,'uMVP'),false,VP);gl.uniform1f(gl.getUniformLocation(starProg,'uT'),_starT);const pa=gl.getAttribLocation(starProg,'aPos'),ba=gl.getAttribLocation(starProg,'aBri'),psa=gl.getAttribLocation(starProg,'aPS');gl.bindBuffer(gl.ARRAY_BUFFER,starVBO);gl.enableVertexAttribArray(pa);gl.vertexAttribPointer(pa,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,starBriVBO);gl.enableVertexAttribArray(ba);gl.vertexAttribPointer(ba,1,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,starPackVBO);gl.enableVertexAttribArray(psa);gl.vertexAttribPointer(psa,2,gl.FLOAT,false,0,0);gl.drawArrays(gl.POINTS,0,STAR_N);}
+
+// Camera
+function eyePos(){const cx=Math.cos(rX),sx=Math.sin(rX),cy=Math.cos(rY),sy=Math.sin(rY);return[-camD*cx*sy,camD*sx,camD*cx*cy];}
+function getVP(){const e=eyePos(),V=m4(),P=m4(),VP=m4();lookAt(V,e,[0,0,0],[0,1,0]);persp(P,Math.PI/4,W3/H3,.1,100);mul4(VP,P,V);return{VP,eye:e};}
+
+function resize3(){W3=canvas3.width=window.innerWidth;H3=canvas3.height=window.innerHeight;gl.viewport(0,0,W3,H3);}
+resize3();
+
+// ═══════════════════════════════════════════════
+// 3D DRAG / ZOOM
+// ═══════════════════════════════════════════════
+let drag3=false,lx3=0,ly3=0;
+const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementById('rotate-label');
+function stopRot(){autoRot=false;rotBtn.classList.remove('active');rotLabel.textContent='ROTATE';}
+function startRot(){autoRot=true;rotBtn.classList.add('active');rotLabel.textContent='ROTATING';}
+rotBtn.addEventListener('click',()=>autoRot?stopRot():startRot());
+canvas3.addEventListener('mousedown',e=>{drag3=true;lx3=e.clientX;ly3=e.clientY;stopRot();});
+addEventListener('mouseup',()=>{drag3=false;});
+canvas3.addEventListener('mousemove',e=>{if(!is3D)return;if(drag3){rY+=(e.clientX-lx3)*.005;rX+=(e.clientY-ly3)*.005;rX=Math.max(-1.4,Math.min(1.4,rX));lx3=e.clientX;ly3=e.clientY;draw3();hideTooltip();return;}handleHover3(e);});
+canvas3.addEventListener('wheel',e=>{camD=Math.max(1.35,Math.min(6,camD+e.deltaY*.003));draw3();},{passive:true});
+canvas3.addEventListener('mouseleave',()=>{hovered=null;hideTooltip();});
+let _td=0;
+canvas3.addEventListener('touchstart',e=>{if(e.touches.length===1){drag3=true;lx3=e.touches[0].clientX;ly3=e.touches[0].clientY;stopRot();}if(e.touches.length===2)_td=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);},{passive:true});
+addEventListener('touchend',()=>drag3=false);
+canvas3.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag3){rY+=(e.touches[0].clientX-lx3)*.005;rX+=(e.touches[0].clientY-ly3)*.005;rX=Math.max(-1.4,Math.min(1.4,rX));lx3=e.touches[0].clientX;ly3=e.touches[0].clientY;draw3();}if(e.touches.length===2){const nd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);camD=Math.max(1.35,Math.min(6,camD-(nd-_td)*.005));_td=nd;draw3();}},{passive:true});
+
+// ═══════════════════════════════════════════════
+// FLIGHT POINT VBO
+// ═══════════════════════════════════════════════
+function rebuildFlightBuf(){
+  if(flightBuf){gl.deleteBuffer(flightBuf.posVBO);gl.deleteBuffer(flightBuf.colVBO);gl.deleteBuffer(flightBuf.szVBO);}
+  const visible=FLIGHTS.filter(f=>vis[f.band]);
+  if(!visible.length){flightBuf=null;return;}
+  const pos=new Float32Array(visible.length*3),col=new Float32Array(visible.length*3),sz=new Float32Array(visible.length);
+  visible.forEach((f,i)=>{
+    const[x,y,z]=ll2xyz(f.lat,f.lon,1.004);
+    pos[i*3]=x;pos[i*3+1]=y;pos[i*3+2]=z;
+    const band=ALT_BANDS.find(b=>b.key===f.band)||ALT_BANDS[2];
+    col[i*3]=band.rgb[0]/255;col[i*3+1]=band.rgb[1]/255;col[i*3+2]=band.rgb[2]/255;
+    sz[i]=5;
+  });
+  flightBuf={posVBO:mkVBO(pos,true),colVBO:mkVBO(col,true),szVBO:mkVBO(sz,true),count:visible.length,flights:visible};
+}
+
+// ═══════════════════════════════════════════════
+// BORDER LINE BUFFER
+// ═══════════════════════════════════════════════
+function buildBorderBuf(geo){
+  const pos=[],idx=[];
+  geo.features.forEach(feat=>{const g=feat.geometry;if(!g)return;const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];polys.forEach(poly=>poly.forEach(ring=>{const si=pos.length/3;ring.forEach(c=>{const[x,y,z]=ll2xyz(c[1],c[0],1.002);pos.push(x,y,z);});for(let i=0;i<ring.length-1;i++)idx.push(si+i,si+i+1);}));});
+  return{posVBO:mkVBO(new Float32Array(pos)),idxBuf:mkIBO(idx),count:idx.length};
+}
+
+// ═══════════════════════════════════════════════
+// 3D DRAW
+// ═══════════════════════════════════════════════
+function draw3(){
+  if(!is3D)return;
+  gl.clearColor(.018,.038,.078,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
+  const{VP,eye}=getVP();
+  // Globe
+  gl.disable(gl.BLEND);gl.useProgram(globeProg);gl.uniformMatrix4fv(gl.getUniformLocation(globeProg,'uMVP'),false,VP);
+  gl.bindBuffer(gl.ARRAY_BUFFER,globeVBO);const gA=gl.getAttribLocation(globeProg,'aPos');gl.enableVertexAttribArray(gA);gl.vertexAttribPointer(gA,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,globeIBO);gl.drawElements(gl.TRIANGLES,sph.idx.length,gl.UNSIGNED_SHORT,0);
+  // Stars
+  gl.enable(gl.BLEND);drawStars(VP);
+  // Borders
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  if(borderBuf&&vis.borders){
+    gl.useProgram(lineProg);gl.uniformMatrix4fv(gl.getUniformLocation(lineProg,'uMVP'),false,VP);gl.uniform3fv(gl.getUniformLocation(lineProg,'uEye'),eye);gl.uniform3fv(gl.getUniformLocation(lineProg,'uCol'),[0.16,0.35,0.54]);gl.uniform1f(gl.getUniformLocation(lineProg,'uA'),.7);
+    gl.bindBuffer(gl.ARRAY_BUFFER,borderBuf.posVBO);const bA=gl.getAttribLocation(lineProg,'aPos');gl.enableVertexAttribArray(bA);gl.vertexAttribPointer(bA,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,borderBuf.idxBuf);gl.drawElements(gl.LINES,borderBuf.count,gl.UNSIGNED_INT,0);
+  }
+  // Aircraft points
+  if(flightBuf&&flightBuf.count>0){
+    gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+    gl.useProgram(ptProg);gl.uniformMatrix4fv(gl.getUniformLocation(ptProg,'uMVP'),false,VP);gl.uniform3fv(gl.getUniformLocation(ptProg,'uEye'),eye);
+    gl.bindBuffer(gl.ARRAY_BUFFER,flightBuf.posVBO);const pA=gl.getAttribLocation(ptProg,'aPos');gl.enableVertexAttribArray(pA);gl.vertexAttribPointer(pA,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,flightBuf.colVBO);const cA=gl.getAttribLocation(ptProg,'aCol');gl.enableVertexAttribArray(cA);gl.vertexAttribPointer(cA,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,flightBuf.szVBO);const sA=gl.getAttribLocation(ptProg,'aSz');gl.enableVertexAttribArray(sA);gl.vertexAttribPointer(sA,1,gl.FLOAT,false,0,0);
+    gl.drawArrays(gl.POINTS,0,flightBuf.count);
+  }
+  // Hovered highlight
+  if(hovered&&is3D){
+    gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+    const[hx,hy,hz]=ll2xyz(hovered.lat,hovered.lon,1.006);
+    const hPos=new Float32Array([hx,hy,hz]);
+    const band=ALT_BANDS.find(b=>b.key===hovered.band)||ALT_BANDS[2];
+    const hCol=new Float32Array([band.rgb[0]/255,band.rgb[1]/255,band.rgb[2]/255]);
+    const hSz=new Float32Array([11]);
+    gl.useProgram(ptProg);gl.uniformMatrix4fv(gl.getUniformLocation(ptProg,'uMVP'),false,VP);gl.uniform3fv(gl.getUniformLocation(ptProg,'uEye'),eye);
+    const tp=mkVBO(hPos,true),tc=mkVBO(hCol,true),ts=mkVBO(hSz,true);
+    gl.bindBuffer(gl.ARRAY_BUFFER,tp);const pA2=gl.getAttribLocation(ptProg,'aPos');gl.enableVertexAttribArray(pA2);gl.vertexAttribPointer(pA2,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,tc);const cA2=gl.getAttribLocation(ptProg,'aCol');gl.enableVertexAttribArray(cA2);gl.vertexAttribPointer(cA2,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,ts);const sA2=gl.getAttribLocation(ptProg,'aSz');gl.enableVertexAttribArray(sA2);gl.vertexAttribPointer(sA2,1,gl.FLOAT,false,0,0);
+    gl.drawArrays(gl.POINTS,0,1);
+    gl.deleteBuffer(tp);gl.deleteBuffer(tc);gl.deleteBuffer(ts);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 3D HOVER DETECTION
+// ═══════════════════════════════════════════════
+function handleHover3(e){
+  if(!flightBuf||!flightBuf.count)return;
+  const{VP}=getVP();
+  const mx=e.clientX,my=e.clientY;
+  let best=null,bd=400;
+  flightBuf.flights.forEach(f=>{
+    const p=projPt(ll2xyz(f.lat,f.lon,1.004),VP);
+    if(!p)return;
+    const dd=(p[0]-mx)**2+(p[1]-my)**2;
+    if(dd<bd){bd=dd;best=f;}
+  });
+  if(best!==hovered){hovered=best;draw3();}
+  if(hovered)showTooltip(hovered,mx,my);else hideTooltip();
+}
+
+// ═══════════════════════════════════════════════
+// 2D FLAT MAP
+// ═══════════════════════════════════════════════
+const ctx2=canvas2.getContext('2d');
+let W2,H2,baseW,baseH,offsetX=0,offsetY=0,scale2=1;
+let drag2=false,lx2=0,ly2=0;
+const _yMax=Math.log(Math.tan(85*Math.PI/180)+1/Math.cos(85*Math.PI/180));
+(function(){window._MAP_ASPECT=Math.PI/_yMax;})();
+function computeBase(){const aW=W2-220,aH=H2,asp=window._MAP_ASPECT;if(aW/aH>asp){baseH=Math.floor(aH*.94);baseW=Math.floor(baseH*asp);}else{baseW=Math.floor(aW*.96);baseH=Math.floor(baseW/asp);}offsetX=Math.floor((aW-baseW)/2);offsetY=Math.floor((aH-baseH)/2);}
+function ll2px(lat,lon){const mW=baseW*scale2,mH=baseH*scale2,x=(lon+180)/360*mW,lr=Math.max(-85,Math.min(85,lat))*Math.PI/180,yM=Math.log(Math.tan(lr)+1/Math.cos(lr)),y=(1-(yM+_yMax)/(2*_yMax))*mH;return[x+offsetX,y+offsetY];}
+
+let bordersGeo2=null;
+function drawRing2(ring){if(ring.length<2)return;ctx2.beginPath();let first=true;for(let i=0;i<ring.length;i++){const[px,py]=ll2px(ring[i][1],ring[i][0]);if(first){ctx2.moveTo(px,py);first=false;continue;}if(Math.abs(ring[i][0]-ring[i-1][0])>180){ctx2.moveTo(px,py);continue;}ctx2.lineTo(px,py);}ctx2.stroke();}
+
+function draw2(){
+  if(is3D)return;
+  const mW=baseW*scale2,mH=baseH*scale2;
+  ctx2.fillStyle='#050a14';ctx2.fillRect(0,0,W2,H2);
+  ctx2.fillStyle='#081422';ctx2.fillRect(offsetX,offsetY,mW,mH);
+  ctx2.strokeStyle='rgba(26,47,69,0.8)';ctx2.lineWidth=1;ctx2.strokeRect(offsetX,offsetY,mW,mH);
+  // Grid
+  ctx2.strokeStyle='rgba(22,52,95,0.32)';ctx2.lineWidth=.5;
+  for(let lo=-180;lo<=180;lo+=30){const[x]=ll2px(0,lo);ctx2.beginPath();ctx2.moveTo(x,offsetY);ctx2.lineTo(x,offsetY+mH);ctx2.stroke();}
+  for(let la=-80;la<=80;la+=20){const[,y]=ll2px(la,0);ctx2.beginPath();ctx2.moveTo(offsetX,y);ctx2.lineTo(offsetX+mW,y);ctx2.stroke();}
+  // Borders
+  if(vis.borders&&bordersGeo2){
+    ctx2.strokeStyle='rgba(52,95,138,0.55)';ctx2.lineWidth=Math.max(.4,.6*Math.sqrt(scale2));
+    bordersGeo2.features.forEach(feat=>{const g=feat.geometry;if(!g)return;const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];polys.forEach(poly=>poly.forEach(ring=>drawRing2(ring)));});
+  }
+  // Aircraft as heading triangles
+  FLIGHTS.filter(f=>vis[f.band]).forEach(f=>{
+    const[px,py]=ll2px(f.lat,f.lon);
+    if(px<offsetX-20||px>offsetX+mW+20||py<offsetY-20||py>offsetY+mH+20)return;
+    const band=ALT_BANDS.find(b=>b.key===f.band)||ALT_BANDS[2];
+    const isHov=f===hovered;
+    const ang=(f.heading-90)*Math.PI/180; // rotate so 0° = east for canvas
+    const sz=isHov?6:3.5;
+    ctx2.save();
+    ctx2.translate(px,py);ctx2.rotate(ang);
+    ctx2.beginPath();
+    ctx2.moveTo(sz*1.8,0);ctx2.lineTo(-sz,sz*.8);ctx2.lineTo(-sz*.4,0);ctx2.lineTo(-sz,-sz*.8);ctx2.closePath();
+    ctx2.fillStyle=band.hex+(isHov?'ff':'cc');
+    ctx2.fill();
+    if(isHov){ctx2.strokeStyle='#fff';ctx2.lineWidth=.8;ctx2.stroke();}
+    ctx2.restore();
+  });
+}
+
+function resize2(){W2=canvas2.width=window.innerWidth;H2=canvas2.height=window.innerHeight;scale2=1;computeBase();}
+
+canvas2.addEventListener('mousedown',e=>{if(scale2>1){drag2=true;lx2=e.clientX;ly2=e.clientY;}});
+addEventListener('mouseup',()=>drag2=false);
+canvas2.addEventListener('mousemove',e=>{
+  if(drag2&&scale2>1){offsetX+=e.clientX-lx2;offsetY+=e.clientY-ly2;lx2=e.clientX;ly2=e.clientY;draw2();return;}
+  // Hover on 2D
+  let best=null,bd=Infinity;
+  FLIGHTS.filter(f=>vis[f.band]).forEach(f=>{
+    const[px,py]=ll2px(f.lat,f.lon);
+    const dd=(px-e.clientX)**2+(py-e.clientY)**2;
+    if(dd<bd&&dd<200){bd=dd;best=f;}
+  });
+  if(best!==hovered){hovered=best;draw2();}
+  if(hovered)showTooltip(hovered,e.clientX,e.clientY);else hideTooltip();
+});
+canvas2.addEventListener('mouseleave',()=>{hovered=null;draw2();hideTooltip();});
+canvas2.addEventListener('wheel',e=>{
+  e.preventDefault();const f=e.deltaY<0?1.15:1/1.15,mx=e.clientX,my=e.clientY;
+  offsetX=mx-(mx-offsetX)*f;offsetY=my-(my-offsetY)*f;
+  scale2=Math.max(1,Math.min(50,scale2*f));
+  if(scale2<=1)computeBase();
+  draw2();
+},{passive:false});
+
+// ═══════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════
+function showTooltip(f,cx,cy){
+  document.getElementById('tt-call').textContent=f.callsign||f.icao24;
+  document.getElementById('tt-country').textContent=f.country;
+  document.getElementById('tt-alt').textContent=f.alt?f.alt.toLocaleString()+' ft':'—';
+  document.getElementById('tt-spd').textContent=f.speed?f.speed+' kts':'—';
+  document.getElementById('tt-hdg').textContent=Math.round(f.heading)+'°';
+  const tip=document.getElementById('tooltip');
+  tip.style.display='block';
+  const tw=tip.offsetWidth,th2=tip.offsetHeight;
+  let tx=cx+16,ty=cy-10;
+  if(tx+tw>window.innerWidth-230)tx=cx-tw-8;
+  if(ty+th2>window.innerHeight-10)ty=cy-th2-4;
+  tip.style.left=tx+'px';tip.style.top=ty+'px';
+}
+function hideTooltip(){document.getElementById('tooltip').style.display='none';}
+
+// ═══════════════════════════════════════════════
+// OPENSKY API FETCH
+// ═══════════════════════════════════════════════
+async function fetchFlights(){
+  document.getElementById('refresh-countdown').textContent='Updating…';
+  fetchError=null;
+  try{
+    const resp=await fetch('https://opensky-network.org/api/states/all',{signal:AbortSignal.timeout?AbortSignal.timeout(15000):undefined});
+    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+    if(!data.states)throw new Error('No state data');
+    FLIGHTS=data.states.slice(0,3000)
+      .map(s=>({
+        icao24:s[0]||'',
+        callsign:(s[1]||'').trim()||null,
+        country:s[2]||'Unknown',
+        lat:s[6], lon:s[5],
+        alt:s[7]?Math.round(s[7]*3.28084):0,
+        speed:s[9]?Math.round(s[9]*1.94384):0,
+        heading:s[10]||0,
+        vert:s[11]||0,
+        onGround:!!s[8],
+      }))
+      .filter(f=>f.lat&&f.lon&&!f.onGround)
+      .map(f=>({...f,band:bandOf(f.alt).key}));
+    lastUpdate=new Date();
+    fetchError=null;
+  }catch(e){
+    fetchError=e.message;
+    if(!FLIGHTS.length)FLIGHTS=[];
+  }
+  rebuildFlightBuf();
+  if(is3D)draw3();else draw2();
+  buildPanel();
+  resetCountdown();
+}
+
+// ═══════════════════════════════════════════════
+// PANEL BUILD
+// ═══════════════════════════════════════════════
+function makeSec(label){
+  const wrap=document.createElement('div');wrap.className='sec-wrap';
+  const hd=document.createElement('div');hd.className='sec';hd.innerHTML=`<span class="sec-label">${label}</span><span class="sec-tog">▾</span>`;
+  hd.addEventListener('click',()=>{wrap.classList.toggle('collapsed');hd.querySelector('.sec-tog').textContent=wrap.classList.contains('collapsed')?'▸':'▾';});
+  wrap.appendChild(hd);return wrap;
+}
+function buildPanel(){
+  const scroll=document.getElementById('panel-scroll');scroll.innerHTML='';
+  // Stats
+  const statWrap=document.createElement('div');statWrap.className='sec-wrap';
+  const countries=new Set(FLIGHTS.map(f=>f.country)).size;
+  const avgAlt=FLIGHTS.length?Math.round(FLIGHTS.reduce((a,f)=>a+f.alt,0)/FLIGHTS.length):0;
+  const avgSpd=FLIGHTS.length?Math.round(FLIGHTS.reduce((a,f)=>a+f.speed,0)/FLIGHTS.length):0;
+  const strip=document.createElement('div');strip.className='stat-strip';
+  strip.innerHTML=
+    `<div class="stat-chip">Aircraft<span id="stat-ac">${FLIGHTS.length.toLocaleString()}</span></div>`+
+    `<div class="stat-chip">Countries<span>${countries}</span></div>`+
+    `<div class="stat-chip">Avg Alt<span>${avgAlt.toLocaleString()} ft</span></div>`+
+    `<div class="stat-chip">Avg Spd<span>${avgSpd} kts</span></div>`;
+  statWrap.appendChild(strip);
+  if(lastUpdate){const upd=document.createElement('div');upd.style.cssText='font-size:8px;color:var(--dim);padding:2px 16px 8px;letter-spacing:.1em;';upd.textContent='Updated '+lastUpdate.toLocaleTimeString();statWrap.appendChild(upd);}
+  if(fetchError){const err=document.createElement('div');err.className='err-note';err.textContent='⚠ '+fetchError;statWrap.appendChild(err);}
+  scroll.appendChild(statWrap);
+  // Altitude filter
+  const altSec=makeSec('Altitude');
+  const bandCounts={};FLIGHTS.forEach(f=>{bandCounts[f.band]=(bandCounts[f.band]||0)+1;});
+  ALT_BANDS.forEach(b=>{
+    const row=document.createElement('div');row.className='alt-row'+(vis[b.key]?'':' off');
+    row.innerHTML=`<span class="alt-swatch" style="background:${b.hex}"></span><span class="alt-label">${b.label}</span><span class="alt-count">${(bandCounts[b.key]||0).toLocaleString()}</span><div class="alt-tog"></div>`;
+    row.addEventListener('click',()=>{vis[b.key]=!vis[b.key];row.classList.toggle('off',!vis[b.key]);rebuildFlightBuf();if(is3D)draw3();else draw2();});
+    altSec.appendChild(row);
+  });
+  scroll.appendChild(altSec);
+  // Map section
+  const mapSec=makeSec('Map');
+  const bRow=document.createElement('div');bRow.className='row'+(vis.borders?'':' off');
+  bRow.innerHTML=`<div class="sw line" style="background:#2a5f88"></div><span class="rl">Country Borders</span><div class="tog"></div>`;
+  bRow.addEventListener('click',()=>{vis.borders=!vis.borders;bRow.classList.toggle('off',!vis.borders);if(is3D)draw3();else draw2();});
+  mapSec.appendChild(bRow);
+  scroll.appendChild(mapSec);
+}
+
+// ═══════════════════════════════════════════════
+// AUTO-REFRESH COUNTDOWN
+// ═══════════════════════════════════════════════
+function resetCountdown(){
+  nextRefresh=60;
+  clearInterval(countdownTimer);
+  countdownTimer=setInterval(()=>{
+    nextRefresh--;
+    const el=document.getElementById('refresh-countdown');
+    if(el)el.textContent='Next in '+nextRefresh+'s';
+    if(nextRefresh<=0){clearInterval(countdownTimer);fetchFlights();}
+  },1000);
+}
+document.getElementById('refresh-btn').addEventListener('click',()=>{clearInterval(countdownTimer);fetchFlights();});
+
+// ═══════════════════════════════════════════════
+// VIEW TOGGLE
+// ═══════════════════════════════════════════════
+const mapCtrl=document.getElementById('map-controls');
+const hint=document.getElementById('hint');
+function setView3D(yes){
+  is3D=!!yes;
+  canvas3.classList.toggle('view-hidden',!is3D);
+  canvas2.classList.toggle('view-hidden',is3D);
+  document.getElementById('view-btn-globe').classList.toggle('active',is3D);
+  document.getElementById('view-btn-flat').classList.toggle('active',!is3D);
+  document.getElementById('btm').style.display=is3D?'flex':'none';
+  document.getElementById('btm-flat').style.display=is3D?'none':'flex';
+  hint.textContent=is3D?'DRAG TO ROTATE \u00B7 SCROLL TO ZOOM':'DRAG TO PAN \u00B7 SCROLL TO ZOOM';
+  document.querySelector('#header p').textContent=is3D?'Real-time aircraft positions \u00B7 3D Globe':'Real-time aircraft positions \u00B7 2D Map';
+  if(!is3D){resize2();draw2();}else draw3();
+  hovered=null;hideTooltip();
+}
+document.getElementById('view-btn-globe').addEventListener('click',()=>setView3D(true));
+document.getElementById('view-btn-flat').addEventListener('click',()=>setView3D(false));
+document.getElementById('zoom-in').addEventListener('click',()=>{const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)*1.4;offsetY=cy-(cy-offsetY)*1.4;scale2=Math.min(50,scale2*1.4);draw2();});
+document.getElementById('zoom-out').addEventListener('click',()=>{if(scale2<=1)return;const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)/1.4;offsetY=cy-(cy-offsetY)/1.4;scale2=Math.max(1,scale2/1.4);if(scale2<=1)computeBase();draw2();});
+document.getElementById('reset-v').addEventListener('click',()=>{scale2=1;computeBase();draw2();});
+window.addEventListener('resize',()=>{resize3();if(!is3D){resize2();draw2();}else draw3();});
+
+// ═══════════════════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════════════════
+(function loop(){requestAnimationFrame(loop);if(!is3D)return;if(autoRot){rY+=.0008;draw3();}})();
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+function setLoad(pct,msg){document.getElementById('load-bar').style.width=pct+'%';if(msg)document.getElementById('load-msg').textContent=msg;}
+(async function boot(){
+  setLoad(10,'Loading world borders…');
+  try{
+    const resp=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    const topo=await resp.json();
+    // Convert topojson arcs to GeoJSON-like
+    function topoArc2(topo,i){const a=i<0?topo.arcs[~i].slice().reverse():topo.arcs[i].slice();if(topo.transform){const{scale,translate}=topo.transform;let x=0,y=0;return a.map(d=>{x+=d[0];y+=d[1];return[x*scale[0]+translate[0],y*scale[1]+translate[1]];});}return a;}
+    function topoRings2(topo,arcs){return arcs.map(a=>a.reduce((r,i)=>r.concat(topoArc2(topo,i)),[]));}
+    const geoFeatures=[];
+    Object.values(topo.objects).forEach(obj=>{obj.geometries.forEach(geom=>{if(!geom)return;const type=geom.type;if(type==='Polygon'){geoFeatures.push({geometry:{type:'Polygon',coordinates:topoRings2(topo,geom.arcs)}});}else if(type==='MultiPolygon'){geoFeatures.push({geometry:{type:'MultiPolygon',coordinates:geom.arcs.map(p=>topoRings2(topo,p))}});}});});
+    const geo={type:'FeatureCollection',features:geoFeatures};
+    borderBuf=buildBorderBuf(geo);
+    bordersGeo2=geo;
+  }catch(e){console.warn('Border load failed:',e);}
+  setLoad(50,'Fetching live flights…');
+  buildPanel(); // show empty panel while loading
+  await fetchFlights();
+  setLoad(100,'');
+  document.getElementById('loading').style.display='none';
+  draw3();
+})();
+</script>
+</body>
+</html>
