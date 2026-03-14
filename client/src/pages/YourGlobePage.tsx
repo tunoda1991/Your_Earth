@@ -11,6 +11,7 @@ const MAPS = [
   { id: "disaster", label: "Disasters", src: "/disasters.html", description: "Global climate disasters & extreme events" },
   { id: "electricity", label: "Electricity", src: "/electricity_map.html", description: "Real-time carbon intensity & electricity mix" },
   { id: "emissions", label: "Emissions", src: "/emissions_map.html", description: "Climate TRACE emissions sources by sector & year" },
+  { id: "flights", label: "Flights", src: "/flight_map.html", description: "Real-time global aircraft positions via OpenSky Network" },
   { id: "network", label: "User Network", src: "/user_network.html", description: "Global community connections on a 3D globe" },
 ] as const;
 
@@ -35,9 +36,9 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
   }, [dropdownOpen]);
 
   return (
-    <div className="w-full bg-[#050a14]" style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
+    <div className="w-full bg-[#050a14]" style={{ height: "calc(100vh - 80px)", marginTop: "80px", position: "relative" }}>
       {/* Map switcher dropdown — bottom of map zone, just left of right panel */}
-      <div style={{ position: "fixed", bottom: "18px", right: activeMap === "electricity" ? "312px" : activeMap === "emissions" ? "302px" : "232px", zIndex: 9999 }}>
+      <div style={{ position: "absolute", bottom: "18px", right: activeMap === "electricity" ? "312px" : activeMap === "emissions" ? "302px" : "232px", zIndex: 9999 }}>
         <div className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
