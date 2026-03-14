@@ -698,11 +698,11 @@ function ptIn(mx,my,rings){
   return false;
 }
 
-FC.addEventListener('mousedown',e=>{fDrg=true;fLx=e.clientX;fLy=e.clientY;});
+FC.addEventListener('mousedown',e=>{if(fSc>1){fDrg=true;fLx=e.clientX;fLy=e.clientY;}});
 window.addEventListener('mouseup',()=>fDrg=false);
 FC.addEventListener('mousemove',e=>{
   fMx=e.clientX;fMy=e.clientY;
-  if(fDrg){fOX+=e.clientX-fLx;fOY+=e.clientY-fLy;fLx=e.clientX;fLy=e.clientY;draw2d();return;}
+  if(fDrg&&fSc>1){fOX+=e.clientX-fLx;fOY+=e.clientY-fLy;fLx=e.clientX;fLy=e.clientY;draw2d();return;}
   let hit=null;
   for(const{code,rings}of countryFeatures){if(!code)continue;if(ptIn(e.clientX,e.clientY,rings)){hit=code;break;}}
   if(hit!==fHov){
@@ -717,7 +717,7 @@ FC.addEventListener('wheel',e=>{
   e.preventDefault();
   const f=e.deltaY<0?1.15:1/1.15;
   fOX=e.clientX-(e.clientX-fOX)*f;fOY=e.clientY-(e.clientY-fOY)*f;
-  fSc=Math.max(1,Math.min(40,fSc*f));draw2d();
+  fSc=Math.max(1,Math.min(40,fSc*f));if(fSc<=1)base();draw2d();
 },{passive:false});
 
 // ════════════════════════════════════════════════════════
