@@ -23,7 +23,7 @@ canvas{display:block;}
 #rotate-btn:hover{border-color:var(--accent);color:var(--accent);}
 #rotate-btn.active{border-color:#4a9a7a;color:#4a9a7a;}
 #rotate-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-#map-controls{position:fixed;bottom:18px;left:22px;display:none;gap:6px;z-index:10;}
+#map-controls{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:10;}
 #map-controls button{padding:6px 13px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;}
 #map-controls button:hover{border-color:var(--accent);color:var(--accent);}
 #hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--dim);letter-spacing:.15em;pointer-events:none;z-index:10;}
@@ -69,6 +69,9 @@ canvas{display:block;}
 .sub-wrap.collapsed .row{display:none;}
 .sub-wrap.sub-off .sub-label{opacity:.3;}
 .row.sub-row{padding-left:28px;}
+#panel-scroll > .sub-wrap > .sub-head{padding:10px 16px 5px;}
+#panel-scroll > .sub-wrap > .sub-head .sub-label{opacity:1;letter-spacing:.22em;}
+#panel-scroll > .sub-wrap .row.sub-row{padding-left:16px;}
 </style>
 </head>
 <body>
@@ -335,13 +338,11 @@ function buildPanel(){
   function makeRow(key,swColor,isLine,label,count){const r=document.createElement('div');r.className='row'+(vis[key]?'':' off');r.dataset.key=key;const sw=document.createElement('div');sw.className='sw '+(isLine?'line':'dot');sw.style.background=`rgb(${swColor[0]},${swColor[1]},${swColor[2]})`;const rl=document.createElement('span');rl.className='rl';rl.textContent=label;const rc=document.createElement('span');rc.className='rc';if(count!=null)rc.textContent=count;const tog=document.createElement('div');tog.className='tog';r.append(sw,rl,rc,tog);r.addEventListener('click',()=>{vis[key]=!vis[key];r.classList.toggle('off',!vis[key]);if(currentView==='3d')draw3d();else render2d();});return r;}
   function makeSec(secDef){const wrap=document.createElement('div');wrap.className='sec-wrap';wrap.dataset.sec=secDef.key;const hd=document.createElement('div');hd.className='sec';hd.innerHTML=`<span class="sec-label">${secDef.label}</span><span class="sec-tog">▾</span>`;const anyOff=secDef.keys.some(k=>!vis[k]);wrap.classList.toggle('sec-off',anyOff);hd.addEventListener('click',e=>{const tog=hd.querySelector('.sec-tog'),rect=hd.getBoundingClientRect();if(e.clientX>rect.right-28){const anyOn=secDef.keys.some(k=>vis[k]);secDef.keys.forEach(k=>{vis[k]=!anyOn;const row=wrap.querySelector(`[data-key="${k}"]`);if(row)row.classList.toggle('off',!vis[k]);});wrap.classList.toggle('sec-off',!secDef.keys.some(k=>vis[k]));if(currentView==='3d')draw3d();else render2d();}else{wrap.classList.toggle('collapsed');tog.textContent=wrap.classList.contains('collapsed')?'▸':'▾';}});wrap.appendChild(hd);return wrap;}
   const mapSec=makeSec(SECTIONS[0]);mapSec.appendChild(makeRow('borders',[52,95,138],true,'Country Borders',null));scroll.appendChild(mapSec);
-  const pwrSec=makeSec(SECTIONS[1]);
-  function makeSubGroup(subLabel,codes,countFn){const sub=document.createElement('div');sub.className='sub-wrap';const subKeys=codes.map(c=>'pt_'+c);const shdr=document.createElement('div');shdr.className='sub-head';shdr.innerHTML=`<span class="sub-label">${subLabel}</span><span class="sub-tog">▾</span>`;sub.appendChild(shdr);shdr.addEventListener('click',e=>{const tog=shdr.querySelector('.sub-tog'),rect=shdr.getBoundingClientRect();if(e.clientX>rect.right-28){const anyOn=subKeys.some(k=>vis[k]);subKeys.forEach(k=>{vis[k]=!anyOn;const row=sub.querySelector(`[data-key="${k}"]`);if(row)row.classList.toggle('off',!vis[k]);});sub.classList.toggle('sub-off',!subKeys.some(k=>vis[k]));const allSecOff=!SECTIONS[1].keys.some(k=>vis[k]);pwrSec.classList.toggle('sec-off',allSecOff);if(currentView==='3d')draw3d();else render2d();}else{sub.classList.toggle('collapsed');tog.textContent=sub.classList.contains('collapsed')?'▸':'▾';}});codes.forEach(code=>{const cnt=countFn(code);if(cnt===null)return;const cfg=POINT_LAYERS[code];const row=makeRow('pt_'+code,cfg.color,false,cfg.label,cnt);row.classList.add('sub-row');sub.appendChild(row);});return sub;}
+  function makeSubGroup(subLabel,codes,countFn){const sub=document.createElement('div');sub.className='sub-wrap';const subKeys=codes.map(c=>'pt_'+c);const shdr=document.createElement('div');shdr.className='sub-head';shdr.innerHTML=`<span class="sub-label">${subLabel}</span><span class="sub-tog">▾</span>`;sub.appendChild(shdr);shdr.addEventListener('click',e=>{const tog=shdr.querySelector('.sub-tog'),rect=shdr.getBoundingClientRect();if(e.clientX>rect.right-28){const anyOn=subKeys.some(k=>vis[k]);subKeys.forEach(k=>{vis[k]=!anyOn;const row=sub.querySelector(`[data-key="${k}"]`);if(row)row.classList.toggle('off',!vis[k]);});sub.classList.toggle('sub-off',!subKeys.some(k=>vis[k]));if(currentView==='3d')draw3d();else render2d();}else{sub.classList.toggle('collapsed');tog.textContent=sub.classList.contains('collapsed')?'▸':'▾';}});codes.forEach(code=>{const cnt=countFn(code);if(cnt===null)return;const cfg=POINT_LAYERS[code];const row=makeRow('pt_'+code,cfg.color,false,cfg.label,cnt);row.classList.add('sub-row');sub.appendChild(row);});return sub;}
 
   const ptCounts={};RAW_DATA.forEach(d=>ptCounts[d[2]]=(ptCounts[d[2]]||0)+1);
   const pwrSub=makeSubGroup('Fossil Power',['pc','po','px'],c=>ptCounts[c]?(ptCounts[c]).toLocaleString():null);
-  pwrSec.appendChild(pwrSub);
-  scroll.appendChild(pwrSec);
+  scroll.appendChild(pwrSub);
   const indusSec=makeSec(SECTIONS[2]);
   ['o','c','cm','m','l','s','i','ct'].forEach(code=>{const cfg=POINT_LAYERS[code];const cnt=ptCounts[code];if(!cnt)return;indusSec.appendChild(makeRow('pt_'+code,cfg.color,false,cfg.label,cnt.toLocaleString()));});
   scroll.appendChild(indusSec);
