@@ -1002,16 +1002,20 @@ animate();
 // ── 2D flat map ───────────────────────────────────────────────────────────────
 const fc=document.getElementById('fc');
 const ctx2=fc.getContext('2d');
-let pan={x:0,y:0},z2=1,d2=false,d2x=0,d2y=0;
-let bW=0,bH=0,bX=0,bY=0;
-function computeBase(){bW=Math.min(fc.width,fc.height*2);bH=bW/2;bX=(fc.width-bW)/2;bY=(fc.height-bH)/2;}
-function ll2px(lat,lon){return[bX+(lon+180)/360*bW*z2+pan.x,bY+(90-lat)/180*bH*z2+pan.y];}
+let W2,H2,baseW,baseH,offsetX=0,offsetY=0,scale2=1;
+let dragging2=false,lx2=0,ly2=0;
+const _yMax=Math.log(Math.tan(85*Math.PI/180)+1/Math.cos(85*Math.PI/180));
+(function(){window._MAP_ASPECT=Math.PI/_yMax;})();
+function computeBase(){const aW=W2-290,aH=H2,asp=window._MAP_ASPECT;if(aW/aH>asp){baseH=Math.floor(aH*.94);baseW=Math.floor(baseH*asp);}else{baseW=Math.floor(aW*.96);baseH=Math.floor(baseW/asp);}offsetX=Math.floor((aW-baseW)/2);offsetY=Math.floor((aH-baseH)/2);}
+function ll2px(lat,lon){const mW=baseW*scale2,mH=baseH*scale2,x=(lon+180)/360*mW,lr=Math.max(-85,Math.min(85,lat))*Math.PI/180,yM=Math.log(Math.tan(lr)+1/Math.cos(lr)),y=(1-(yM+_yMax)/(2*_yMax))*mH;return[x+offsetX,y+offsetY];}
 function draw2(){
-  const FW=fc.width,FH=fc.height;
-  ctx2.fillStyle='#050a14';ctx2.fillRect(0,0,FW,FH);
+  const mW=baseW*scale2,mH=baseH*scale2;
+  ctx2.fillStyle='#050a14';ctx2.fillRect(0,0,W2,H2);
+  ctx2.fillStyle='#081422';ctx2.fillRect(offsetX,offsetY,mW,mH);
+  ctx2.strokeStyle='rgba(26,47,69,0.8)';ctx2.lineWidth=1;ctx2.strokeRect(offsetX,offsetY,mW,mH);
   ctx2.strokeStyle='rgba(22,52,95,0.32)';ctx2.lineWidth=0.5;
-  for(let lat=-80;lat<=80;lat+=20){const[,y]=ll2px(lat,0);ctx2.beginPath();ctx2.moveTo(0,y);ctx2.lineTo(FW,y);ctx2.stroke();}
-  for(let lon=-180;lon<=180;lon+=30){const[x]=ll2px(0,lon);ctx2.beginPath();ctx2.moveTo(x,0);ctx2.lineTo(x,FH);ctx2.stroke();}
+  for(let lon=-180;lon<=180;lon+=30){const[x]=ll2px(0,lon);ctx2.beginPath();ctx2.moveTo(x,offsetY);ctx2.lineTo(x,offsetY+mH);ctx2.stroke();}
+  for(let lat=-80;lat<=80;lat+=20){const[,y]=ll2px(lat,0);ctx2.beginPath();ctx2.moveTo(offsetX,y);ctx2.lineTo(offsetX+mW,y);ctx2.stroke();}
   if(bordersVisible&&window._topoCache){
     ctx2.strokeStyle='rgba(42,88,120,0.6)';ctx2.lineWidth=0.6;
     const geos=topo2geos(window._topoCache,window._topoCache.objects.countries);
@@ -1038,33 +1042,32 @@ function draw2(){
   }
   VISIBLE.forEach(s=>{
     const[x,y]=ll2px(s.lat,s.lon);
-    if(x<-30||x>FW+30||y<-30||y>FH+30)return;
+    if(x<-30||x>W2+30||y<-30||y>H2+30)return;
     // Bubble radius ∝ emission per year (log scale)
     const logR = Math.log10(s.co2+1) / Math.log10(maxCO2+1);
-    const r=Math.max(2, logR*38*z2+2);
+    const r=Math.max(2, logR*38*scale2+2);
     ctx2.beginPath();ctx2.arc(x,y,r,0,Math.PI*2);
     ctx2.fillStyle=scol(s.sector)+'bb';ctx2.fill();
     ctx2.strokeStyle=scol(s.sector)+'99';ctx2.lineWidth=0.6;ctx2.stroke();
   });
 }
 
-fc.addEventListener('mousedown',e=>{d2=true;d2x=e.clientX;d2y=e.clientY;});
-window.addEventListener('mouseup',()=>d2=false);
+fc.addEventListener('mousedown',e=>{if(scale2>1){dragging2=true;lx2=e.clientX;ly2=e.clientY;}});
+window.addEventListener('mouseup',()=>dragging2=false);
 fc.addEventListener('mousemove',e=>{
-  if(d2){pan.x+=e.clientX-d2x;pan.y+=e.clientY-d2y;d2x=e.clientX;d2y=e.clientY;draw2();}
+  if(dragging2){offsetX+=e.clientX-lx2;offsetY+=e.clientY-ly2;lx2=e.clientX;ly2=e.clientY;draw2();}
   else{
-    const rect=fc.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
     let best=null,bd=Infinity;
-    VISIBLE.forEach(s=>{const[x,y]=ll2px(s.lat,s.lon);const dd=(x-mx)**2+(y-my)**2;if(dd<bd&&dd<400){bd=dd;best=s;}});
+    VISIBLE.forEach(s=>{const[x,y]=ll2px(s.lat,s.lon);const dd=(x-e.clientX)**2+(y-e.clientY)**2;if(dd<bd&&dd<400){bd=dd;best=s;}});
     if(best)showTip(best,e.clientX,e.clientY);else hideTip();
   }
 });
-const Z2_MIN=1;
 fc.addEventListener('wheel',e=>{
-  e.preventDefault();const f=e.deltaY>0?.85:1.18;
-  const r=fc.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
-  pan.x=(pan.x-mx)*f+mx;pan.y=(pan.y-my)*f+my;
-  z2=Math.max(Z2_MIN,z2*f);draw2();
+  e.preventDefault();const f=e.deltaY<0?1.15:1/1.15,mx=e.clientX,my=e.clientY;
+  offsetX=mx-(mx-offsetX)*f;offsetY=my-(my-offsetY)*f;
+  scale2=Math.max(1,Math.min(50,scale2*f));
+  if(scale2<=1)computeBase();
+  draw2();
 },{passive:false});
 
 // ── tooltip ──────────────────────────────────────────────────────────────────
@@ -1140,7 +1143,7 @@ document.getElementById('view-btn-flat').addEventListener('click',()=>{
   document.getElementById('view-btn-flat').classList.add('active');document.getElementById('view-btn-globe').classList.remove('active');
   document.getElementById('btm').style.display='none';document.getElementById('btm-flat').style.display='flex';
   document.getElementById('hint').textContent='DRAG TO PAN \u00B7 SCROLL TO ZOOM';
-  fc.width=window.innerWidth;fc.height=window.innerHeight;pan={x:0,y:0};z2=1;computeBase();draw2();
+  W2=fc.width=window.innerWidth;H2=fc.height=window.innerHeight;scale2=1;computeBase();draw2();
 });
 const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementById('rotate-label');
 rotBtn.addEventListener('click',()=>{
@@ -1153,12 +1156,12 @@ document.getElementById('btn-borders-panel').addEventListener('click',function()
   if(isGlobe){/* borderGroup.visible set in animate */}else draw2();
 });
 document.getElementById('zoom-in').addEventListener('click',()=>{
-  const c=fc.width/2,d=fc.height/2;pan.x=c-(c-pan.x)*1.4;pan.y=d-(d-pan.y)*1.4;z2=Math.min(40,z2*1.4);draw2();
+  const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)*1.4;offsetY=cy-(cy-offsetY)*1.4;scale2=Math.min(50,scale2*1.4);draw2();
 });
 document.getElementById('zoom-out').addEventListener('click',()=>{
-  if(z2<=1)return;const c=fc.width/2,d=fc.height/2;pan.x=c-(c-pan.x)/1.4;pan.y=d-(d-pan.y)/1.4;z2=Math.max(1,z2/1.4);draw2();
+  if(scale2<=1)return;const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)/1.4;offsetY=cy-(cy-offsetY)/1.4;scale2=Math.max(1,scale2/1.4);if(scale2<=1)computeBase();draw2();
 });
-document.getElementById('reset-v').addEventListener('click',()=>{pan={x:0,y:0};z2=1;draw2();});
+document.getElementById('reset-v').addEventListener('click',()=>{scale2=1;computeBase();draw2();});
 
 // ── year slider ───────────────────────────────────────────────────────────────
 document.getElementById('ysl').addEventListener('input',function(){
@@ -1180,7 +1183,7 @@ document.getElementById('ysl').addEventListener('input',function(){
 window.addEventListener('resize',()=>{
   renderer.setSize(window.innerWidth,window.innerHeight);
   camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();
-  if(!isGlobe){fc.width=window.innerWidth;fc.height=window.innerHeight;draw2();}
+  if(!isGlobe){W2=fc.width=window.innerWidth;H2=fc.height=window.innerHeight;scale2=1;computeBase();draw2();}
 });
 
 // ── live API (fully background, never blocks UI) ──────────────────────────────

@@ -530,11 +530,11 @@ function draw2(){
 // 2D interaction
 canvas2.addEventListener('mousedown',e=>{drag2=true;lx2=e.clientX;ly2=e.clientY;hideCard();});
 addEventListener('mouseup',()=>drag2=false);
-canvas2.addEventListener('mousemove',e=>{if(!is3D&&drag2){offsetX+=e.clientX-lx2;offsetY+=e.clientY-ly2;lx2=e.clientX;ly2=e.clientY;draw2();return;}if(!is3D)handleHover2(e);});
+canvas2.addEventListener('mousemove',e=>{if(!is3D&&drag2&&scale2>1){offsetX+=e.clientX-lx2;offsetY+=e.clientY-ly2;lx2=e.clientX;ly2=e.clientY;draw2();return;}if(!is3D)handleHover2(e);});
 canvas2.addEventListener('mouseleave',()=>{hoveredUser=null;hideCard();draw2();});
-canvas2.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.15:1/1.15,mx=e.clientX,my=e.clientY;offsetX=mx-(mx-offsetX)*f;offsetY=my-(my-offsetY)*f;scale2=Math.max(1,Math.min(50,scale2*f));draw2();},{passive:false});
+canvas2.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.15:1/1.15,mx=e.clientX,my=e.clientY;offsetX=mx-(mx-offsetX)*f;offsetY=my-(my-offsetY)*f;scale2=Math.max(1,Math.min(50,scale2*f));if(scale2<=1)computeBase();draw2();},{passive:false});
 document.getElementById('zoom-in').addEventListener('click',()=>{const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)*1.4;offsetY=cy-(cy-offsetY)*1.4;scale2=Math.min(50,scale2*1.4);draw2();});
-document.getElementById('zoom-out').addEventListener('click',()=>{if(scale2<=1)return;const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)/1.4;offsetY=cy-(cy-offsetY)/1.4;scale2=Math.max(1,scale2/1.4);draw2();});
+document.getElementById('zoom-out').addEventListener('click',()=>{if(scale2<=1)return;const cx=W2/2,cy=H2/2;offsetX=cx-(cx-offsetX)/1.4;offsetY=cy-(cy-offsetY)/1.4;scale2=Math.max(1,scale2/1.4);if(scale2<=1)computeBase();draw2();});
 document.getElementById('reset-v').addEventListener('click',()=>{scale2=1;computeBase();draw2();});
 
 let td2=0;
