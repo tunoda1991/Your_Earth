@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Earth – Site Structure</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0f1e;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .header h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #34d399, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+
+    /* ── Legend ─────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 40px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    /* ── Tree Container ─────────────────────────────────── */
+    .tree-wrapper {
+      max-width: 1300px;
+      margin: 0 auto;
+      overflow-x: auto;
+    }
+    .tree {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      min-width: 900px;
+    }
+
+    /* ── Nodes ──────────────────────────────────────────── */
+    .node {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 16px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      transition: transform 0.18s, box-shadow 0.18s;
+      cursor: default;
+    }
+    .node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .node-icon { font-size: 1rem; }
+
+    /* colour palette */
+    .root    { background: linear-gradient(135deg,#065f46,#064e8c); border-color:#34d399; color:#a7f3d0; font-size:1rem; padding:10px 24px; border-radius:14px; }
+    .section { background: rgba(30,41,59,0.85); border-color:#334155; color:#e2e8f0; }
+    .sub     { background: rgba(15,23,42,0.7);  border-color:#1e293b; color:#94a3b8; font-weight:500; font-size:0.78rem; }
+    .map-node{ background: rgba(5,150,105,0.15);border-color:#065f46; color:#6ee7b7; }
+    .protected-node { background: rgba(124,58,237,0.15); border-color:#5b21b6; color:#c4b5fd; }
+    .auth-node      { background: rgba(37,99,235,0.15);  border-color:#1d4ed8; color:#93c5fd; }
+    .meta-node      { background: rgba(71,85,105,0.2);   border-color:#334155; color:#94a3b8; }
+
+    /* ── Layout rows ────────────────────────────────────── */
+    .row {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 0;
+      width: 100%;
+      position: relative;
+    }
+
+    /* ── Column (section) ───────────────────────────────── */
+    .col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+      padding: 0 6px;
+    }
+
+    /* ── Connectors ─────────────────────────────────────── */
+    .v-line {
+      width: 2px;
+      background: linear-gradient(to bottom, #334155, transparent);
+      margin: 0 auto;
+    }
+    .v-line-sm  { height: 20px; }
+    .v-line-md  { height: 30px; }
+
+    .h-bar {
+      height: 2px;
+      background: #334155;
+      width: 100%;
+      position: absolute;
+      top: 0;
+    }
+
+    .branch-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    /* top horizontal connector that spans columns */
+    .top-connector {
+      width: 100%;
+      position: relative;
+      height: 30px;
+      display: flex;
+      justify-content: center;
+    }
+    .top-connector::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: #334155;
+    }
+    .top-connector::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: #334155;
+      transform: translateX(-50%);
+    }
+
+    .section-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* child list */
+    .children {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+    }
+
+    .child-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* sub-children (grandchild nodes) */
+    .grandchildren {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(15,23,42,0.4);
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      margin-top: 0;
+    }
+
+    /* ── Badges ─────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 99px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-protected { background:#5b21b6; color:#ede9fe; }
+    .badge-public    { background:#065f46; color:#d1fae5; }
+    .badge-auth      { background:#1d4ed8; color:#dbeafe; }
+
+    /* ── URL Chips ──────────────────────────────────────── */
+    .url-chip {
+      font-family: monospace;
+      font-size: 0.68rem;
+      background: rgba(51,65,85,0.5);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 1px 7px;
+      color: #64748b;
+    }
+
+    /* ── Bottom meta row ────────────────────────────────── */
+    .meta-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 0;
+    }
+
+    /* ── Stats bar ──────────────────────────────────────── */
+    .stats {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 52px;
+      padding-top: 24px;
+      border-top: 1px solid #1e293b;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg,#34d399,#3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+
+    /* ── Standalone maps box ────────────────────────────── */
+    .maps-box {
+      background: rgba(5,150,105,0.07);
+      border: 1px solid #065f46;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-top: 36px;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .maps-box h3 {
+      text-align: center;
+      color: #34d399;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .maps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 8px;
+    }
+    .map-card {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #6ee7b7;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .map-card span { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🌍 Your Earth – Site Structure</h1>
+  <p>Complete site tree diagram · Routes, sections, and interactive maps</p>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> Public page</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Protected (auth required)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Auth pages</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#065f46"></div> Interactive map</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#475569"></div> Meta / legal</div>
+</div>
+
+<div class="tree-wrapper">
+<div class="tree">
+
+  <!-- ROOT -->
+  <div class="node root"><span class="node-icon">🌍</span> Your Earth <span class="url-chip">?page=home</span></div>
+  <div class="v-line v-line-md"></div>
+
+  <!-- ── Level-1 horizontal bar + columns ── -->
+  <div style="width:100%; position:relative;">
+    <!-- horizontal spanning bar drawn via CSS on top-connector -->
+  </div>
+
+  <div class="row" style="align-items:flex-start; gap:4px;">
+
+    <!-- ════ LEARN ════ -->
+    <div class="col">
+      <div class="top-connector"></div>
+      <div class="node section"><span class="node-icon">📚</span> Learn</div>
+      <div class="v-line v-line-sm"></div>
+      <div class="children">
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🎓</span> Climate Education <span class="url-chip">learn-education</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🧮</span> Carbon Calculator <span class="url-chip">learn-calculator</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">📊</span> Climate Data Dashboard <span class="url-chip">climate-data-dashboard</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🏢</span> Corporate Monitor <span class="url-chip">learn-corporate</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🏛️</span> Organization Bank <span class="url-chip">learn-databank</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🔍</span> Climate TRACE <span class="url-chip">learn-trace</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <!-- Your Globe with sub-maps -->
+        <div class="child-item" style="width:100%">
+          <div class="node map-node" style="width:auto"><span class="node-icon">🌐</span> Your Globe <span class="url-chip">your-globe</span></div>
+          <div class="v-line v-line-sm"></div>
+          <div class="grandchildren">
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🌍</span> 3D Globe</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🗺️</span> 2D Flat Map</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>⚡</span> Electricity Map</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>💨</span> Emissions Map</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🔋</span> Energy Map</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🌪️</span> Disaster Map</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🛢️</span> Fossils Map</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>♻️</span> Renewables Map</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>👥</span> User Network</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════ COMMUNITY ════ -->
+    <div class="col">
+      <div class="top-connector"></div>
+      <div class="node section"><span class="node-icon">🤝</span> Community</div>
+      <div class="v-line v-line-sm"></div>
+      <div class="children">
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🔗</span> Connect (AI News) <span class="url-chip">connect</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+        <div class="grandchildren" style="flex-direction:column;gap:4px;align-items:center;">
+          <div class="node sub" style="font-size:0.72rem;padding:3px 10px;"><span>📰</span> Connect Sector <span class="url-chip">connect-sector</span></div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 10px;"><span>📄</span> Article View <span class="url-chip">connect-article</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">📣</span> Community Feed <span class="url-chip">community-feed</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">💬</span> Topic Page <span class="url-chip">topic</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div style="font-size:0.72rem;color:#64748b;margin:4px 0;">Topic Communities</div>
+        <div class="grandchildren">
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">⚡ Energy</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🌾 Food</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🚗 Mobility</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🏭 Industry</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">💻 Technology</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">📜 Policy</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🌿 Nature</div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">➕</span> Create Community <span class="badge badge-protected">Auth</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════ TAKE ACTION ════ -->
+    <div class="col">
+      <div class="top-connector"></div>
+      <div class="node section"><span class="node-icon">⚡</span> Take Action</div>
+      <div class="v-line v-line-sm"></div>
+      <div class="children">
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🚩</span> Campaigns & Actions <span class="url-chip">campaigns-actions</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">📅</span> Events & Gatherings <span class="url-chip">events</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">💼</span> Climate Jobs <span class="url-chip">jobs</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">🛍️</span> Green Marketplace <span class="url-chip">marketplace</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node sub"><span class="node-icon">⚡</span> Quick Action <span class="url-chip">quick-action</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">📋</span> Create Action <span class="badge badge-protected">Auth</span> <span class="url-chip">action-create</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════ USER ACCOUNT ════ -->
+    <div class="col">
+      <div class="top-connector"></div>
+      <div class="node section"><span class="node-icon">👤</span> User Account</div>
+      <div class="v-line v-line-sm"></div>
+
+      <div style="font-size:0.72rem;color:#64748b;margin:2px 0 6px;">Auth Pages</div>
+      <div class="grandchildren" style="flex-direction:column;gap:4px;align-items:stretch;margin-bottom:8px;">
+        <div class="node auth-node" style="font-size:0.78rem;padding:5px 12px;"><span>🔑</span> Sign In <span class="url-chip">login</span></div>
+        <div class="node auth-node" style="font-size:0.78rem;padding:5px 12px;"><span>📝</span> Sign Up <span class="url-chip">signup</span></div>
+      </div>
+
+      <div style="font-size:0.72rem;color:#64748b;margin:4px 0 6px;">Protected Pages</div>
+      <div class="children">
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">📊</span> Dashboard <span class="badge badge-protected">Auth</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">👤</span> Profile <span class="badge badge-protected">Auth</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">⚙️</span> Settings <span class="badge badge-protected">Auth</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">🏆</span> Achievements <span class="badge badge-protected">Auth</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">📈</span> Impact Report <span class="badge badge-protected">Auth</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ META / LEGAL ════ -->
+    <div class="col">
+      <div class="top-connector"></div>
+      <div class="node section"><span class="node-icon">ℹ️</span> Meta Pages</div>
+      <div class="v-line v-line-sm"></div>
+      <div class="children">
+
+        <div class="child-item">
+          <div class="node meta-node"><span class="node-icon">ℹ️</span> About <span class="url-chip">about</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node meta-node"><span class="node-icon">✉️</span> Contact <span class="url-chip">contact</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node meta-node"><span class="node-icon">❓</span> Help Center <span class="url-chip">help</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node meta-node"><span class="node-icon">🔒</span> Privacy Policy <span class="url-chip">privacy</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node meta-node"><span class="node-icon">📃</span> Terms of Service <span class="url-chip">terms</span></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /row -->
+
+  <!-- ── Standalone interactive maps ── -->
+  <div class="maps-box">
+    <h3>📦 Standalone Interactive Map Pages <span style="font-weight:400;color:#475569;">(served from /public/)</span></h3>
+    <div class="maps-grid">
+      <div class="map-card"><span>🌍</span> globe_map.html – 3D Globe</div>
+      <div class="map-card"><span>🗺️</span> globe_map_2d.html – 2D Map</div>
+      <div class="map-card"><span>⚡</span> electricity_map.html</div>
+      <div class="map-card"><span>💨</span> emissions_map.html</div>
+      <div class="map-card"><span>🔋</span> energy-map.html</div>
+      <div class="map-card"><span>🌪️</span> disasters.html</div>
+      <div class="map-card"><span>🛢️</span> fossils_map.html</div>
+      <div class="map-card"><span>♻️</span> renewables_map.html</div>
+      <div class="map-card"><span>👥</span> user_network.html</div>
+      <div class="map-card"><span>📣</span> feed.html</div>
+    </div>
+  </div>
+
+</div><!-- /tree -->
+</div><!-- /tree-wrapper -->
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-value">46</div>
+    <div class="stat-label">Page Components</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">10</div>
+    <div class="stat-label">Interactive Maps</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">6</div>
+    <div class="stat-label">Topic Communities</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">7</div>
+    <div class="stat-label">Protected Routes</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">5</div>
+    <div class="stat-label">Meta / Legal Pages</div>
+  </div>
+</div>
+
+<p style="text-align:center;color:#334155;font-size:0.75rem;margin-top:24px;">
+  Routing: <code style="color:#475569;">?page={name}</code> query-parameter system · Navigation: custom window.history.pushState
+</p>
+
+</body>
+</html>
