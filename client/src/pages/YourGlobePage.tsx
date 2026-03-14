@@ -36,8 +36,8 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
 
   return (
     <div className="w-full bg-[#050a14]" style={{ height: "calc(100vh - 80px)", marginTop: "80px" }}>
-      {/* Map switcher dropdown — fixed positioning escapes iframe stacking context */}
-      <div style={{ position: "fixed", top: "92px", right: "12px", zIndex: 9999 }}>
+      {/* Map switcher dropdown — fixed bottom-right, list expands upward */}
+      <div style={{ position: "fixed", bottom: "18px", right: "18px", zIndex: 9999 }}>
         <div className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
@@ -68,7 +68,7 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
           </button>
           {dropdownOpen && (
             <div
-              className="absolute top-full mt-[4px] right-0"
+              className="absolute bottom-full mb-[4px] right-0"
               style={{
                 background: "rgba(6,13,26,0.97)",
                 border: "1px solid #1a2f45",

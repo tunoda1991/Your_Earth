@@ -43,7 +43,7 @@ body {
 
 /* ── HEADER ── */
 #header {
-  position:fixed; top:44px; left:0; right:220px;
+  position:fixed; top:12px; left:0; right:220px;
   padding:0 22px; pointer-events:none; z-index:10;
 }
 #header h1 {
@@ -53,6 +53,7 @@ body {
 #header p {
   font-size:9px; letter-spacing:.18em; color:var(--dim); margin-top:3px;
 }
+#citation{position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;opacity:.5;font-family:'Courier New',monospace;text-transform:uppercase;white-space:nowrap;}
 
 /* ── VIEW TOGGLE (top-left, same as other maps) ── */
 #view-toggle {
@@ -246,7 +247,7 @@ body {
 <!-- Header -->
 <div id="header">
   <h1>Global Disaster Record</h1>
-  <p><span id="ev-count"></span> Events · Heat · Wildfire · Flood · Drought · Pollution · Sea Level Rise · Pests · More</p>
+  <p>Extreme climate events worldwide</p>
 </div>
 
 <!-- Stat bar -->
@@ -985,5 +986,6 @@ init();
   requestAnimationFrame(loop);
 })();
 </script>
+<div id="citation">Source: EM-DAT · NOAA · NASA</div>
 </body>
 </html>
