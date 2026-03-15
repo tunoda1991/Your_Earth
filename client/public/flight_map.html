@@ -566,12 +566,12 @@ function setLoad(pct,msg){document.getElementById('load-bar').style.width=pct+'%
   try{
     const resp=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
     const topo=await resp.json();
-    function topoArc(t,i){const a=i<0?t.arcs[~i].slice().reverse():t.arcs[i].slice();if(t.transform){const{scale:sc,translate:tr}=t.transform;let x=0,y=0;return a.map(d=>{x+=d[0];y+=d[1];return[x*sc[0]+tr[0],y*sc[1]+tr[1]];});}return a;}
+    function topoArc(t,i){const raw=t.arcs[i<0?~i:i].slice();let pts;if(t.transform){const{scale:sc,translate:tr}=t.transform;let x=0,y=0;pts=raw.map(d=>{x+=d[0];y+=d[1];return[x*sc[0]+tr[0],y*sc[1]+tr[1]];});}else pts=raw;return i<0?pts.reverse():pts;}
     function topoRings(t,arcs){return arcs.map(a=>a.reduce((r,i)=>r.concat(topoArc(t,i)),[]));}
     const feats=[];
     const obj=topo.objects.countries;
     if(obj)obj.geometries.forEach(geom=>{
-      if(!geom||geom.id===10||geom.id==='10')return; // skip Antarctica
+      if(!geom||+geom.id===10)return; // skip Antarctica (ID 10 / "010" / "10")
       if(geom.type==='Polygon')feats.push({geometry:{type:'Polygon',coordinates:topoRings(topo,geom.arcs)}});
       else if(geom.type==='MultiPolygon')feats.push({geometry:{type:'MultiPolygon',coordinates:geom.arcs.map(p=>topoRings(topo,p))}});
     });
