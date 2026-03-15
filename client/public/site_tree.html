@@ -33,6 +33,11 @@
       color: #64748b;
       font-size: 0.95rem;
     }
+    .header .updated {
+      color: #475569;
+      font-size: 0.78rem;
+      margin-top: 4px;
+    }
 
     /* ── Legend ─────────────────────────────────────────── */
     .legend {
@@ -57,7 +62,7 @@
 
     /* ── Tree Container ─────────────────────────────────── */
     .tree-wrapper {
-      max-width: 1300px;
+      max-width: 1400px;
       margin: 0 auto;
       overflow-x: auto;
     }
@@ -66,7 +71,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0;
-      min-width: 900px;
+      min-width: 1000px;
     }
 
     /* ── Nodes ──────────────────────────────────────────── */
@@ -97,6 +102,8 @@
     .protected-node { background: rgba(124,58,237,0.15); border-color:#5b21b6; color:#c4b5fd; }
     .auth-node      { background: rgba(37,99,235,0.15);  border-color:#1d4ed8; color:#93c5fd; }
     .meta-node      { background: rgba(71,85,105,0.2);   border-color:#334155; color:#94a3b8; }
+    .stub-node      { background: rgba(234,179,8,0.1);   border-color:#854d0e; color:#fbbf24; }
+    .orphan-node    { background: rgba(239,68,68,0.1);   border-color:#991b1b; color:#fca5a5; }
 
     /* ── Layout rows ────────────────────────────────────── */
     .row {
@@ -218,6 +225,12 @@
     .badge-protected { background:#5b21b6; color:#ede9fe; }
     .badge-public    { background:#065f46; color:#d1fae5; }
     .badge-auth      { background:#1d4ed8; color:#dbeafe; }
+    .badge-live      { background:#065f46; color:#6ee7b7; }
+    .badge-static    { background:#854d0e; color:#fef3c7; }
+    .badge-stub      { background:#92400e; color:#fde68a; }
+    .badge-orphan    { background:#991b1b; color:#fecaca; }
+    .badge-supabase  { background:#065f46; color:#a7f3d0; }
+    .badge-express   { background:#1e3a5f; color:#93c5fd; }
 
     /* ── URL Chips ──────────────────────────────────────── */
     .url-chip {
@@ -229,6 +242,21 @@
       padding: 1px 7px;
       color: #64748b;
     }
+
+    /* ── Data source indicator ─────────────────────────── */
+    .data-src {
+      font-size: 0.63rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .data-src-live     { background: rgba(16,185,129,0.2); color: #34d399; }
+    .data-src-static   { background: rgba(234,179,8,0.15); color: #fbbf24; }
+    .data-src-supabase { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+    .data-src-express  { background: rgba(59,130,246,0.15); color: #93c5fd; }
+    .data-src-stub     { background: rgba(239,68,68,0.15); color: #f87171; }
+    .data-src-make     { background: rgba(168,85,247,0.15); color: #c084fc; }
 
     /* ── Bottom meta row ────────────────────────────────── */
     .meta-row {
@@ -269,7 +297,7 @@
       border-radius: 14px;
       padding: 16px 20px;
       margin-top: 36px;
-      max-width: 1000px;
+      max-width: 1100px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -283,7 +311,7 @@
     }
     .maps-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 8px;
     }
     .map-card {
@@ -298,13 +326,123 @@
       gap: 7px;
     }
     .map-card span { font-size: 1.1rem; }
+    .map-card .map-status {
+      margin-left: auto;
+      font-size: 0.63rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .map-live   { background: rgba(16,185,129,0.2); color: #34d399; }
+    .map-static { background: rgba(234,179,8,0.15); color: #fbbf24; }
+    .map-orphan { background: rgba(239,68,68,0.15); color: #f87171; }
+
+    /* ── Issues box ─────────────────────────────────────── */
+    .issues-box {
+      background: rgba(239,68,68,0.05);
+      border: 1px solid #991b1b;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-top: 24px;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .issues-box h3 {
+      text-align: center;
+      color: #f87171;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .issue-list {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 6px;
+    }
+    .issue-list li {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .issue-list .issue-icon { font-size: 0.9rem; flex-shrink: 0; }
+    .issue-sev {
+      font-size: 0.6rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .sev-critical { background: #991b1b; color: #fecaca; }
+    .sev-warning  { background: #854d0e; color: #fef3c7; }
+    .sev-info     { background: #1e3a5f; color: #bfdbfe; }
+
+    /* ── Architecture box ──────────────────────────────── */
+    .arch-box {
+      background: rgba(59,130,246,0.05);
+      border: 1px solid #1e3a5f;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-top: 24px;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .arch-box h3 {
+      text-align: center;
+      color: #60a5fa;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+    .arch-card {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+    .arch-card .arch-label {
+      color: #60a5fa;
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .arch-card code {
+      color: #e2e8f0;
+      font-size: 0.72rem;
+      background: rgba(51,65,85,0.4);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>🌍 Your Earth – Site Structure</h1>
-  <p>Complete site tree diagram · Routes, sections, and interactive maps</p>
+  <h1>Your Earth – Site Structure</h1>
+  <p>Complete site tree diagram with routes, data sources, architecture, and known issues</p>
+  <div class="updated">Last updated: 2026-03-15 | Generated from codebase audit of App.tsx, server/routes.ts, and 49 page components</div>
 </div>
 
 <!-- Legend -->
@@ -312,75 +450,70 @@
   <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> Public page</div>
   <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Protected (auth required)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Auth pages</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#065f46"></div> Interactive map</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#065f46"></div> Interactive map / live data</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div> Static / hardcoded data</div>
   <div class="legend-item"><div class="legend-dot" style="background:#475569"></div> Meta / legal</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Orphaned / unused</div>
 </div>
 
 <div class="tree-wrapper">
 <div class="tree">
 
   <!-- ROOT -->
-  <div class="node root"><span class="node-icon">🌍</span> Your Earth <span class="url-chip">?page=home</span></div>
+  <div class="node root"><span class="node-icon">&#127758;</span> Your Earth <span class="url-chip">?page=home</span></div>
   <div class="v-line v-line-md"></div>
-
-  <!-- ── Level-1 horizontal bar + columns ── -->
-  <div style="width:100%; position:relative;">
-    <!-- horizontal spanning bar drawn via CSS on top-connector -->
-  </div>
 
   <div class="row" style="align-items:flex-start; gap:4px;">
 
     <!-- ════ LEARN ════ -->
     <div class="col">
       <div class="top-connector"></div>
-      <div class="node section"><span class="node-icon">📚</span> Learn</div>
+      <div class="node section"><span class="node-icon">&#128218;</span> Learn <span class="url-chip">learn</span></div>
       <div class="v-line v-line-sm"></div>
       <div class="children">
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🎓</span> Climate Education <span class="url-chip">learn-education</span></div>
+          <div class="node sub"><span class="node-icon">&#127891;</span> Climate Education <span class="url-chip">learn-education</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🧮</span> Carbon Calculator <span class="url-chip">learn-calculator</span></div>
+          <div class="node sub"><span class="node-icon">&#129518;</span> Carbon Calculator <span class="url-chip">learn-calculator</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">📊</span> Climate Data Dashboard <span class="url-chip">climate-data-dashboard</span></div>
+          <div class="node sub"><span class="node-icon">&#128202;</span> Climate Data Dashboard <span class="url-chip">climate-data-dashboard</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🏢</span> Corporate Monitor <span class="url-chip">learn-corporate</span></div>
+          <div class="node sub"><span class="node-icon">&#127970;</span> Corporate Monitor <span class="url-chip">learn-corporate</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🏛️</span> Organization Bank <span class="url-chip">learn-databank</span></div>
+          <div class="node sub"><span class="node-icon">&#127963;&#65039;</span> Organization Bank <span class="url-chip">learn-databank</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🔍</span> Climate TRACE <span class="url-chip">learn-trace</span></div>
+          <div class="node sub"><span class="node-icon">&#128269;</span> Climate TRACE <span class="url-chip">learn-trace</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <!-- Your Globe with sub-maps -->
         <div class="child-item" style="width:100%">
-          <div class="node map-node" style="width:auto"><span class="node-icon">🌐</span> Your Globe <span class="url-chip">your-globe</span></div>
+          <div class="node map-node" style="width:auto"><span class="node-icon">&#127760;</span> Your Globe <span class="url-chip">your-globe</span></div>
           <div class="v-line v-line-sm"></div>
           <div class="grandchildren">
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🌍</span> 3D Globe</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🗺️</span> 2D Flat Map</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>⚡</span> Electricity Map</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>💨</span> Emissions Map</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🔋</span> Energy Map</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🌪️</span> Disaster Map</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>🛢️</span> Fossils Map</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>♻️</span> Renewables Map</div>
-            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>👥</span> User Network</div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>&#9851;&#65039;</span> Renewables <span class="data-src data-src-static">STATIC</span></div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>&#128738;&#65039;</span> Fossils <span class="data-src data-src-static">STATIC</span></div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>&#127786;&#65039;</span> Disasters <span class="data-src data-src-static">STATIC</span></div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>&#9889;</span> Electricity <span class="data-src data-src-live">LIVE</span></div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>&#128168;</span> Emissions <span class="data-src data-src-live">LIVE*</span></div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>&#9992;&#65039;</span> Flights <span class="data-src data-src-live">LIVE</span></div>
+            <div class="node sub map-node" style="font-size:0.72rem;padding:4px 10px;"><span>&#128101;</span> User Network <span class="data-src data-src-static">STATIC</span></div>
           </div>
         </div>
 
@@ -390,44 +523,44 @@
     <!-- ════ COMMUNITY ════ -->
     <div class="col">
       <div class="top-connector"></div>
-      <div class="node section"><span class="node-icon">🤝</span> Community</div>
+      <div class="node section"><span class="node-icon">&#129309;</span> Community <span class="url-chip">community</span></div>
       <div class="v-line v-line-sm"></div>
       <div class="children">
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🔗</span> Connect (AI News) <span class="url-chip">connect</span></div>
+          <div class="node sub"><span class="node-icon">&#128279;</span> Connect (AI News) <span class="url-chip">connect</span> <span class="data-src data-src-supabase">SUPABASE</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
         <div class="grandchildren" style="flex-direction:column;gap:4px;align-items:center;">
-          <div class="node sub" style="font-size:0.72rem;padding:3px 10px;"><span>📰</span> Connect Sector <span class="url-chip">connect-sector</span></div>
-          <div class="node sub" style="font-size:0.72rem;padding:3px 10px;"><span>📄</span> Article View <span class="url-chip">connect-article</span></div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 10px;"><span>&#128240;</span> Sector View <span class="url-chip">connect-sector</span></div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 10px;"><span>&#128196;</span> Article View <span class="url-chip">connect-article</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">📣</span> Community Feed <span class="url-chip">community-feed</span></div>
+          <div class="node sub"><span class="node-icon">&#128227;</span> Community Feed <span class="url-chip">community-feed</span> <span class="data-src data-src-express">EXPRESS</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">💬</span> Topic Page <span class="url-chip">topic</span></div>
+          <div class="node sub"><span class="node-icon">&#128172;</span> Topic Page <span class="url-chip">topic</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
-        <div style="font-size:0.72rem;color:#64748b;margin:4px 0;">Topic Communities</div>
+        <div style="font-size:0.72rem;color:#64748b;margin:4px 0;">7 Topic Communities</div>
         <div class="grandchildren">
-          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">⚡ Energy</div>
-          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🌾 Food</div>
-          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🚗 Mobility</div>
-          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🏭 Industry</div>
-          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">💻 Technology</div>
-          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">📜 Policy</div>
-          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">🌿 Nature</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">&#9889; Energy</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">&#127806; Food</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">&#128663; Mobility</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">&#127981; Industry</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">&#128187; Technology</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">&#128220; Policy</div>
+          <div class="node sub" style="font-size:0.72rem;padding:3px 9px;">&#127807; Nature</div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node protected-node"><span class="node-icon">➕</span> Create Community <span class="badge badge-protected">Auth</span></div>
+          <div class="node protected-node"><span class="node-icon">&#10133;</span> Create Community <span class="badge badge-protected">Auth</span> <span class="url-chip">community-create</span></div>
         </div>
 
       </div>
@@ -436,37 +569,42 @@
     <!-- ════ TAKE ACTION ════ -->
     <div class="col">
       <div class="top-connector"></div>
-      <div class="node section"><span class="node-icon">⚡</span> Take Action</div>
+      <div class="node section"><span class="node-icon">&#9889;</span> Take Action <span class="url-chip">action</span></div>
       <div class="v-line v-line-sm"></div>
       <div class="children">
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🚩</span> Campaigns & Actions <span class="url-chip">campaigns-actions</span></div>
+          <div class="node sub"><span class="node-icon">&#128681;</span> Campaigns &amp; Actions <span class="url-chip">campaigns-actions</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">📅</span> Events & Gatherings <span class="url-chip">events</span></div>
+          <div class="node sub"><span class="node-icon">&#128203;</span> Campaign Detail <span class="url-chip">campaign-detail</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">💼</span> Climate Jobs <span class="url-chip">jobs</span></div>
+          <div class="node sub"><span class="node-icon">&#128197;</span> Events &amp; Gatherings <span class="url-chip">events</span> <span class="data-src data-src-supabase">SUPABASE</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">🛍️</span> Green Marketplace <span class="url-chip">marketplace</span></div>
+          <div class="node sub"><span class="node-icon">&#128188;</span> Climate Jobs <span class="url-chip">jobs</span> <span class="data-src data-src-stub">DUMMY</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node sub"><span class="node-icon">⚡</span> Quick Action <span class="url-chip">quick-action</span></div>
+          <div class="node sub"><span class="node-icon">&#128722;</span> Green Marketplace <span class="url-chip">marketplace</span> <span class="data-src data-src-stub">DUMMY</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node protected-node"><span class="node-icon">📋</span> Create Action <span class="badge badge-protected">Auth</span> <span class="url-chip">action-create</span></div>
+          <div class="node sub"><span class="node-icon">&#9889;</span> Quick Action <span class="url-chip">quick-action</span></div>
+        </div>
+        <div class="v-line v-line-sm"></div>
+
+        <div class="child-item">
+          <div class="node protected-node"><span class="node-icon">&#128203;</span> Create Action <span class="badge badge-protected">Auth</span> <span class="url-chip">action-create</span></div>
         </div>
 
       </div>
@@ -475,39 +613,39 @@
     <!-- ════ USER ACCOUNT ════ -->
     <div class="col">
       <div class="top-connector"></div>
-      <div class="node section"><span class="node-icon">👤</span> User Account</div>
+      <div class="node section"><span class="node-icon">&#128100;</span> User Account</div>
       <div class="v-line v-line-sm"></div>
 
       <div style="font-size:0.72rem;color:#64748b;margin:2px 0 6px;">Auth Pages</div>
       <div class="grandchildren" style="flex-direction:column;gap:4px;align-items:stretch;margin-bottom:8px;">
-        <div class="node auth-node" style="font-size:0.78rem;padding:5px 12px;"><span>🔑</span> Sign In <span class="url-chip">login</span></div>
-        <div class="node auth-node" style="font-size:0.78rem;padding:5px 12px;"><span>📝</span> Sign Up <span class="url-chip">signup</span></div>
+        <div class="node auth-node" style="font-size:0.78rem;padding:5px 12px;"><span>&#128273;</span> Sign In <span class="url-chip">login</span> <span class="data-src data-src-supabase">SUPABASE</span></div>
+        <div class="node auth-node" style="font-size:0.78rem;padding:5px 12px;"><span>&#128221;</span> Sign Up <span class="url-chip">signup</span> <span class="data-src data-src-make">MAKE-SERVER</span></div>
       </div>
 
       <div style="font-size:0.72rem;color:#64748b;margin:4px 0 6px;">Protected Pages</div>
       <div class="children">
         <div class="child-item">
-          <div class="node protected-node"><span class="node-icon">📊</span> Dashboard <span class="badge badge-protected">Auth</span></div>
+          <div class="node protected-node"><span class="node-icon">&#128202;</span> Dashboard <span class="badge badge-protected">Auth</span> <span class="url-chip">dashboard</span> <span class="data-src data-src-supabase">SUPABASE</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node protected-node"><span class="node-icon">👤</span> Profile <span class="badge badge-protected">Auth</span></div>
+          <div class="node protected-node"><span class="node-icon">&#128100;</span> Profile <span class="badge badge-protected">Auth</span> <span class="url-chip">profile</span> <span class="data-src data-src-supabase">SUPABASE</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node protected-node"><span class="node-icon">⚙️</span> Settings <span class="badge badge-protected">Auth</span></div>
+          <div class="node protected-node"><span class="node-icon">&#9881;&#65039;</span> Settings <span class="badge badge-protected">Auth</span> <span class="url-chip">settings</span> <span class="data-src data-src-supabase">SUPABASE</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node protected-node"><span class="node-icon">🏆</span> Achievements <span class="badge badge-protected">Auth</span></div>
+          <div class="node protected-node"><span class="node-icon">&#127942;</span> Achievements <span class="badge badge-protected">Auth</span> <span class="url-chip">achievements</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node protected-node"><span class="node-icon">📈</span> Impact Report <span class="badge badge-protected">Auth</span></div>
+          <div class="node protected-node"><span class="node-icon">&#128200;</span> Impact Report <span class="badge badge-protected">Auth</span> <span class="url-chip">impact-report</span> <span class="data-src data-src-static">STATIC</span></div>
         </div>
       </div>
     </div>
@@ -515,32 +653,32 @@
     <!-- ════ META / LEGAL ════ -->
     <div class="col">
       <div class="top-connector"></div>
-      <div class="node section"><span class="node-icon">ℹ️</span> Meta Pages</div>
+      <div class="node section"><span class="node-icon">&#8505;&#65039;</span> Meta Pages</div>
       <div class="v-line v-line-sm"></div>
       <div class="children">
 
         <div class="child-item">
-          <div class="node meta-node"><span class="node-icon">ℹ️</span> About <span class="url-chip">about</span></div>
+          <div class="node meta-node"><span class="node-icon">&#8505;&#65039;</span> About <span class="url-chip">about</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node meta-node"><span class="node-icon">✉️</span> Contact <span class="url-chip">contact</span></div>
+          <div class="node meta-node"><span class="node-icon">&#9993;&#65039;</span> Contact <span class="url-chip">contact</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node meta-node"><span class="node-icon">❓</span> Help Center <span class="url-chip">help</span></div>
+          <div class="node meta-node"><span class="node-icon">&#10067;</span> Help Center <span class="url-chip">help</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node meta-node"><span class="node-icon">🔒</span> Privacy Policy <span class="url-chip">privacy</span></div>
+          <div class="node meta-node"><span class="node-icon">&#128274;</span> Privacy Policy <span class="url-chip">privacy</span></div>
         </div>
         <div class="v-line v-line-sm"></div>
 
         <div class="child-item">
-          <div class="node meta-node"><span class="node-icon">📃</span> Terms of Service <span class="url-chip">terms</span></div>
+          <div class="node meta-node"><span class="node-icon">&#128195;</span> Terms of Service <span class="url-chip">terms</span></div>
         </div>
 
       </div>
@@ -550,18 +688,94 @@
 
   <!-- ── Standalone interactive maps ── -->
   <div class="maps-box">
-    <h3>📦 Standalone Interactive Map Pages <span style="font-weight:400;color:#475569;">(served from /public/)</span></h3>
+    <h3>Standalone Interactive Map Pages <span style="font-weight:400;color:#475569;">(served from /public/ as iframes)</span></h3>
     <div class="maps-grid">
-      <div class="map-card"><span>🌍</span> globe_map.html – 3D Globe</div>
-      <div class="map-card"><span>🗺️</span> globe_map_2d.html – 2D Map</div>
-      <div class="map-card"><span>⚡</span> electricity_map.html</div>
-      <div class="map-card"><span>💨</span> emissions_map.html</div>
-      <div class="map-card"><span>🔋</span> energy-map.html</div>
-      <div class="map-card"><span>🌪️</span> disasters.html</div>
-      <div class="map-card"><span>🛢️</span> fossils_map.html</div>
-      <div class="map-card"><span>♻️</span> renewables_map.html</div>
-      <div class="map-card"><span>👥</span> user_network.html</div>
-      <div class="map-card"><span>📣</span> feed.html</div>
+      <div class="map-card"><span>&#9851;&#65039;</span> renewables_map.html <span class="map-status map-static">STATIC DATA</span></div>
+      <div class="map-card"><span>&#128738;&#65039;</span> fossils_map.html <span class="map-status map-static">STATIC DATA</span></div>
+      <div class="map-card"><span>&#127786;&#65039;</span> disasters.html <span class="map-status map-static">STATIC DATA</span></div>
+      <div class="map-card"><span>&#9889;</span> electricity_map.html <span class="map-status map-live">LIVE API</span></div>
+      <div class="map-card"><span>&#128168;</span> emissions_map.html <span class="map-status map-live">LIVE + FALLBACK</span></div>
+      <div class="map-card"><span>&#9992;&#65039;</span> flight_map.html <span class="map-status map-live">LIVE API</span></div>
+      <div class="map-card"><span>&#128101;</span> user_network.html <span class="map-status map-static">STATIC DATA</span></div>
+      <div class="map-card"><span>&#128227;</span> feed.html <span class="map-status map-live">EXPRESS API</span></div>
+      <div class="map-card"><span>&#128267;</span> energy-map.html <span class="map-status map-static">DEMO DATA</span></div>
+      <div class="map-card" style="border-color:#991b1b;"><span>&#127758;</span> globe_map.html <span class="map-status map-orphan">ORPHANED</span></div>
+      <div class="map-card" style="border-color:#991b1b;"><span>&#127759;</span> globe_map_2d.html <span class="map-status map-orphan">ORPHANED</span></div>
+      <div class="map-card" style="border-color:#334155;color:#94a3b8;"><span>&#128466;</span> site_tree.html <span class="map-status" style="background:rgba(71,85,105,0.3);color:#94a3b8;">DEV DOCS</span></div>
+    </div>
+  </div>
+
+  <!-- ── Orphaned Page Components ── -->
+  <div class="issues-box" style="border-color:#854d0e; background:rgba(234,179,8,0.03);">
+    <h3 style="color:#fbbf24;">Unused Page Components <span style="font-weight:400;color:#854d0e;">(exist as .tsx files but not in App.tsx router)</span></h3>
+    <ul class="issue-list">
+      <li><span class="issue-icon">&#128196;</span> InfraMapPage.tsx <span class="issue-sev sev-info">UNUSED</span></li>
+      <li><span class="issue-icon">&#128196;</span> DisasterMapPage.tsx <span class="issue-sev sev-info">UNUSED</span></li>
+      <li><span class="issue-icon">&#128196;</span> ElectricityMapPage.tsx <span class="issue-sev sev-info">UNUSED</span></li>
+      <li><span class="issue-icon">&#128196;</span> EmissionsMapPage.tsx <span class="issue-sev sev-info">UNUSED</span></li>
+      <li><span class="issue-icon">&#128196;</span> UserNetworkPage.tsx <span class="issue-sev sev-info">UNUSED</span></li>
+    </ul>
+  </div>
+
+  <!-- ── Known Issues ── -->
+  <div class="issues-box">
+    <h3>Known Issues &amp; Architecture Gaps</h3>
+    <ul class="issue-list">
+      <li><span class="issue-icon">&#128308;</span> make-server Edge Function: auth profile, signup, communities, discussions, connections, messages, notifications all depend on an external Figma Make function <span class="issue-sev sev-critical">CRITICAL</span></li>
+      <li><span class="issue-icon">&#128308;</span> 5 missing Supabase tables: user_settings, community_members, event_attendees, user_activity, events (native) <span class="issue-sev sev-critical">CRITICAL</span></li>
+      <li><span class="issue-icon">&#128308;</span> Two separate feed systems: Express /api/feed/* (Drizzle) vs Supabase posts table (different schemas, not synced) <span class="issue-sev sev-critical">CRITICAL</span></li>
+      <li><span class="issue-icon">&#128308;</span> Disaster card photos (d1.jpg–d178.jpg) missing from client/public/ <span class="issue-sev sev-critical">CRITICAL</span></li>
+      <li><span class="issue-icon">&#128993;</span> No real auth on Express feed API: X-User-Name header only, trivially spoofable <span class="issue-sev sev-warning">WARNING</span></li>
+      <li><span class="issue-icon">&#128993;</span> Navigation search bar is non-functional (console.log stub) <span class="issue-sev sev-warning">WARNING</span></li>
+      <li><span class="issue-icon">&#128993;</span> Notifications panel: 5 hardcoded fake notifications, no backend <span class="issue-sev sev-warning">WARNING</span></li>
+      <li><span class="issue-icon">&#128993;</span> LiveImpactTicker: static fake activity, not connected to real data <span class="issue-sev sev-warning">WARNING</span></li>
+      <li><span class="issue-icon">&#128993;</span> Jobs &amp; Marketplace use DUMMY_* arrays with no API backend <span class="issue-sev sev-warning">WARNING</span></li>
+      <li><span class="issue-icon">&#128993;</span> Quick Login bypasses Supabase auth with fake user objects <span class="issue-sev sev-warning">WARNING</span></li>
+      <li><span class="issue-icon">&#128309;</span> favicon.svg referenced in index.html but only favicon.png exists <span class="issue-sev sev-info">INFO</span></li>
+      <li><span class="issue-icon">&#128309;</span> Dead dependencies: passport, express-session, connect-pg-simple, memorystore never imported <span class="issue-sev sev-info">INFO</span></li>
+    </ul>
+  </div>
+
+  <!-- ── Architecture ── -->
+  <div class="arch-box">
+    <h3>Architecture Overview</h3>
+    <div class="arch-grid">
+      <div class="arch-card">
+        <div class="arch-label">Frontend</div>
+        React 19 + Vite 7 + Tailwind v4<br>
+        Routing: <code>?page=</code> query param + pushState<br>
+        State: TanStack Query + React state
+      </div>
+      <div class="arch-card">
+        <div class="arch-label">Server</div>
+        Express 5 + Drizzle ORM<br>
+        Feed API: <code>/api/feed/*</code><br>
+        Proxy: <code>/api/electricity-maps/*</code>
+      </div>
+      <div class="arch-card">
+        <div class="arch-label">Database</div>
+        Supabase PostgreSQL (primary)<br>
+        Drizzle/MemStorage (feed fallback)<br>
+        <code>DATABASE_URL</code> toggles persistence
+      </div>
+      <div class="arch-card">
+        <div class="arch-label">Auth</div>
+        Supabase Auth (signIn/signOut)<br>
+        make-server (signUp/profile)<br>
+        Express: <code>X-User-Name</code> header
+      </div>
+      <div class="arch-card">
+        <div class="arch-label">Edge Functions</div>
+        <code>curate-news</code> – RSS + Gemini AI<br>
+        <code>curate-social</code> – Reddit/Mastodon<br>
+        Requires: GEMINI_API_KEY
+      </div>
+      <div class="arch-card">
+        <div class="arch-label">Maps</div>
+        Standalone HTML + WebGL/Canvas<br>
+        Embedded via <code>&lt;iframe&gt;</code><br>
+        7 active + 2 orphaned + 1 Leaflet
+      </div>
     </div>
   </div>
 
@@ -571,20 +785,28 @@
 <!-- Stats -->
 <div class="stats">
   <div class="stat">
-    <div class="stat-value">46</div>
-    <div class="stat-label">Page Components</div>
+    <div class="stat-value">43</div>
+    <div class="stat-label">Routed Pages</div>
   </div>
   <div class="stat">
-    <div class="stat-value">10</div>
-    <div class="stat-label">Interactive Maps</div>
+    <div class="stat-value">5</div>
+    <div class="stat-label">Orphaned Components</div>
   </div>
   <div class="stat">
-    <div class="stat-value">6</div>
+    <div class="stat-value">12</div>
+    <div class="stat-label">Standalone HTML Files</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">7</div>
     <div class="stat-label">Topic Communities</div>
   </div>
   <div class="stat">
     <div class="stat-value">7</div>
     <div class="stat-label">Protected Routes</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">3</div>
+    <div class="stat-label">Live API Maps</div>
   </div>
   <div class="stat">
     <div class="stat-value">5</div>
@@ -593,7 +815,7 @@
 </div>
 
 <p style="text-align:center;color:#334155;font-size:0.75rem;margin-top:24px;">
-  Routing: <code style="color:#475569;">?page={name}</code> query-parameter system · Navigation: custom window.history.pushState
+  Routing: <code style="color:#475569;">?page={name}</code> query-parameter system via custom window.history.pushState in App.tsx
 </p>
 
 </body>
