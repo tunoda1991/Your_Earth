@@ -105,13 +105,6 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
                     if (map.id !== activeMap) e.currentTarget.style.background = "transparent";
                   }}
                 >
-                  <span style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: map.id === activeMap ? "#7ab3cc" : "#3a5a7a",
-                    flexShrink: 0,
-                  }} />
                   {map.label}
                 </button>
               ))}

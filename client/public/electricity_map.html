@@ -45,6 +45,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 #legend{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
 #legend-bar{height:8px;border-radius:4px;margin-bottom:4px;}
 #legend-labels{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.1em;color:var(--dim);}
+#panel-borders{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
 #panel-borders .panel-border-btn{padding:6px 12px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
 #panel-borders .panel-border-btn:hover{border-color:var(--accent);color:var(--accent);}
 #panel-borders .panel-border-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(122,179,204,.1);}
@@ -104,10 +105,10 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
     <h2 id="panel-title">Carbon Intensity</h2>
     <div class="live-badge"><div class="live-dot"></div> LIVE &middot; UPDATING EVERY 15 MIN</div>
   </div>
-  <div id="legend"><div id="legend-bar"></div><div id="legend-labels"></div></div>
-  <div id="panel-borders" style="padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+  <div id="panel-borders">
     <button id="btn-borders-panel" class="panel-border-btn active">Borders On</button>
   </div>
+  <div id="legend"><div id="legend-bar"></div><div id="legend-labels"></div></div>
   <div id="zone-list"></div>
 </div>
 <div id="detail-card">
@@ -297,7 +298,11 @@ function getColor(code){
 }
 function getValue(code){
   const d=zoneData[code];
-  if(activeSignal==='carbon'){if(!d)return'--';return(d.ci??0).toFixed(0);}
+  if(activeSignal==='carbon'){
+    if(d)return(d.ci??0).toFixed(0);
+    if(STATIC_CI[code]!=null)return STATIC_CI[code].toFixed(0);
+    return'--';
+  }
   if(activeSignal==='renewable'){const v=getRen(code);return v!=null?v.toFixed(1):'--';}
   if(activeSignal==='fossil'){const v=getFos(code);return v!=null?v.toFixed(1):'--';}
   return'--';
@@ -885,11 +890,23 @@ async function fetchZone(code){
 
 async function fetchAll(){
   const codes=Object.keys(ZONES);
+  const prevCount=Object.keys(zoneData).length;
   for(let i=0;i<codes.length;i++){
     await fetchZone(codes[i]);
-    document.getElementById('sb-zones').textContent=(i+1)+' / '+codes.length+' zones loaded';
+    document.getElementById('sb-zones').textContent=(i+1)+' / '+codes.length+' zones';
     colorAllMeshes();updateList();if(isFlat)draw2d();
     if(i<codes.length-1)await new Promise(r=>setTimeout(r,200));
+  }
+  const liveCount=Object.keys(zoneData).length;
+  const badge=document.querySelector('.live-badge');
+  if(badge){
+    if(liveCount===0){
+      badge.innerHTML='<div class="live-dot" style="background:#f97316"></div> EST · STATIC DATA';
+      badge.style.color='#f97316';
+    } else {
+      badge.innerHTML='<div class="live-dot"></div> LIVE &middot; UPDATING EVERY 15 MIN';
+      badge.style.color='';
+    }
   }
 }
 
