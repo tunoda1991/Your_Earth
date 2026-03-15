@@ -35,10 +35,15 @@ canvas{display:block;position:absolute;inset:0;}
 #rotate-btn.active{border-color:#4a9a7a;color:#4a9a7a;}
 #rotate-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
 #hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.15em;color:var(--dim);pointer-events:none;z-index:10;text-transform:uppercase;font-family:'Courier New',monospace;white-space:nowrap;}
-#panel-borders{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
-#panel-borders .panel-border-btn{padding:6px 12px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
-#panel-borders .panel-border-btn:hover{border-color:var(--accent);color:var(--accent);}
-#panel-borders .panel-border-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(122,179,204,.1);}
+.brow{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--border);flex-shrink:0;}
+.brow:hover{background:rgba(255,255,255,.025);}
+.brow-line{width:16px;height:3px;border-radius:1.5px;flex-shrink:0;}
+.brow-label{font-size:10px;color:var(--mid);letter-spacing:.06em;flex:1;}
+.brow-tog{flex-shrink:0;width:24px;height:12px;background:var(--border);border-radius:6px;position:relative;transition:background .2s;}
+.brow-tog::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--dim);transition:transform .2s,background .2s;}
+.brow:not(.off) .brow-tog{background:rgba(122,179,204,.3);}
+.brow:not(.off) .brow-tog::after{transform:translateX(12px);background:var(--accent);}
+.brow.off .brow-line{opacity:.22;}.brow.off .brow-label{color:var(--dim);}
 
 #tip{position:fixed;display:none;pointer-events:none;background:rgba(4,9,20,0.97);border:1px solid var(--border);padding:10px 14px;z-index:80;backdrop-filter:blur(8px);min-width:200px;}
 #tip .tn{font-size:11px;font-weight:700;color:#d8eef8;letter-spacing:.04em;margin-bottom:6px;}
@@ -137,8 +142,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
     <span class="lbadge"><span class="ldot"></span>Climate TRACE API v7</span>
     <div id="api-status">Loading…</div>
   </div>
-  <div id="panel-borders">
-    <button type="button" id="btn-borders-panel" class="panel-border-btn active">Borders On</button>
+  <div id="borders-toggle" class="brow">
+    <div class="brow-line" style="background:#2a5f88"></div>
+    <span class="brow-label">Country Borders</span>
+    <div class="brow-tog"></div>
   </div>
   <div id="sw"><div id="stabs"></div></div>
   <div id="ybar">
@@ -1149,10 +1156,9 @@ const rotBtn=document.getElementById('rotate-btn'),rotLabel=document.getElementB
 rotBtn.addEventListener('click',()=>{
   autoRot=!autoRot;rotBtn.classList.toggle('active',autoRot);rotLabel.textContent=autoRot?'ROTATING':'ROTATE';
 });
-document.getElementById('btn-borders-panel').addEventListener('click',function(){
+document.getElementById('borders-toggle').addEventListener('click',function(){
   bordersVisible=!bordersVisible;
-  this.classList.toggle('active',bordersVisible);
-  this.textContent=bordersVisible?'Borders On':'Borders Off';
+  this.classList.toggle('off',!bordersVisible);
   if(isGlobe){/* borderGroup.visible set in animate */}else draw2();
 });
 document.getElementById('zoom-in').addEventListener('click',()=>{

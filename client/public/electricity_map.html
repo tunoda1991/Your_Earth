@@ -45,10 +45,15 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 #legend{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
 #legend-bar{height:8px;border-radius:4px;margin-bottom:4px;}
 #legend-labels{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.1em;color:var(--dim);}
-#panel-borders{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
-#panel-borders .panel-border-btn{padding:6px 12px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
-#panel-borders .panel-border-btn:hover{border-color:var(--accent);color:var(--accent);}
-#panel-borders .panel-border-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(122,179,204,.1);}
+.brow{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--border);flex-shrink:0;}
+.brow:hover{background:rgba(255,255,255,.025);}
+.brow-line{width:16px;height:3px;border-radius:1.5px;flex-shrink:0;}
+.brow-label{font-size:10px;color:var(--mid);letter-spacing:.06em;flex:1;}
+.brow-tog{flex-shrink:0;width:24px;height:12px;background:var(--border);border-radius:6px;position:relative;transition:background .2s;}
+.brow-tog::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--dim);transition:transform .2s,background .2s;}
+.brow:not(.off) .brow-tog{background:rgba(122,179,204,.3);}
+.brow:not(.off) .brow-tog::after{transform:translateX(12px);background:var(--accent);}
+.brow.off .brow-line{opacity:.22;}.brow.off .brow-label{color:var(--dim);}
 #zone-list{flex:1;overflow-y:auto;padding:4px 0;}
 #zone-list::-webkit-scrollbar{width:3px;}
 #zone-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -105,8 +110,10 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
     <h2 id="panel-title">Carbon Intensity</h2>
     <div class="live-badge"><div class="live-dot"></div> LIVE &middot; UPDATING EVERY 15 MIN</div>
   </div>
-  <div id="panel-borders">
-    <button id="btn-borders-panel" class="panel-border-btn active">Borders On</button>
+  <div id="borders-toggle" class="brow">
+    <div class="brow-line" style="background:#2a5f88"></div>
+    <span class="brow-label">Country Borders</span>
+    <div class="brow-tog"></div>
   </div>
   <div id="legend"><div id="legend-bar"></div><div id="legend-labels"></div></div>
   <div id="zone-list"></div>
@@ -193,6 +200,12 @@ const STATIC_FOS={
   AM:55,TW:85,GE:12,KG:5,NC:65,PR:78
 };
 const STATIC_CI={
+  // ZONES countries (primary panel list)
+  US:380,GB:230,DE:380,FR:60,ES:180,IT:310,PL:700,NL:330,SE:30,NO:20,
+  DK:140,FI:120,AT:140,CH:35,BE:160,PT:160,CN:570,IN:640,JP:480,KR:490,
+  AU:620,BR:80,CA:150,MX:440,ZA:800,EG:480,NG:430,AR:290,CL:350,TR:420,
+  SA:700,ID:710,MY:600,TH:530,PH:620,VN:450,PK:360,UA:240,RO:310,GR:450,
+  // Additional countries shown on the map
   RU:480,KZ:680,UZ:540,BY:380,RS:540,BA:770,HR:230,SK:170,
   CZ:400,HU:230,BG:400,LT:120,LV:130,EE:560,IS:30,LU:180,
   IE:310,LY:520,TN:420,DZ:520,MA:560,GH:370,KE:130,ET:30,
@@ -751,12 +764,11 @@ const BRot=document.getElementById('rotate-btn');
 const BRotLabel=document.getElementById('rotate-label');
 BRot.addEventListener('click',()=>{autoRot=!autoRot;BRot.classList.toggle('active',autoRot);BRotLabel.textContent=autoRot?'ROTATING':'ROTATE';});
 
-const BBP=document.getElementById('btn-borders-panel');
+const BBP=document.getElementById('borders-toggle');
 BBP.addEventListener('click',()=>{
   borders3dVisible=!borders3dVisible;
   showB2d=borders3dVisible;
-  BBP.classList.toggle('active',borders3dVisible);
-  BBP.textContent=borders3dVisible?'Borders On':'Borders Off';
+  BBP.classList.toggle('off',!borders3dVisible);
   paintGlobeTexture();
   if(isFlat)draw2d();
 });
@@ -913,7 +925,7 @@ async function fetchAll(){
 // ════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════
-updateLegend();resize2d();
+updateLegend();resize2d();updateList();
 fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')
   .then(r=>r.json()).then(topo=>{
     countryFeatures=topoToFeatures(topo);
