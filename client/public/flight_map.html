@@ -81,6 +81,7 @@ canvas{display:block;position:absolute;inset:0;}
 #map-controls{position:fixed;bottom:18px;left:22px;display:none;flex-direction:column;gap:4px;z-index:10;}
 #map-controls button{padding:5px 14px;border:1px solid var(--border);background:var(--panel);color:var(--mid);font-family:'Courier New',monospace;font-size:9px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;transition:all .2s;backdrop-filter:blur(8px);}
 #map-controls button:hover{border-color:var(--accent);color:var(--accent);}
+#stat-bar{position:fixed;top:46px;left:22px;display:flex;gap:8px;z-index:10;pointer-events:none;flex-wrap:wrap;}
 </style>
 </head>
 <body>
@@ -93,6 +94,12 @@ canvas{display:block;position:absolute;inset:0;}
   <button id="view-btn-flat">2D Map</button>
 </div>
 <div id="header"><h1>Live Flights</h1><p id="sub">Real-time aircraft positions &nbsp;·&nbsp; 3D Globe</p></div>
+<div id="stat-bar">
+  <div class="stat-chip">Aircraft <span id="stat-ac">—</span></div>
+  <div class="stat-chip">Countries <span id="stat-co">—</span></div>
+  <div class="stat-chip">Avg Alt <span id="stat-alt">—</span></div>
+  <div class="stat-chip">Avg Spd <span id="stat-spd">—</span></div>
+</div>
 
 <div id="btm">
   <button id="rotate-btn" class="active"><span class="dot"></span><span id="rotate-label">ROTATING</span></button>
@@ -429,7 +436,7 @@ async function fetchFlights(){
     if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
     const data=await resp.json();
     if(!data.states)throw new Error('No state data');
-    FLIGHTS=data.states.slice(0,3000)
+    FLIGHTS=data.states
       .map(s=>({
         icao24:s[0]||'',
         callsign:(s[1]||'').trim()||null,
@@ -441,7 +448,7 @@ async function fetchFlights(){
         vert:s[11]||0,
         onGround:!!s[8],
       }))
-      .filter(f=>f.lat&&f.lon&&!f.onGround)
+      .filter(f=>f.lat!=null&&f.lon!=null&&!f.onGround)
       .map(f=>({...f,band:bandOf(f.alt).key}));
     lastUpdate=new Date();
     fetchError=null;
@@ -450,6 +457,7 @@ async function fetchFlights(){
     if(!FLIGHTS.length)FLIGHTS=[];
   }
   rebuildFlightBuf();
+  updateStatBar();
   if(is3D)draw3();else draw2();
   buildPanel();
   resetCountdown();
@@ -464,23 +472,25 @@ function makeSec(label){
   hd.addEventListener('click',()=>{wrap.classList.toggle('collapsed');hd.querySelector('.sec-tog').textContent=wrap.classList.contains('collapsed')?'▸':'▾';});
   wrap.appendChild(hd);return wrap;
 }
+function updateStatBar(){
+  const n=FLIGHTS.length;
+  const co=new Set(FLIGHTS.map(f=>f.country)).size;
+  const avgAlt=n?Math.round(FLIGHTS.reduce((a,f)=>a+f.alt,0)/n):0;
+  const avgSpd=n?Math.round(FLIGHTS.reduce((a,f)=>a+f.speed,0)/n):0;
+  const e1=document.getElementById('stat-ac');if(e1)e1.textContent=n.toLocaleString();
+  const e2=document.getElementById('stat-co');if(e2)e2.textContent=co;
+  const e3=document.getElementById('stat-alt');if(e3)e3.textContent=avgAlt.toLocaleString()+' ft';
+  const e4=document.getElementById('stat-spd');if(e4)e4.textContent=avgSpd+' kts';
+}
 function buildPanel(){
   const scroll=document.getElementById('panel-scroll');scroll.innerHTML='';
-  // Stats
-  const statWrap=document.createElement('div');statWrap.className='sec-wrap';
-  const countries=new Set(FLIGHTS.map(f=>f.country)).size;
-  const avgAlt=FLIGHTS.length?Math.round(FLIGHTS.reduce((a,f)=>a+f.alt,0)/FLIGHTS.length):0;
-  const avgSpd=FLIGHTS.length?Math.round(FLIGHTS.reduce((a,f)=>a+f.speed,0)/FLIGHTS.length):0;
-  const strip=document.createElement('div');strip.className='stat-strip';
-  strip.innerHTML=
-    `<div class="stat-chip">Aircraft<span id="stat-ac">${FLIGHTS.length.toLocaleString()}</span></div>`+
-    `<div class="stat-chip">Countries<span>${countries}</span></div>`+
-    `<div class="stat-chip">Avg Alt<span>${avgAlt.toLocaleString()} ft</span></div>`+
-    `<div class="stat-chip">Avg Spd<span>${avgSpd} kts</span></div>`;
-  statWrap.appendChild(strip);
-  if(lastUpdate){const upd=document.createElement('div');upd.style.cssText='font-size:8px;color:var(--dim);padding:2px 16px 8px;letter-spacing:.1em;';upd.textContent='Updated '+lastUpdate.toLocaleTimeString();statWrap.appendChild(upd);}
-  if(fetchError){const err=document.createElement('div');err.className='err-note';err.textContent='⚠ '+fetchError;statWrap.appendChild(err);}
-  scroll.appendChild(statWrap);
+  // Map section FIRST (Country Borders at top, matching other maps)
+  const mapSec=makeSec('Map');
+  const bRow=document.createElement('div');bRow.className='row'+(vis.borders?'':' off');
+  bRow.innerHTML=`<div class="sw line" style="background:#2a5f88"></div><span class="rl">Country Borders</span><div class="tog"></div>`;
+  bRow.addEventListener('click',()=>{vis.borders=!vis.borders;bRow.classList.toggle('off',!vis.borders);if(is3D)draw3();else draw2();});
+  mapSec.appendChild(bRow);
+  scroll.appendChild(mapSec);
   // Altitude filter
   const altSec=makeSec('Altitude');
   const bandCounts={};FLIGHTS.forEach(f=>{bandCounts[f.band]=(bandCounts[f.band]||0)+1;});
@@ -491,13 +501,9 @@ function buildPanel(){
     altSec.appendChild(row);
   });
   scroll.appendChild(altSec);
-  // Map section
-  const mapSec=makeSec('Map');
-  const bRow=document.createElement('div');bRow.className='row'+(vis.borders?'':' off');
-  bRow.innerHTML=`<div class="sw line" style="background:#2a5f88"></div><span class="rl">Country Borders</span><div class="tog"></div>`;
-  bRow.addEventListener('click',()=>{vis.borders=!vis.borders;bRow.classList.toggle('off',!vis.borders);if(is3D)draw3();else draw2();});
-  mapSec.appendChild(bRow);
-  scroll.appendChild(mapSec);
+  // Last update / error
+  if(lastUpdate){const upd=document.createElement('div');upd.style.cssText='font-size:8px;color:var(--dim);padding:10px 16px 4px;letter-spacing:.1em;border-top:1px solid var(--border);margin-top:8px;';upd.textContent='Updated '+lastUpdate.toLocaleTimeString();scroll.appendChild(upd);}
+  if(fetchError){const err=document.createElement('div');err.className='err-note';err.textContent='⚠ '+fetchError;scroll.appendChild(err);}
 }
 
 // ═══════════════════════════════════════════════
@@ -558,7 +564,9 @@ function setLoad(pct,msg){document.getElementById('load-bar').style.width=pct+'%
     function topoArc2(topo,i){const a=i<0?topo.arcs[~i].slice().reverse():topo.arcs[i].slice();if(topo.transform){const{scale,translate}=topo.transform;let x=0,y=0;return a.map(d=>{x+=d[0];y+=d[1];return[x*scale[0]+translate[0],y*scale[1]+translate[1]];});}return a;}
     function topoRings2(topo,arcs){return arcs.map(a=>a.reduce((r,i)=>r.concat(topoArc2(topo,i)),[]));}
     const geoFeatures=[];
-    Object.values(topo.objects).forEach(obj=>{obj.geometries.forEach(geom=>{if(!geom)return;const type=geom.type;if(type==='Polygon'){geoFeatures.push({geometry:{type:'Polygon',coordinates:topoRings2(topo,geom.arcs)}});}else if(type==='MultiPolygon'){geoFeatures.push({geometry:{type:'MultiPolygon',coordinates:geom.arcs.map(p=>topoRings2(topo,p))}});}});});
+    // Use only "countries" object — not "land", which causes cross-map streaks
+    const countriesObj=topo.objects.countries;
+    if(countriesObj)countriesObj.geometries.forEach(geom=>{if(!geom)return;const type=geom.type;if(type==='Polygon'){geoFeatures.push({geometry:{type:'Polygon',coordinates:topoRings2(topo,geom.arcs)}});}else if(type==='MultiPolygon'){geoFeatures.push({geometry:{type:'MultiPolygon',coordinates:geom.arcs.map(p=>topoRings2(topo,p))}});}});
     const geo={type:'FeatureCollection',features:geoFeatures};
     borderBuf=buildBorderBuf(geo);
     bordersGeo2=geo;
