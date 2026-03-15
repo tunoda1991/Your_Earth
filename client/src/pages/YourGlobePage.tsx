@@ -42,7 +42,7 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
         <div className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
-            className="flex items-center gap-[7px] cursor-pointer"
+            className="flex items-center gap-[6px] cursor-pointer"
             style={{
               padding: "7px 14px",
               border: "1px solid #1a2f45",
@@ -56,7 +56,6 @@ export function YourGlobePage({ onNavigate, initialMap }: Props) {
               transition: "all .2s",
             }}
           >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#7ab3cc", flexShrink: 0 }} />
             {current.label}
             <span style={{
               display: "inline-block",
